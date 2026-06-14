@@ -1,0 +1,65 @@
+[
+  {
+    "case_id": "case_seed_drain01",
+    "citizen_ref": "CF-DRN001",
+    "source_channel": "mobile_pwa",
+    "citizen_language": "ms",
+    "original_text": "Bila hujan lebat, air naik cepat dan masuk rumah saya di Taman Demo. Longkang tersumbat dengan sampah.",
+    "location_text": "Taman Demo Jaya, Jalan Demo 7",
+    "media_refs": ["photo:flood_taman_demo_mock.jpg"],
+    "created_at": "2026-06-12T01:15:00.000Z",
+    "demo": { "approve": true }
+  },
+  {
+    "case_id": "case_seed_lic01",
+    "citizen_ref": "CF-LIC001",
+    "source_channel": "mobile_pwa",
+    "citizen_language": "zh",
+    "original_text": "我要申请小食档执照，需要什么文件？",
+    "location_text": "",
+    "media_refs": [],
+    "created_at": "2026-06-12T07:40:00.000Z"
+  },
+  {
+    "case_id": "case_seed_edu01",
+    "citizen_ref": "CF-EDU001",
+    "source_channel": "web",
+    "citizen_language": "en",
+    "original_text": "I would like to ask about welfare education aid for my two school-going children.",
+    "location_text": "Taman Demo Indah",
+    "media_refs": [],
+    "created_at": "2026-06-13T02:05:00.000Z"
+  },
+  {
+    "case_id": "case_seed_lamp01",
+    "citizen_ref": "CF-LMP001",
+    "source_channel": "mobile_pwa",
+    "citizen_language": "ta",
+    "original_text": "எங்கள் தெருவில் தெரு விளக்கு வேலை செய்யவில்லை, இரவில் மிகவும் இருட்டாக உள்ளது.",
+    "location_text": "Lorong Demo 5",
+    "media_refs": ["photo:dark_street_mock.jpg"],
+    "created_at": "2026-06-10T11:30:00.000Z",
+    "demo": { "reply_sent": true, "override_status": "closed", "officer": "Officer Aishah (demo)" }
+  },
+  {
+    "case_id": "case_seed_road01",
+    "citizen_ref": "CF-ROD001",
+    "source_channel": "hotline",
+    "citizen_language": "en",
+    "original_text": "There is a large pothole on the main road that has already damaged several cars.",
+    "location_text": "Jalan Demo 2",
+    "media_refs": ["photo:pothole_mock.jpg"],
+    "created_at": "2026-06-11T08:00:00.000Z",
+    "demo": { "override_status": "in_progress", "officer": "Officer Kumar (demo)" }
+  },
+  {
+    "case_id": "case_seed_waste01",
+    "citizen_ref": "CF-WST001",
+    "source_channel": "mobile_pwa",
+    "citizen_language": "ms",
+    "original_text": "Sampah di Taman Demo tidak dikutip dan sudah berbau, tolong hantar lori untuk kutip.",
+    "location_text": "Taman Demo, Jalan Demo 9",
+    "media_refs": [],
+    "created_at": "2026-06-13T22:10:00.000Z"
+  }
+]

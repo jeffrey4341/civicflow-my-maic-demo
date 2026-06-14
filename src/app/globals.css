@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+body {
+  @apply bg-slate-100 text-slate-900 antialiased;
+}
+
+/* Phone frame used by the citizen PWA route. */
+.phone-shell {
+  @apply mx-auto min-h-screen w-full max-w-phone bg-white shadow-xl;
+}
+
+/* Simple vertical timeline marker. */
+.timeline-dot::before {
+  content: "";
+  @apply absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-white bg-civic-500;
+}

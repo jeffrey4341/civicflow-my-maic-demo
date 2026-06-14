@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="CivicFlow MY">
+  <rect width="192" height="192" rx="40" fill="#226c69"/>
+  <path d="M48 120c16-40 80-40 96 0" fill="none" stroke="#ffcc00" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="96" cy="70" r="22" fill="#eef7f6"/>
+  <path d="M96 96c-26 0-44 16-50 36h100c-6-20-24-36-50-36z" fill="#eef7f6"/>
+</svg>

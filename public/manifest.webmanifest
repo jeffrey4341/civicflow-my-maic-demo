@@ -1,0 +1,20 @@
+{
+  "name": "CivicFlow MY Mobile",
+  "short_name": "CivicFlow",
+  "description": "Multilingual citizen-service casework for Malaysian councils (synthetic demo).",
+  "start_url": "/m",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#173b3a",
+  "theme_color": "#226c69",
+  "lang": "ms",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
