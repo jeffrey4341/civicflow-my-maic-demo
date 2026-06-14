@@ -42,6 +42,12 @@ If port `3000` is already occupied on the demo machine, keep the same command an
 
 Use `npm run dev` only for development edits. For the recorded demo, use the production build/server path above so the run matches the public submission artifact.
 
+## Recording checklist
+
+- **Recording date:** 2026-06-14 (MYT), prepared as the second public-demo documentation commit.
+- **Demo flow:** record the three core paths in order: Malay drainage approval gate, Chinese business-licence missing-info flow, and English education-aid officer-review flow.
+- **Public artifact note:** all visible cases, policies, identifiers, and audit events are synthetic. The recording must show CivicFlow as a public hackathon demo artifact, not a production council system.
+
 Optional — guarantee a clean, known state before you present:
 
 ```bash

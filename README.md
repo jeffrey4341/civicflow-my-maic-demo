@@ -84,6 +84,12 @@ Then open **http://127.0.0.1:3000/m** and **http://127.0.0.1:3000/officer**.
 
 If port `3000` is already occupied on the demo machine, keep the same command and change only the port, for example `--port 3004`, then open the matching `127.0.0.1` URL.
 
+### Demo recording checklist
+
+- **Recording date:** 2026-06-14 (MYT), prepared as the second small documentation commit for the public demo trail.
+- **Demo flow:** submit the three canonical cases in order: Malay blocked drain/flood risk, Chinese food-stall licence clarification, and English education-aid officer review.
+- **Public artifact note:** this repository and the recording are public hackathon artifacts. They use only synthetic data and fictional policy text; they are not production deployment evidence.
+
 Run the test suite:
 
 ```bash
