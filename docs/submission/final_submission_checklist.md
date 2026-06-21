@@ -170,16 +170,18 @@ Exact timing source: [demo_script.md](docs/demo/demo_script.md). Last verified r
 
 Source: public-repo readiness audit of [LICENSE](LICENSE), [.gitignore](.gitignore), [.env.example](.env.example), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), [README.md](README.md), [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
 
-- [ ] **License**: MIT, full text, copyright 2026 — see [LICENSE](LICENSE) (also declared in [package.json](package.json))
-- [ ] **.gitignore**: excludes `.env` / `.env.*`, `node_modules/`, `.next/`, build artifacts, IDE folders; negation `!.env.example` keeps the template tracked — see [.gitignore](.gitignore)
-- [ ] **.env.example**: present, optional `ANTHROPIC_API_KEY` commented/blank, no real secrets — see [.env.example](.env.example)
-- [ ] **Third-party notices**: all runtime/dev deps listed with MIT/Apache-2.0 licences; notes the Anthropic path uses built-in `fetch` (no bundled SDK) — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
-- [ ] **README**: prerequisites (Node 18+), install/dev/build/start, port guidance, test commands, optional-LLM explanation, demo walkthrough — see [README.md](README.md)
-- [ ] **AI disclosure**: where AI is used, what it never does, determinism/fallback, human oversight, 100% synthetic — see [AI_DISCLOSURE.md](AI_DISCLOSURE.md)
-- [ ] **No secrets in history**: `ANTHROPIC_API_KEY` appears only as a commented template; verify with `git log` / `git grep`
-- [ ] **No build artifacts tracked**: `git ls-files` shows no `node_modules/`, `.next/`, `dist/`
-- [ ] **`outputs/` untracked**: demo recordings stay out of the commit (confirm before pushing)
-- [ ] **Pre-push**: `npm audit --omit=dev --audit-level=moderate`, `npm test`, `npm run typecheck` all clean
+> ✅ **Verified on the submission machine — 2026-06-22.** Five-dimension repo audit run (license, README, third-party notices, git-history secret scan, hygiene). Two gaps were found and fixed in the same pass: `/outputs/` added to `.gitignore` (recordings can no longer be committed) and the README Node prerequisite tightened to 18.18+/20+ with an `engines` field added to `package.json`. All items below now hold.
+
+- [x] **License**: MIT, full text, copyright 2026 — see [LICENSE](LICENSE) (also declared in [package.json](package.json))
+- [x] **.gitignore**: excludes `.env` / `.env.*`, `node_modules/`, `.next/`, build artifacts, IDE folders, `/outputs/` (demo recordings); negation `!.env.example` keeps the template tracked — see [.gitignore](.gitignore)
+- [x] **.env.example**: present, optional `ANTHROPIC_API_KEY` commented/blank, no real secrets — see [.env.example](.env.example)
+- [x] **Third-party notices**: all runtime/dev deps listed with MIT/Apache-2.0 licences; notes the Anthropic path uses built-in `fetch` (no bundled SDK) — see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- [x] **README**: prerequisites (Node 18.18+/20+), install/dev/build/start, port guidance, test commands, optional-LLM explanation, demo walkthrough — see [README.md](README.md)
+- [x] **AI disclosure**: where AI is used, what it never does, determinism/fallback, human oversight, 100% synthetic — see [AI_DISCLOSURE.md](AI_DISCLOSURE.md)
+- [x] **No secrets in history**: `ANTHROPIC_API_KEY` appears only as a commented template; verified with `git log` / `git grep` across all 4 commits — no real key value, no committed `.env`
+- [x] **No build artifacts tracked**: `git ls-files` shows no `node_modules/`, `.next/`, `dist/`, `*.tsbuildinfo` (88 tracked files)
+- [x] **`outputs/` untracked**: demo recordings stay out of the commit — now enforced by `/outputs/` in `.gitignore` (`git check-ignore` confirmed)
+- [x] **Pre-push**: `npm audit --omit=dev --audit-level=moderate`, `npm test`, `npm run typecheck` all clean
 
 ---
 
