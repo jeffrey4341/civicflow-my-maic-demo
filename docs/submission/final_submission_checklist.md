@@ -101,36 +101,38 @@ This is the most important integrity claim for a public e-gov demo. **All three 
 
 All gates below are reported as **passing** in the audit trail; re-run them on the submission machine before recording or pushing. Source of truth: [final_submission_packaging_check.md](docs/audit/final_submission_packaging_check.md), [launch_deploy_recheck_2026-06-14.md](docs/audit/launch_deploy_recheck_2026-06-14.md), [dependency_security_fix_report.md](docs/audit/dependency_security_fix_report.md), [gpt55_post_fix_reaudit.md](docs/audit/gpt55_post_fix_reaudit.md).
 
+> ✅ **Re-verified on the submission machine — 2026-06-22** (Node 24.17.0, npm 11.13.0, Windows 11). All Section 4 gates (4.1–4.4) were re-run and pass: typecheck, 29/29 tests, Next 15.5.19 production build, lint (`tsc --noEmit`), `npm audit --omit=dev` = 0 vulnerabilities, full production smoke (pages + `POST /api/reset` → `{ok:true,seeded_cases:6}`), and all P0 governance behaviors confirmed live (awaiting_supervisor gate + blocked transition + `status.denied` audit event, `needs_info`, `officer_review_only`, `manual_review`).
+
 ### 4.1 Build, types, tests, dependencies
-- [ ] `npm run typecheck` — TypeScript compiles clean (`tsc --noEmit`)
-- [ ] `npm test` — Vitest passes (**6 test files / 29 tests**, includes governance regression suite in `tests/lifecycle.test.ts`)
-- [ ] `npm run build` — Next.js **15.5.19** production build completes; all routes build (`/m`, `/officer`, `/officer/cases/[id]`, `/officer/approvals`, `/officer/audit`, `/api/*`)
-- [ ] `npm run lint` — passes (note: aliases to `tsc --noEmit`, not full ESLint)
-- [ ] `npm audit --omit=dev --audit-level=moderate` — **0 vulnerabilities** in production deps; PostCSS pinned via `overrides` to `8.5.15` — see [package.json](package.json)
+- [x] `npm run typecheck` — TypeScript compiles clean (`tsc --noEmit`)
+- [x] `npm test` — Vitest passes (**6 test files / 29 tests**, includes governance regression suite in `tests/lifecycle.test.ts`)
+- [x] `npm run build` — Next.js **15.5.19** production build completes; all routes build (`/m`, `/officer`, `/officer/cases/[id]`, `/officer/approvals`, `/officer/audit`, `/api/*`)
+- [x] `npm run lint` — passes (note: aliases to `tsc --noEmit`, not full ESLint)
+- [x] `npm audit --omit=dev --audit-level=moderate` — **0 vulnerabilities** in production deps; PostCSS pinned via `overrides` to `8.5.15` — see [package.json](package.json)
 
 > Run order note: run `npm run build` **before** `npm run lint` separately — running them in parallel can transiently fail because lint reads `.next/types` while the build rewrites them.
 
 ### 4.2 Production server smoke test
 Launch: `npm run build && npm run start -- --hostname 127.0.0.1 --port 3000` (use an alternate port such as 3004/3005 if 3000 is busy).
-- [ ] `GET /m` → 200 (citizen app)
-- [ ] `GET /officer` → 200 (officer console)
-- [ ] `GET /officer/approvals` → 200 and `GET /officer/audit` → 200
-- [ ] `POST /api/reset` → 200 with `{ ok: true, seeded_cases: 6 }`
-- [ ] `GET /api/cases` → 200
+- [x] `GET /m` → 200 (citizen app)
+- [x] `GET /officer` → 200 (officer console)
+- [x] `GET /officer/approvals` → 200 and `GET /officer/audit` → 200
+- [x] `POST /api/reset` → 200 with `{ ok: true, seeded_cases: 6 }`
+- [x] `GET /api/cases` → 200
 
 ### 4.3 Governance behavior (P0 — must hold)
-- [ ] Malay flood-risk drainage case (`"Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat."`) → `awaiting_supervisor`; start/close blocked until a supervisor approves with a note
-- [ ] Chinese food-stall licence query → `needs_info` with missing fields (location, business type, operating hours); start/close blocked
-- [ ] English education-aid question (`"Can I apply for education aid for my child?"`) → `officer_review_only = true`; shows "Start officer review", no auto-approve / generic close
-- [ ] Unknown/general enquiry with no qualifying citation → `manual_review`; start/close blocked
-- [ ] Attempting a blocked status transition (e.g. `POST /api/cases/{id}/status` → `in_progress`) is rejected and logged as a `status.denied` audit event
-- [ ] Officer UI hides unsafe status buttons on gated cases and shows the blocker reason
-- [ ] `/officer/audit` shows the full per-case trail: language detection → classification → retrieval → routing → approval → reply draft → status changes (and denials)
+- [x] Malay flood-risk drainage case (`"Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat."`) → `awaiting_supervisor`; start/close blocked until a supervisor approves with a note
+- [x] Chinese food-stall licence query → `needs_info` with missing fields (location, business type, operating hours); start/close blocked
+- [x] English education-aid question (`"Can I apply for education aid for my child?"`) → `officer_review_only = true`; shows "Start officer review", no auto-approve / generic close
+- [x] Unknown/general enquiry with no qualifying citation → `manual_review`; start/close blocked
+- [x] Attempting a blocked status transition (e.g. `POST /api/cases/{id}/status` → `in_progress`) is rejected and logged as a `status.denied` audit event
+- [x] Officer UI hides unsafe status buttons on gated cases and shows the blocker reason
+- [x] `/officer/audit` shows the full per-case trail: language detection → classification → retrieval → routing → approval → reply draft → status changes (and denials)
 
 ### 4.4 Public-artifact safety
-- [ ] Governance docs present and current: [AI_DISCLOSURE.md](AI_DISCLOSURE.md), [DATA_CARD.md](DATA_CARD.md), [MODEL_CARD.md](MODEL_CARD.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
-- [ ] No real API keys, credentials, or realistic PII in tracked files (placeholders only)
-- [ ] `.gitignore` excludes `node_modules/`, `.next/`, `.claude/`, `*.tsbuildinfo`, `.env`, `*.log`; tracks `.env.example` — see [.gitignore](.gitignore)
+- [x] Governance docs present and current: [AI_DISCLOSURE.md](AI_DISCLOSURE.md), [DATA_CARD.md](DATA_CARD.md), [MODEL_CARD.md](MODEL_CARD.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+- [x] No real API keys, credentials, or realistic PII in tracked files (placeholders only)
+- [x] `.gitignore` excludes `node_modules/`, `.next/`, `.claude/`, `*.tsbuildinfo`, `.env`, `*.log`; tracks `.env.example` — see [.gitignore](.gitignore)
 
 ---
 
