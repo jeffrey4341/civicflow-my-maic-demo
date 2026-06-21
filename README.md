@@ -47,7 +47,7 @@ A single **Next.js 15 (App Router)** application — no separate backend service
 - **Next.js 15** (App Router) — UI + API route handlers under `/api`
 - **React 18** + **TypeScript**
 - **Tailwind CSS** — mobile-first styling
-- **In-memory JSON store** — seeded from `data/seed`, re-seedable via `POST /api/reset`
+- **In-memory JSON store** — seeded from `data/seed`, re-seedable via `POST /api/reset` (or the `npm run seed:reset` CLI)
 - **Deterministic AI/RAG pipeline** — pure TypeScript, runs fully offline with fixtures
 - **Optional Anthropic LLM path** — used **only** if `ANTHROPIC_API_KEY` is set; otherwise the deterministic fallback produces identical-shape structured output
 - **Vitest** — unit / pipeline tests
@@ -58,7 +58,7 @@ The demo **always runs with no API key**. The optional LLM path is a drop-in enh
 
 ## Quick Start
 
-**Prerequisites:** Node.js **18+**.
+**Prerequisites:** Node.js **18.18+ or 20+** (required by Next.js 15; verified on Node 24 LTS).
 
 ```bash
 # 1. Install dependencies

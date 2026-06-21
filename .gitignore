@@ -16,6 +16,9 @@ next-env.d.ts
 # testing
 /coverage
 
+# demo outputs — recordings stay out of the public repo
+/outputs/
+
 # misc
 .DS_Store
 *.pem
