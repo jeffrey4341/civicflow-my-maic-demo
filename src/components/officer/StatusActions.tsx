@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CaseStatus } from "@/lib/types";
+import { Button } from "@/components/ui";
 
 export function StatusActions({
   caseId,
@@ -51,29 +52,30 @@ export function StatusActions({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {status !== "in_progress" && status !== "closed" && (
-        <button
+        <Button
+          variant="soft-indigo"
+          size="sm"
+          loading={busy}
           onClick={() => setStatus("in_progress")}
-          disabled={busy}
-          className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-40"
         >
           {officerReviewOnly ? "Start officer review" : "Start work (in progress)"}
-        </button>
+        </Button>
       )}
       {status !== "closed" && !officerReviewOnly && (
-        <button
-          onClick={() => setStatus("closed")}
-          disabled={busy}
-          className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-40"
-        >
+        <Button variant="soft-emerald" size="sm" loading={busy} onClick={() => setStatus("closed")}>
           Close case
-        </button>
+        </Button>
       )}
       {officerReviewOnly && (
         <span className="text-xs text-slate-500">
           Eligibility is reviewed by an officer; generic closure is disabled.
         </span>
       )}
-      {error && <span className="text-xs text-red-600">{error}</span>}
+      {error && (
+        <span role="alert" className="text-xs text-red-600">
+          {error}
+        </span>
+      )}
     </div>
   );
 }

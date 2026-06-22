@@ -8,6 +8,109 @@ import type {
 } from "@/lib/types";
 import { statusLabel, urgencyLabel } from "@/lib/i18n";
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * Interactive primitives — the single source of truth for buttons and form
+ * fields. Every interactive control should use these so focus, disabled, and
+ * loading behaviour stay consistent and accessible across the app.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "success"
+  | "danger"
+  | "soft-indigo"
+  | "soft-emerald";
+type ButtonSize = "sm" | "md" | "lg";
+
+const BTN_VARIANT: Record<ButtonVariant, string> = {
+  primary: "bg-civic-600 text-white hover:bg-civic-700",
+  secondary: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
+  success: "bg-emerald-600 text-white hover:bg-emerald-700",
+  danger: "bg-red-600 text-white hover:bg-red-700",
+  "soft-indigo": "border border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
+  "soft-emerald": "border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+};
+
+const BTN_SIZE: Record<ButtonSize, string> = {
+  sm: "px-3 py-1.5 text-xs",
+  md: "px-4 py-2 text-sm",
+  lg: "px-4 py-3 text-sm",
+};
+
+/** Decorative loading spinner; hidden from assistive tech (button sets aria-busy). */
+export function Spinner({ className = "" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-r-transparent ${className}`}
+    />
+  );
+}
+
+export function Button({
+  variant = "primary",
+  size = "md",
+  loading = false,
+  fullWidth = false,
+  className = "",
+  disabled,
+  children,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  loading?: boolean;
+  fullWidth?: boolean;
+}) {
+  return (
+    <button
+      {...props}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-civic-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 ${BTN_VARIANT[variant]} ${BTN_SIZE[size]} ${fullWidth ? "w-full" : ""} ${className}`}
+    >
+      {loading && <Spinner />}
+      {children}
+    </button>
+  );
+}
+
+const FIELD_BASE =
+  "w-full rounded-lg border border-slate-300 text-sm transition-colors focus:border-civic-500 focus:outline-none focus:ring-2 focus:ring-civic-200 disabled:opacity-50";
+
+/** Single-line text field. Pass `label` to render an associated <label>. */
+export function Input({
+  label,
+  className = "",
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & { label?: string }) {
+  const field = <input className={`${FIELD_BASE} px-3 py-2 ${className}`} {...props} />;
+  if (!label) return field;
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-slate-600">{label}</span>
+      {field}
+    </label>
+  );
+}
+
+/** Multi-line text field. Pass `label` to render an associated <label>. */
+export function Textarea({
+  label,
+  className = "",
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }) {
+  const field = <textarea className={`${FIELD_BASE} p-2.5 ${className}`} {...props} />;
+  if (!label) return field;
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-slate-600">{label}</span>
+      {field}
+    </label>
+  );
+}
+
 const STATUS_STYLE: Record<CaseStatus, string> = {
   draft: "bg-slate-100 text-slate-700",
   needs_info: "bg-amber-100 text-amber-800",

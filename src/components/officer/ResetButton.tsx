@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui";
 
 export function ResetButton() {
   const router = useRouter();
@@ -23,12 +24,8 @@ export function ResetButton() {
   }
 
   return (
-    <button
-      onClick={reset}
-      disabled={busy}
-      className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-    >
+    <Button variant="secondary" size="sm" loading={busy} onClick={reset}>
       {busy ? "Resetting…" : "↺ Reset demo"}
-    </button>
+    </Button>
   );
 }

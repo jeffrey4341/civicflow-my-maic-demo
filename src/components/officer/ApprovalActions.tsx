@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button, Textarea } from "@/components/ui";
 
 export function ApprovalActions({ approvalId }: { approvalId: string }) {
   const router = useRouter();
@@ -38,30 +39,39 @@ export function ApprovalActions({ approvalId }: { approvalId: string }) {
 
   return (
     <div>
-      <textarea
+      <Textarea
+        label="Decision note"
         value={note}
         onChange={(e) => setNote(e.target.value)}
         rows={2}
         required
-        placeholder="Decision note (required)..."
-        className="w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-civic-500 focus:outline-none"
+        aria-required="true"
+        placeholder="Why are you approving or rejecting?"
       />
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-1 text-xs text-red-600">
+          {error}
+        </p>
+      )}
       <div className="mt-2 flex gap-2">
-        <button
+        <Button
+          variant="success"
+          loading={busy}
+          disabled={!note.trim()}
           onClick={() => decide("approved")}
-          disabled={busy || !note.trim()}
-          className="flex-1 rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-40"
+          className="flex-1"
         >
           ✓ Approve
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="danger"
+          loading={busy}
+          disabled={!note.trim()}
           onClick={() => decide("rejected")}
-          disabled={busy || !note.trim()}
-          className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-40"
+          className="flex-1"
         >
           ✕ Reject
-        </button>
+        </Button>
       </div>
       <p className="mt-2 text-[11px] text-slate-400">
         Role-gated to supervisors. The AI requested this — it cannot approve itself.

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui";
 
 export function ReplyActions({ caseId, sent }: { caseId: string; sent: boolean }) {
   const router = useRouter();
@@ -35,14 +36,14 @@ export function ReplyActions({ caseId, sent }: { caseId: string; sent: boolean }
 
   return (
     <div>
-      <button
-        onClick={release}
-        disabled={busy}
-        className="rounded-lg bg-civic-600 px-4 py-2 text-sm font-semibold text-white hover:bg-civic-700 disabled:opacity-40"
-      >
-        {busy ? "…" : "Review & release reply"}
-      </button>
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      <Button variant="primary" loading={busy} onClick={release}>
+        Review &amp; release reply
+      </Button>
+      {error && (
+        <p role="alert" className="mt-1 text-xs text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

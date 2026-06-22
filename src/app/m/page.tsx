@@ -10,6 +10,11 @@ import {
   t,
   urgencyLabel,
 } from "@/lib/i18n";
+import { Button, Input, SafetyBanner, Textarea } from "@/components/ui";
+
+/** Shared focus-visible ring for the bespoke selection controls (language/example tiles). */
+const TILE_FOCUS =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-civic-500 focus-visible:ring-offset-1";
 
 type Step = "lang" | "describe" | "details";
 
@@ -81,9 +86,7 @@ export default function CitizenWizard() {
 
   return (
     <div className="flex flex-col">
-      <div className="bg-flag-gold/15 px-4 py-2 text-center text-[11px] font-medium text-amber-900">
-        {t(language, "common.synthetic_banner")}
-      </div>
+      <SafetyBanner text={t(language, "common.synthetic_banner")} />
 
       {step === "lang" && (
         <section className="px-5 py-8">
@@ -95,7 +98,8 @@ export default function CitizenWizard() {
               <button
                 key={lng}
                 onClick={() => setLanguage(lng)}
-                className={`rounded-xl border p-4 text-left transition ${
+                aria-pressed={language === lng}
+                className={`rounded-xl border p-4 text-left transition ${TILE_FOCUS} ${
                   language === lng
                     ? "border-civic-500 bg-civic-50 ring-2 ring-civic-200"
                     : "border-slate-200 bg-white hover:border-civic-300"
@@ -106,12 +110,15 @@ export default function CitizenWizard() {
               </button>
             ))}
           </div>
-          <button
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            className="mt-8"
             onClick={() => setStep("describe")}
-            className="mt-8 w-full rounded-xl bg-civic-600 py-3 font-semibold text-white hover:bg-civic-700"
           >
             {t(language, "landing.continue")}
-          </button>
+          </Button>
           <p className="mt-4 text-center text-[11px] text-slate-400">{t(language, "common.powered")}</p>
         </section>
       )}
@@ -120,14 +127,15 @@ export default function CitizenWizard() {
         <section className="px-5 py-6">
           <button onClick={() => setStep("lang")} className="text-xs text-slate-400">← {t(language, "common.back")}</button>
           <h2 className="mt-2 text-lg font-bold text-slate-900">{t(language, "submit.title")}</h2>
-          <label className="mt-4 block text-sm font-medium text-slate-700">{t(language, "submit.prompt_label")}</label>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={5}
-            placeholder={t(language, "submit.placeholder")}
-            className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-sm focus:border-civic-500 focus:outline-none focus:ring-2 focus:ring-civic-200"
-          />
+          <div className="mt-4">
+            <Textarea
+              label={t(language, "submit.prompt_label")}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={5}
+              placeholder={t(language, "submit.placeholder")}
+            />
+          </div>
           <p className="mt-1 text-[11px] text-slate-400">{t(language, "submit.hint")}</p>
 
           <p className="mt-5 text-xs font-medium text-slate-500">{t(language, "submit.examples_title")}</p>
@@ -136,7 +144,7 @@ export default function CitizenWizard() {
               <button
                 key={ex.key}
                 onClick={() => setText(ex.text)}
-                className="block w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs text-slate-600 hover:border-civic-300"
+                className={`block w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs text-slate-600 hover:border-civic-300 ${TILE_FOCUS}`}
               >
                 <span className="font-medium text-civic-700">{t(language, ex.key)}</span>
                 <span className="mt-0.5 block truncate text-slate-400">{ex.text}</span>
@@ -144,14 +152,22 @@ export default function CitizenWizard() {
             ))}
           </div>
 
-          {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-          <button
+          {error && (
+            <p role="alert" className="mt-4 text-sm text-red-600">
+              {error}
+            </p>
+          )}
+          <Button
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={loading}
+            disabled={!text.trim()}
+            className="mt-6"
             onClick={analyse}
-            disabled={!text.trim() || loading}
-            className="mt-6 w-full rounded-xl bg-civic-600 py-3 font-semibold text-white hover:bg-civic-700 disabled:opacity-40"
           >
-            {loading ? "…" : t(language, "submit.analyse")}
-          </button>
+            {t(language, "submit.analyse")}
+          </Button>
         </section>
       )}
 
@@ -221,13 +237,13 @@ function DetailsStep(props: {
         <div className="mt-2 flex gap-2">
           <button
             onClick={() => setMedia([...media, `photo:mock_${media.length + 1}.jpg`])}
-            className="flex-1 rounded-lg border border-slate-200 bg-white py-2 text-xs text-slate-600 hover:border-civic-300"
+            className={`flex-1 rounded-lg border border-slate-200 bg-white py-2 text-xs text-slate-600 hover:border-civic-300 ${TILE_FOCUS}`}
           >
             📷 {t(language, "media.add_photo")}
           </button>
           <button
             onClick={() => props.setLocation(props.location || "Jalan Demo, Taman Demo")}
-            className="flex-1 rounded-lg border border-slate-200 bg-white py-2 text-xs text-slate-600 hover:border-civic-300"
+            className={`flex-1 rounded-lg border border-slate-200 bg-white py-2 text-xs text-slate-600 hover:border-civic-300 ${TILE_FOCUS}`}
           >
             📍 {t(language, "media.add_location")}
           </button>
@@ -246,11 +262,10 @@ function DetailsStep(props: {
           <div className="mt-3 space-y-3">
             {required.map((m) => (
               <div key={m.field}>
-                <label className="block text-xs font-medium text-slate-700">{m.question_localized}</label>
-                <input
+                <Input
+                  label={m.question_localized}
                   value={answers[m.field] ?? ""}
                   onChange={(e) => setAnswers({ ...answers, [m.field]: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-civic-500 focus:outline-none"
                 />
               </div>
             ))}
@@ -271,14 +286,21 @@ function DetailsStep(props: {
         </div>
       )}
 
-      {props.error && <p className="mt-4 text-sm text-red-600">{props.error}</p>}
-      <button
+      {props.error && (
+        <p role="alert" className="mt-4 text-sm text-red-600">
+          {props.error}
+        </p>
+      )}
+      <Button
+        variant="primary"
+        size="lg"
+        fullWidth
+        loading={props.loading}
+        className="mt-6"
         onClick={props.onSubmit}
-        disabled={props.loading}
-        className="mt-6 w-full rounded-xl bg-civic-600 py-3 font-semibold text-white hover:bg-civic-700 disabled:opacity-40"
       >
-        {props.loading ? "…" : t(language, "clarify.submit")}
-      </button>
+        {t(language, "clarify.submit")}
+      </Button>
       <p className="mt-3 text-center text-[10px] text-slate-400">{t(language, "common.ai_disclaimer")}</p>
     </section>
   );
