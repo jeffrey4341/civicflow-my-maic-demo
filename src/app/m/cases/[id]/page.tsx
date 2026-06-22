@@ -20,7 +20,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
 
   return (
     <div className="flex flex-col">
-      <div className="bg-flag-gold/15 px-4 py-2 text-center text-[11px] font-medium text-amber-900">
+      <div className="bg-flag-gold/15 px-4 py-2 text-center text-xxs font-medium text-amber-900">
         {t(lang, "common.synthetic_banner")}
       </div>
 
@@ -30,7 +30,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
           <h1 className="mt-2 text-lg font-bold">{t(lang, "created.title")}</h1>
           <p className="mt-1 text-sm text-civic-50">{t(lang, "created.intro")}</p>
           <div className="mt-4 rounded-lg bg-white/15 px-3 py-2">
-            <div className="text-[10px] uppercase tracking-wide text-civic-100">{t(lang, "created.ref_label")}</div>
+            <div className="text-2xs uppercase tracking-wide text-civic-100">{t(lang, "created.ref_label")}</div>
             <div className="font-mono text-xl font-bold tracking-wider">{c.citizen_ref}</div>
           </div>
         </div>
@@ -40,7 +40,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
           <Info label={t(lang, "created.category")} value={categoryLabel(c.category, lang)} />
           <Info label={t(lang, "created.department")} value={`${c.department} – ${c.unit}`} />
           <div>
-            <div className="text-[10px] uppercase tracking-wide text-slate-400">{t(lang, "created.urgency")}</div>
+            <div className="text-2xs uppercase tracking-wide text-slate-400">{t(lang, "created.urgency")}</div>
             <div className="mt-1"><UrgencyBadge urgency={c.urgency} locale={lang} /></div>
           </div>
         </div>
@@ -57,7 +57,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
               const isCurrent = s === c.status;
               return (
                 <li key={s} className="flex items-center gap-3">
-                  <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${reached ? "bg-civic-500 text-white" : "bg-slate-200 text-slate-400"}`}>
+                  <span className={`flex h-5 w-5 items-center justify-center rounded-full text-xxs ${reached ? "bg-civic-500 text-white" : "bg-slate-200 text-slate-400"}`}>
                     {reached ? "✓" : "•"}
                   </span>
                   <span className={`text-sm ${isCurrent ? "font-semibold text-civic-700" : reached ? "text-slate-600" : "text-slate-400"}`}>
@@ -72,7 +72,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
         {c.status === "needs_info" && required.length > 0 && (
           <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
             <p className="text-sm font-semibold text-amber-900">{t(lang, "status.missing_title")}</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-[12px] text-amber-800">
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-800">
               {required.map((m) => <li key={m.field}>{m.question_localized}</li>)}
             </ul>
           </div>
@@ -95,7 +95,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
           )}
         </div>
 
-        <div className="mt-5 flex justify-between text-[11px] text-slate-400">
+        <div className="mt-5 flex justify-between text-xxs text-slate-400">
           <Link href="/m" className="underline">＋ New request</Link>
           <Link href={`/officer/cases/${c.case_id}`} className="underline">Officer view →</Link>
         </div>
@@ -107,7 +107,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-2xs uppercase tracking-wide text-slate-400">{label}</div>
       <div className="font-medium text-slate-800">{value}</div>
     </div>
   );

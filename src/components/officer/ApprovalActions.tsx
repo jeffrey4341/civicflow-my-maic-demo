@@ -73,7 +73,7 @@ export function ApprovalActions({ approvalId }: { approvalId: string }) {
           ✕ Reject
         </Button>
       </div>
-      <p className="mt-2 text-[11px] text-slate-400">
+      <p className="mt-2 text-xxs text-slate-400">
         Role-gated to supervisors. The AI requested this — it cannot approve itself.
       </p>
     </div>

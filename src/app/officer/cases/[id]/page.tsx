@@ -163,7 +163,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
                 <p className="mt-2 text-xs text-slate-500">{approval.reason}</p>
                 <ul className="mt-2 space-y-1">
                   {approval.risk_factors.map((rf, i) => (
-                    <li key={i} className="text-[12px] text-slate-600">⚠️ {rf}</li>
+                    <li key={i} className="text-xs text-slate-600">⚠️ {rf}</li>
                   ))}
                 </ul>
                 {approval.status === "pending" ? (
@@ -171,7 +171,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
                     <ApprovalActions approvalId={approval.approval_id} />
                   </div>
                 ) : (
-                  <p className="mt-3 rounded-lg bg-slate-50 p-2 text-[12px] text-slate-600">
+                  <p className="mt-3 rounded-lg bg-slate-50 p-2 text-xs text-slate-600">
                     {approval.status === "approved" ? "Approved" : "Rejected"} by {approval.decision_by}
                     {approval.decision_note ? ` — “${approval.decision_note}”` : ""}
                   </p>
@@ -210,7 +210,7 @@ function Panel({ title, badge, children }: { title: string; badge?: React.ReactN
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-xxs uppercase tracking-wide text-slate-400">{label}</div>
       <div className="text-sm font-medium text-slate-800">{value}</div>
     </div>
   );

@@ -1,15 +1,8 @@
 import Link from "next/link";
 import { getCase, listAudit } from "@/lib/store";
+import { ACTOR_DOT } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
-
-const ACTOR_DOT: Record<string, string> = {
-  citizen: "bg-sky-500",
-  ai_agent: "bg-civic-500",
-  system: "bg-slate-400",
-  officer: "bg-indigo-500",
-  supervisor: "bg-orange-500",
-};
 
 export default async function AuditPage() {
   const events = (await listAudit()).slice().reverse(); // newest first
@@ -32,7 +25,7 @@ export default async function AuditPage() {
 
       <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-slate-200 bg-slate-50 text-xxs uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-2.5">When</th>
               <th className="px-4 py-2.5">Case</th>
@@ -44,7 +37,7 @@ export default async function AuditPage() {
           <tbody className="divide-y divide-slate-100">
             {events.map((e) => (
               <tr key={e.event_id} className="align-top">
-                <td className="whitespace-nowrap px-4 py-2.5 text-[11px] text-slate-400">
+                <td className="whitespace-nowrap px-4 py-2.5 text-xxs text-slate-400">
                   {new Date(e.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
                 </td>
                 <td className="px-4 py-2.5">
@@ -54,11 +47,11 @@ export default async function AuditPage() {
                 </td>
                 <td className="px-4 py-2.5">
                   <span className="inline-flex items-center gap-1.5 text-xs text-slate-600">
-                    <span className={`h-2 w-2 rounded-full ${ACTOR_DOT[e.actor] ?? "bg-slate-400"}`} />
+                    <span className={`h-2 w-2 rounded-full ${ACTOR_DOT[e.actor] ?? "bg-actor-system"}`} />
                     {e.actor_label}
                   </span>
                 </td>
-                <td className="px-4 py-2.5"><span className="font-mono text-[11px] text-slate-500">{e.event_type}</span></td>
+                <td className="px-4 py-2.5"><span className="font-mono text-xxs text-slate-500">{e.event_type}</span></td>
                 <td className="px-4 py-2.5 text-slate-700">{e.summary}</td>
               </tr>
             ))}

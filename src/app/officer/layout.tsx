@@ -4,7 +4,7 @@ import { ResetButton } from "@/components/officer/ResetButton";
 export default function OfficerLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-slate-100">
-      <div className="bg-flag-gold/20 px-4 py-1.5 text-center text-[11px] font-medium text-amber-900">
+      <div className="bg-flag-gold/20 px-4 py-1.5 text-center text-xxs font-medium text-amber-900">
         Officer console · synthetic demo data · AI drafts recommendations — officers and supervisors decide
       </div>
       <header className="border-b border-slate-200 bg-white">

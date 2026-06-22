@@ -1,4 +1,5 @@
 import type {
+  AuditActor,
   AuditEvent,
   CaseStatus,
   Language,
@@ -180,17 +181,19 @@ export function CitationCard({ citation }: { citation: PolicyCitation }) {
       </div>
       <div className="mt-0.5 text-xs font-medium text-slate-500">§ {citation.section}</div>
       <p className="mt-2 text-sm text-slate-700">“{citation.snippet}”</p>
-      <div className="mt-2 text-[11px] text-slate-400">source: {citation.source_doc}</div>
+      <div className="mt-2 text-xxs text-slate-400">source: {citation.source_doc}</div>
     </div>
   );
 }
 
-const ACTOR_DOT: Record<string, string> = {
-  citizen: "bg-sky-500",
-  ai_agent: "bg-civic-500",
-  system: "bg-slate-400",
-  officer: "bg-indigo-500",
-  supervisor: "bg-orange-500",
+/** Actor → dot colour, keyed by the AuditActor union. Single source of truth
+ * (also imported by the audit table) using the `actor` semantic tokens. */
+export const ACTOR_DOT: Record<AuditActor, string> = {
+  citizen: "bg-actor-citizen",
+  ai_agent: "bg-actor-ai",
+  system: "bg-actor-system",
+  officer: "bg-actor-officer",
+  supervisor: "bg-actor-supervisor",
 };
 
 function formatTime(iso: string): string {
@@ -216,9 +219,9 @@ export function AuditTimeline({ events }: { events: AuditEvent[] }) {
         <li key={e.event_id} className="relative mb-4 pl-5">
           <span className={`absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-white ${ACTOR_DOT[e.actor] ?? "bg-slate-400"}`} />
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[11px] text-slate-400">{e.event_type}</span>
-            <span className="text-[11px] text-slate-400">· {e.actor_label}</span>
-            <span className="text-[11px] text-slate-400">· {formatTime(e.created_at)}</span>
+            <span className="font-mono text-xxs text-slate-400">{e.event_type}</span>
+            <span className="text-xxs text-slate-400">· {e.actor_label}</span>
+            <span className="text-xxs text-slate-400">· {formatTime(e.created_at)}</span>
           </div>
           <p className="mt-0.5 text-sm text-slate-700">{e.summary}</p>
         </li>
@@ -229,7 +232,7 @@ export function AuditTimeline({ events }: { events: AuditEvent[] }) {
 
 export function SafetyBanner({ text }: { text: string }) {
   return (
-    <div className="bg-flag-gold/15 px-4 py-2 text-center text-[11px] font-medium text-amber-900">
+    <div className="bg-flag-gold/15 px-4 py-2 text-center text-xxs font-medium text-amber-900">
       {text}
     </div>
   );

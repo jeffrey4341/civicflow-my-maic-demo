@@ -119,7 +119,7 @@ export default function CitizenWizard() {
           >
             {t(language, "landing.continue")}
           </Button>
-          <p className="mt-4 text-center text-[11px] text-slate-400">{t(language, "common.powered")}</p>
+          <p className="mt-4 text-center text-xxs text-slate-400">{t(language, "common.powered")}</p>
         </section>
       )}
 
@@ -136,7 +136,7 @@ export default function CitizenWizard() {
               placeholder={t(language, "submit.placeholder")}
             />
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">{t(language, "submit.hint")}</p>
+          <p className="mt-1 text-xxs text-slate-400">{t(language, "submit.hint")}</p>
 
           <p className="mt-5 text-xs font-medium text-slate-500">{t(language, "submit.examples_title")}</p>
           <div className="mt-2 space-y-2">
@@ -216,7 +216,7 @@ function DetailsStep(props: {
 
       {/* AI triage summary */}
       <div className="mt-3 rounded-xl border border-civic-100 bg-civic-50 p-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-civic-600">AI assistant</div>
+        <div className="text-xxs font-semibold uppercase tracking-wide text-civic-600">AI assistant</div>
         <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
           <Info label={t(language, "created.detected_lang")} value={LANGUAGE_NAMES[r.detected_language]} />
           <Info label={t(language, "created.category")} value={categoryLabel(r.category, language)} />
@@ -224,7 +224,7 @@ function DetailsStep(props: {
           <Info label={t(language, "created.urgency")} value={urgencyLabel(r.urgency, language)} />
         </div>
         {preview.requires_supervisor && (
-          <p className="mt-3 rounded-lg bg-orange-100 px-3 py-2 text-[12px] text-orange-800">
+          <p className="mt-3 rounded-lg bg-orange-100 px-3 py-2 text-xs text-orange-800">
             {t(language, "created.approval_note")}
           </p>
         )}
@@ -233,7 +233,7 @@ function DetailsStep(props: {
       {/* Photo / location mock */}
       <div className="mt-5">
         <p className="text-sm font-medium text-slate-700">{t(language, "media.title")}</p>
-        <p className="mt-0.5 text-[11px] text-slate-400">{t(language, "media.intro")}</p>
+        <p className="mt-0.5 text-xxs text-slate-400">{t(language, "media.intro")}</p>
         <div className="mt-2 flex gap-2">
           <button
             onClick={() => setMedia([...media, `photo:mock_${media.length + 1}.jpg`])}
@@ -249,16 +249,16 @@ function DetailsStep(props: {
           </button>
         </div>
         {media.length > 0 && (
-          <p className="mt-2 text-[11px] text-civic-600">✓ {media.length} × {t(language, "media.photo_added")}</p>
+          <p className="mt-2 text-xxs text-civic-600">✓ {media.length} × {t(language, "media.photo_added")}</p>
         )}
-        <p className="mt-1 text-[10px] text-slate-400">{t(language, "media.note")}</p>
+        <p className="mt-1 text-2xs text-slate-400">{t(language, "media.note")}</p>
       </div>
 
       {/* Clarification (required) */}
       {required.length > 0 && (
         <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-semibold text-amber-900">{t(language, "clarify.title")}</p>
-          <p className="mt-0.5 text-[11px] text-amber-700">{t(language, "clarify.intro")}</p>
+          <p className="mt-0.5 text-xxs text-amber-700">{t(language, "clarify.intro")}</p>
           <div className="mt-3 space-y-3">
             {required.map((m) => (
               <div key={m.field}>
@@ -270,7 +270,7 @@ function DetailsStep(props: {
               </div>
             ))}
           </div>
-          <p className="mt-2 text-[10px] text-amber-600">{t(language, "clarify.optional")}</p>
+          <p className="mt-2 text-2xs text-amber-600">{t(language, "clarify.optional")}</p>
         </div>
       )}
 
@@ -278,7 +278,7 @@ function DetailsStep(props: {
       {checklist.length > 0 && (
         <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
           <p className="text-sm font-semibold text-slate-700">{t(language, "status.missing_title")}</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-[12px] text-slate-600">
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-600">
             {checklist.map((m) => (
               <li key={m.field}>{m.question_localized}</li>
             ))}
@@ -301,7 +301,7 @@ function DetailsStep(props: {
       >
         {t(language, "clarify.submit")}
       </Button>
-      <p className="mt-3 text-center text-[10px] text-slate-400">{t(language, "common.ai_disclaimer")}</p>
+      <p className="mt-3 text-center text-2xs text-slate-400">{t(language, "common.ai_disclaimer")}</p>
     </section>
   );
 }
@@ -309,7 +309,7 @@ function DetailsStep(props: {
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-2xs uppercase tracking-wide text-slate-400">{label}</div>
       <div className="font-medium text-slate-800">{value}</div>
     </div>
   );

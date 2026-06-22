@@ -15,7 +15,7 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
 
   return (
     <div className="flex flex-col">
-      <div className="bg-flag-gold/15 px-4 py-2 text-center text-[11px] font-medium text-amber-900">
+      <div className="bg-flag-gold/15 px-4 py-2 text-center text-xxs font-medium text-amber-900">
         {t(lang, "common.synthetic_banner")}
       </div>
       <section className="px-5 py-6">
@@ -24,7 +24,7 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
 
         {ready && reply ? (
           <>
-            <div className="mt-1 text-[11px] text-slate-400">
+            <div className="mt-1 text-xxs text-slate-400">
               {t(lang, "reply.from")}: {c.department} – {c.unit}
               {reply.approved_by ? ` · ${reply.approved_by}` : ""}
             </div>
@@ -33,17 +33,17 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
             </div>
             {reply.citations.length > 0 && (
               <div className="mt-4">
-                <p className="text-[11px] font-medium text-slate-500">{t(lang, "reply.citations")}</p>
+                <p className="text-xxs font-medium text-slate-500">{t(lang, "reply.citations")}</p>
                 <ul className="mt-1 space-y-1">
                   {reply.citations.map((cit, i) => (
-                    <li key={i} className="text-[12px] text-slate-600">
+                    <li key={i} className="text-xs text-slate-600">
                       📄 {cit.doc_title} — <span className="text-slate-400">§ {cit.section}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             )}
-            <p className="mt-5 text-[10px] text-slate-400">{t(lang, "reply.disclaimer")}</p>
+            <p className="mt-5 text-2xs text-slate-400">{t(lang, "reply.disclaimer")}</p>
           </>
         ) : (
           <p className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">

@@ -9,12 +9,12 @@ export default function CitizenLayout({ children }: { children: React.ReactNode 
             <span aria-hidden className="text-lg">🌾</span>
             <span className="font-semibold">CivicFlow MY</span>
           </Link>
-          <Link href="/officer" className="text-[11px] text-civic-100 underline">
+          <Link href="/officer" className="text-xxs text-civic-100 underline">
             Officer view
           </Link>
         </header>
         <div className="flex-1">{children}</div>
-        <footer className="border-t border-slate-100 px-4 py-2 text-center text-[10px] text-slate-400">
+        <footer className="border-t border-slate-100 px-4 py-2 text-center text-2xs text-slate-400">
           MAIC T5 demo · synthetic data · AI drafts, officers decide
         </footer>
       </div>
