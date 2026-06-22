@@ -28,7 +28,10 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
               {t(lang, "reply.from")}: {c.department} – {c.unit}
               {reply.approved_by ? ` · ${reply.approved_by}` : ""}
             </div>
-            <div className="mt-4 rounded-xl border border-civic-100 bg-civic-50 p-4 text-sm leading-relaxed text-slate-800">
+            <div
+              lang={lang}
+              className="mt-4 rounded-xl border border-civic-100 bg-civic-50 p-4 text-sm leading-relaxed text-slate-800"
+            >
               {reply.body}
             </div>
             {reply.citations.length > 0 && (

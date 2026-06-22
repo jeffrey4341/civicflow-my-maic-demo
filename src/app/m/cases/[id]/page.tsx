@@ -56,8 +56,8 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
               const reached = CASE_STATUS_ORDER.indexOf(s) <= currentIdx && currentIdx >= 0;
               const isCurrent = s === c.status;
               return (
-                <li key={s} className="flex items-center gap-3">
-                  <span className={`flex h-5 w-5 items-center justify-center rounded-full text-xxs ${reached ? "bg-civic-500 text-white" : "bg-slate-200 text-slate-400"}`}>
+                <li key={s} className="flex items-center gap-3" aria-current={isCurrent ? "step" : undefined}>
+                  <span aria-hidden="true" className={`flex h-5 w-5 items-center justify-center rounded-full text-xxs ${reached ? "bg-civic-500 text-white" : "bg-slate-200 text-slate-400"}`}>
                     {reached ? "✓" : "•"}
                   </span>
                   <span className={`text-sm ${isCurrent ? "font-semibold text-civic-700" : reached ? "text-slate-600" : "text-slate-400"}`}>

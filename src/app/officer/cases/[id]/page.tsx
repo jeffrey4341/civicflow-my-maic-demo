@@ -59,7 +59,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
         <div className="space-y-5 lg:col-span-2">
           {/* Citizen request */}
           <Panel title="Citizen request">
-            <p className="text-sm text-slate-800">{c.original_text}</p>
+            <p lang={c.detected_language} className="text-sm text-slate-800">{c.original_text}</p>
             <p className="mt-2 text-sm italic text-slate-500">EN: {c.translated_text_en}</p>
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
               <span>📍 {c.location_text || "—"}</span>
@@ -125,7 +125,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
           >
             {reply ? (
               <>
-                <div className="rounded-lg border border-civic-100 bg-civic-50 p-3 text-sm text-slate-800">{reply.body}</div>
+                <div lang={c.detected_language} className="rounded-lg border border-civic-100 bg-civic-50 p-3 text-sm text-slate-800">{reply.body}</div>
                 <details className="mt-2 text-xs text-slate-500">
                   <summary className="cursor-pointer">English reference</summary>
                   <p className="mt-1 text-slate-600">{reply.body_en}</p>

@@ -163,7 +163,14 @@ export function ConfidenceBar({ value, label }: { value: number; label?: string 
     <div>
       {label ? <div className="mb-1 text-xs text-slate-500">{label}</div> : null}
       <div className="flex items-center gap-2">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+        <div
+          className="h-2 w-full overflow-hidden rounded-full bg-slate-200"
+          role="progressbar"
+          aria-valuenow={pct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={label ?? "Confidence"}
+        >
           <div className="h-full rounded-full bg-civic-500" style={{ width: `${pct}%` }} />
         </div>
         <span className="w-9 text-right text-xs tabular-nums text-slate-600">{pct}%</span>
@@ -181,7 +188,7 @@ export function CitationCard({ citation }: { citation: PolicyCitation }) {
       </div>
       <div className="mt-0.5 text-xs font-medium text-slate-500">§ {citation.section}</div>
       <p className="mt-2 text-sm text-slate-700">“{citation.snippet}”</p>
-      <div className="mt-2 text-xxs text-slate-400">source: {citation.source_doc}</div>
+      <div className="mt-2 text-xxs text-slate-500">source: {citation.source_doc}</div>
     </div>
   );
 }
@@ -217,11 +224,11 @@ export function AuditTimeline({ events }: { events: AuditEvent[] }) {
     <ol className="relative ml-3 border-l border-slate-200">
       {events.map((e) => (
         <li key={e.event_id} className="relative mb-4 pl-5">
-          <span className={`absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-white ${ACTOR_DOT[e.actor] ?? "bg-slate-400"}`} />
+          <span className={`absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-white ${ACTOR_DOT[e.actor] ?? "bg-actor-system"}`} aria-hidden="true" />
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xxs text-slate-400">{e.event_type}</span>
-            <span className="text-xxs text-slate-400">· {e.actor_label}</span>
-            <span className="text-xxs text-slate-400">· {formatTime(e.created_at)}</span>
+            <span className="font-mono text-xxs text-slate-500">{e.event_type}</span>
+            <span className="text-xxs text-slate-500">· {e.actor_label}</span>
+            <span className="text-xxs text-slate-500">· {formatTime(e.created_at)}</span>
           </div>
           <p className="mt-0.5 text-sm text-slate-700">{e.summary}</p>
         </li>
