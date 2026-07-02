@@ -10,6 +10,15 @@ Reason: CivicFlow uses an in-memory store, so it needs a long-running Node proce
 
 No production-readiness claim is made. This is still a public hackathon demo with synthetic data.
 
+## Generic Server Setup (Windows / Linux, no platform account needed)
+
+For any server (or local verification) without a hosting platform, use the setup scripts:
+
+- Windows: `powershell -ExecutionPolicy Bypass -File scripts\portal\setup_portal.ps1 [-Port 3000] [-SkipInstall] [-Probe]`
+- Linux: `bash scripts/portal/setup_portal.sh [--port 3000] [--skip-install] [--probe]`
+
+Both perform Node-version check → `npm ci` → `npm run build`, then either serve in the foreground (server mode, bind `0.0.0.0`) or, with `-Probe`/`--probe`, start a temporary loopback server, health-check all 7 demo routes, and stop (exit code reflects health). Keepalive examples (Windows scheduled task / systemd unit) are in each script's header comments.
+
 ## Config
 
 The repository root includes `railway.json`:

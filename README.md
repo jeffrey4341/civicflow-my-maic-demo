@@ -62,6 +62,8 @@ The demo **always runs with no API key**. The optional LLM path is a drop-in enh
 
 This is the verified no-login MAIC T5 public demo portal served from a single owner-VM Next.js production process. It is a public hackathon demo endpoint, not a production deployment. Evidence: [`docs/audit/portal_deploy_recheck_2026-07-03.md`](./docs/audit/portal_deploy_recheck_2026-07-03.md).
 
+> **Note:** the URL above is a Cloudflare *quick* tunnel — it has no uptime guarantee and **changes if the tunnel restarts**. If it is unreachable, regenerate per the recheck doc, or use the stable-host path in [`docs/deployment/railway_portal_runbook.md`](./docs/deployment/railway_portal_runbook.md). To self-host on any Windows/Linux server (or verify locally), run `scripts/portal/setup_portal.ps1` / `setup_portal.sh` (`-Probe` / `--probe` performs install → build → temporary serve → 7-route health check).
+
 **Prerequisites:** Node.js **18.18+ (or 20+)** — Next.js 15 requires `^18.18.0 || >=20`.
 
 ```bash

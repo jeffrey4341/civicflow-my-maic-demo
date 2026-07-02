@@ -186,6 +186,7 @@ Source: public-repo readiness audit of [LICENSE](../../LICENSE), [.gitignore](..
 Everything a judge should be able to find from the repository root.
 
 - [ ] **Public repository** (GitHub) — section 6 complete, default branch builds clean
+- [ ] **Public demo portal URL** — live, no-login, verified by hosted smoke (`CIVICFLOW_BASE_URL=<url> npm run smoke:e2e`); current URL recorded in [README.md](../../README.md); evidence: [portal_deploy_recheck_2026-07-03.md](../audit/portal_deploy_recheck_2026-07-03.md). Note: trycloudflare quick-tunnel URLs rotate on restart — re-verify the URL is live at the start of each judging window; stable-host path: [railway_portal_runbook.md](../deployment/railway_portal_runbook.md); self-host scripts: `scripts/portal/setup_portal.ps1` / `.sh`
 - [ ] **3-minute demo video** — section 5 complete; file rendered, QA'd, and either committed to release assets or linked from the README/submission form (decide hosting; `outputs/` is currently untracked)
 - [ ] **README** as the entry point with quick-start and demo walkthrough — [README.md](../../README.md)
 - [ ] **Architecture doc** — [architecture.md](../architecture/architecture.md)

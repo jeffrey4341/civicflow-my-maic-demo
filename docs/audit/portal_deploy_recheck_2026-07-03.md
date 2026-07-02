@@ -11,7 +11,7 @@ PASS for the public MAIC T5 demo portal gate.
 - Governance boundary: AI drafts/recommends; officers and supervisors decide.
 - Production-readiness claim: none. This is a public hackathon demo portal.
 
-Cloudflare quick tunnels are accountless and do not provide an uptime guarantee. Keep the local Next.js and `cloudflared` processes running for the portal to stay reachable.
+Cloudflare quick tunnels are accountless and do not provide an uptime guarantee. Keep the local Next.js and `cloudflared` processes running for the portal to stay reachable. **A quick-tunnel URL also rotates: restarting `cloudflared` issues a new `*.trycloudflare.com` hostname, which silently invalidates the URL recorded in README.md.** The recommended stable-host path is Railway (config committed, deploy not yet executed) — see `docs/deployment/railway_portal_runbook.md`. Generic self-host setup scripts for Windows/Linux servers live at `scripts/portal/setup_portal.ps1` / `setup_portal.sh`.
 
 ## Runtime Shape
 
