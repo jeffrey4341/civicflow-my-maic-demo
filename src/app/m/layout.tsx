@@ -14,7 +14,7 @@ export default function CitizenLayout({ children }: { children: React.ReactNode 
           </Link>
         </header>
         <div className="flex-1">{children}</div>
-        <footer className="border-t border-slate-100 px-4 py-2 text-center text-[10px] text-slate-400">
+        <footer className="border-t border-slate-100 px-4 py-2 text-center text-xs text-slate-600">
           MAIC T5 demo · synthetic data · AI drafts, officers decide
         </footer>
       </div>

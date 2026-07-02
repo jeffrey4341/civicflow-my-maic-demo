@@ -2,7 +2,9 @@
 
 Evidence-based investigation of CivicFlow MY Mobile on branch `chore/demo-submission-pack` (dirty worktree preserved; user-owned changes inspected, not modified). Public MAIC T5 demo boundary confirmed: synthetic data only, AI drafts / humans decide, no production claims.
 
-## 1. Launch / build / test truth (all commands run this session)
+## 1. Launch / build / test truth (initial investigation run — historical)
+
+> **Historical note:** this table records the initial investigation run (6 files / 29 tests, pre-follow-up). After the CF-03..CF-05 follow-up landed, the current suite is **9 files / 48 tests** — the authoritative current results are the "Post-change gates" table later in this document.
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
