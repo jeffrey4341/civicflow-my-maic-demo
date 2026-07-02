@@ -21,13 +21,6 @@ export const LANGUAGE_NAMES: Record<Language, string> = {
   ta: "தமிழ்",
 };
 
-export const LANGUAGE_FLAGS: Record<Language, string> = {
-  ms: "🇲🇾",
-  en: "🇬🇧",
-  zh: "🇨🇳",
-  ta: "🇮🇳",
-};
-
 type Dict = Record<string, string>;
 
 const en: Dict = {

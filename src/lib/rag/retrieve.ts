@@ -30,6 +30,37 @@ interface Idf {
 
 let IDF: Idf | null = null;
 
+const STOPWORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "at",
+  "do",
+  "does",
+  "for",
+  "how",
+  "i",
+  "in",
+  "is",
+  "it",
+  "my",
+  "of",
+  "on",
+  "or",
+  "that",
+  "the",
+  "this",
+  "to",
+  "what",
+  "when",
+  "where",
+  "which",
+  "who",
+  "why",
+  "your",
+]);
+
 function buildIdf(chunks: PolicyChunk[]): Idf {
   const df = new Map<string, number>();
   for (const chunk of chunks) {
@@ -121,6 +152,7 @@ export function retrievePolicies(
   const idf = idfFor(chunks);
   const queryTokens = tokenize(`${query} ${hints.join(" ")}`);
   const querySet = new Set(queryTokens);
+  const signalSet = new Set(queryTokens.filter((t) => t.length > 2 && !STOPWORDS.has(t)));
   const qVec = tfidfVector(queryTokens, idf);
   const preferred = category ? new Set(CATEGORY_DOCS[category]) : new Set<string>();
 
@@ -133,6 +165,13 @@ export function retrievePolicies(
     const chunkSet = new Set(chunk.tokens);
     for (const q of querySet) if (chunkSet.has(q)) overlap += 1;
     const overlapScore = overlap / Math.max(6, querySet.size);
+
+    let signalOverlap = 0;
+    for (const q of signalSet) if (chunkSet.has(q)) signalOverlap += 1;
+
+    if ((signalSet.size > 0 && signalOverlap === 0) || (sim === 0 && overlap === 0)) {
+      return { chunk, confidence: 0 };
+    }
 
     const docBoost = preferred.has(chunk.source_doc) ? 0.15 : 0;
     const raw = 0.6 * sim + 0.4 * overlapScore + docBoost;

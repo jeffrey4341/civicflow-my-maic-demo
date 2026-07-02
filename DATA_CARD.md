@@ -100,7 +100,7 @@ The runtime data models are: `CitizenCase`, `RoutingDecision`, `PolicyCitation`,
 | `location` | Reported location | **Fictional label only**, e.g. `Jalan Demo` |
 | `pii_risk` | PII-risk indicator on the record | Drives masking / redaction behaviour in the UI |
 
-**Status lifecycle:** `draft → needs_info → submitted → routed → awaiting_supervisor → in_progress → closed`.
+**Status lifecycle:** `draft → needs_info → submitted → manual_review → routed → awaiting_supervisor → in_progress → closed`.
 
 ### 4.2 PII-risk handling (`pii_risk`)
 

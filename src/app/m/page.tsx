@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LANGUAGES, type Language, type TriageResult } from "@/lib/types";
 import {
-  LANGUAGE_FLAGS,
   LANGUAGE_NAMES,
   categoryLabel,
   t,
@@ -80,7 +79,7 @@ export default function CitizenWizard() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col" lang={language}>
       <div className="bg-flag-gold/15 px-4 py-2 text-center text-[11px] font-medium text-amber-900">
         {t(language, "common.synthetic_banner")}
       </div>
@@ -101,7 +100,7 @@ export default function CitizenWizard() {
                     : "border-slate-200 bg-white hover:border-civic-300"
                 }`}
               >
-                <div className="text-2xl">{LANGUAGE_FLAGS[lng]}</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-civic-700">{lng}</div>
                 <div className="mt-1 text-sm font-medium text-slate-800">{LANGUAGE_NAMES[lng]}</div>
               </button>
             ))}
@@ -112,23 +111,24 @@ export default function CitizenWizard() {
           >
             {t(language, "landing.continue")}
           </button>
-          <p className="mt-4 text-center text-[11px] text-slate-400">{t(language, "common.powered")}</p>
+          <p className="mt-4 text-center text-[11px] text-slate-600">{t(language, "common.powered")}</p>
         </section>
       )}
 
       {step === "describe" && (
         <section className="px-5 py-6">
-          <button onClick={() => setStep("lang")} className="text-xs text-slate-400">← {t(language, "common.back")}</button>
+          <button onClick={() => setStep("lang")} className="text-xs text-slate-600">← {t(language, "common.back")}</button>
           <h2 className="mt-2 text-lg font-bold text-slate-900">{t(language, "submit.title")}</h2>
-          <label className="mt-4 block text-sm font-medium text-slate-700">{t(language, "submit.prompt_label")}</label>
+          <label htmlFor="citizen-request" className="mt-4 block text-sm font-medium text-slate-700">{t(language, "submit.prompt_label")}</label>
           <textarea
+            id="citizen-request"
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={5}
             placeholder={t(language, "submit.placeholder")}
             className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-sm focus:border-civic-500 focus:outline-none focus:ring-2 focus:ring-civic-200"
           />
-          <p className="mt-1 text-[11px] text-slate-400">{t(language, "submit.hint")}</p>
+          <p className="mt-1 text-[11px] text-slate-600">{t(language, "submit.hint")}</p>
 
           <p className="mt-5 text-xs font-medium text-slate-500">{t(language, "submit.examples_title")}</p>
           <div className="mt-2 space-y-2">
@@ -139,7 +139,7 @@ export default function CitizenWizard() {
                 className="block w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs text-slate-600 hover:border-civic-300"
               >
                 <span className="font-medium text-civic-700">{t(language, ex.key)}</span>
-                <span className="mt-0.5 block truncate text-slate-400">{ex.text}</span>
+                <span className="mt-0.5 block truncate text-slate-600">{ex.text}</span>
               </button>
             ))}
           </div>
@@ -195,8 +195,8 @@ function DetailsStep(props: {
   const checklist = r.missing_info.filter((m) => !m.required && !m.satisfied);
 
   return (
-    <section className="px-5 py-6">
-      <button onClick={props.onBack} className="text-xs text-slate-400">← {t(language, "common.back")}</button>
+    <section className="px-5 py-6" lang={language}>
+      <button onClick={props.onBack} className="text-xs text-slate-600">← {t(language, "common.back")}</button>
 
       {/* AI triage summary */}
       <div className="mt-3 rounded-xl border border-civic-100 bg-civic-50 p-4">
@@ -217,7 +217,7 @@ function DetailsStep(props: {
       {/* Photo / location mock */}
       <div className="mt-5">
         <p className="text-sm font-medium text-slate-700">{t(language, "media.title")}</p>
-        <p className="mt-0.5 text-[11px] text-slate-400">{t(language, "media.intro")}</p>
+        <p className="mt-0.5 text-[11px] text-slate-600">{t(language, "media.intro")}</p>
         <div className="mt-2 flex gap-2">
           <button
             onClick={() => setMedia([...media, `photo:mock_${media.length + 1}.jpg`])}
@@ -235,7 +235,7 @@ function DetailsStep(props: {
         {media.length > 0 && (
           <p className="mt-2 text-[11px] text-civic-600">✓ {media.length} × {t(language, "media.photo_added")}</p>
         )}
-        <p className="mt-1 text-[10px] text-slate-400">{t(language, "media.note")}</p>
+        <p className="mt-1 text-[10px] text-slate-600">{t(language, "media.note")}</p>
       </div>
 
       {/* Clarification (required) */}
@@ -246,8 +246,9 @@ function DetailsStep(props: {
           <div className="mt-3 space-y-3">
             {required.map((m) => (
               <div key={m.field}>
-                <label className="block text-xs font-medium text-slate-700">{m.question_localized}</label>
+                <label htmlFor={`missing-${m.field}`} className="block text-xs font-medium text-slate-700">{m.question_localized}</label>
                 <input
+                  id={`missing-${m.field}`}
                   value={answers[m.field] ?? ""}
                   onChange={(e) => setAnswers({ ...answers, [m.field]: e.target.value })}
                   className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-civic-500 focus:outline-none"
@@ -279,7 +280,7 @@ function DetailsStep(props: {
       >
         {props.loading ? "…" : t(language, "clarify.submit")}
       </button>
-      <p className="mt-3 text-center text-[10px] text-slate-400">{t(language, "common.ai_disclaimer")}</p>
+      <p className="mt-3 text-center text-xs text-slate-600">{t(language, "common.ai_disclaimer")}</p>
     </section>
   );
 }
@@ -287,7 +288,7 @@ function DetailsStep(props: {
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-[10px] uppercase tracking-wide text-slate-600">{label}</div>
       <div className="font-medium text-slate-800">{value}</div>
     </div>
   );

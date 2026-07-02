@@ -99,11 +99,11 @@ This is the most important integrity claim for a public e-gov demo. **All three 
 
 ## 4. Verification Checklist
 
-All gates below are reported as **passing** in the audit trail; re-run them on the submission machine before recording or pushing. Source of truth: [final_submission_packaging_check.md](docs/audit/final_submission_packaging_check.md), [launch_deploy_recheck_2026-06-14.md](docs/audit/launch_deploy_recheck_2026-06-14.md), [dependency_security_fix_report.md](docs/audit/dependency_security_fix_report.md), [gpt55_post_fix_reaudit.md](docs/audit/gpt55_post_fix_reaudit.md).
+All gates below are reported as **passing** in the audit trail; re-run them on the submission machine before recording or pushing. Current source of truth: [fable5_system_audit_2026-07-02.md](docs/audit/fable5_system_audit_2026-07-02.md) and [final_submission_packaging_check.md](docs/audit/final_submission_packaging_check.md).
 
 ### 4.1 Build, types, tests, dependencies
 - [ ] `npm run typecheck` — TypeScript compiles clean (`tsc --noEmit`)
-- [ ] `npm test` — Vitest passes (**6 test files / 29 tests**, includes governance regression suite in `tests/lifecycle.test.ts`)
+- [ ] `npm test` — Vitest passes (**9 test files / 48 tests**, including governance, LLM parity, RAG eval, and public-demo UI guard suites)
 - [ ] `npm run build` — Next.js **15.5.19** production build completes; all routes build (`/m`, `/officer`, `/officer/cases/[id]`, `/officer/approvals`, `/officer/audit`, `/api/*`)
 - [ ] `npm run lint` — passes (note: aliases to `tsc --noEmit`, not full ESLint)
 - [ ] `npm audit --omit=dev --audit-level=moderate` — **0 vulnerabilities** in production deps; PostCSS pinned via `overrides` to `8.5.15` — see [package.json](package.json)
@@ -111,12 +111,12 @@ All gates below are reported as **passing** in the audit trail; re-run them on t
 > Run order note: run `npm run build` **before** `npm run lint` separately — running them in parallel can transiently fail because lint reads `.next/types` while the build rewrites them.
 
 ### 4.2 Production server smoke test
-Launch: `npm run build && npm run start -- --hostname 127.0.0.1 --port 3000` (use an alternate port such as 3004/3005 if 3000 is busy).
+Launch: `npm run build && npm run start -- --hostname 127.0.0.1 --port 3000` (use an alternate port such as 3015 if 3000 is busy).
 - [ ] `GET /m` → 200 (citizen app)
 - [ ] `GET /officer` → 200 (officer console)
 - [ ] `GET /officer/approvals` → 200 and `GET /officer/audit` → 200
+- [ ] `GET /api/cases` → 200 and `GET /api/audit` → 200
 - [ ] `POST /api/reset` → 200 with `{ ok: true, seeded_cases: 6 }`
-- [ ] `GET /api/cases` → 200
 
 ### 4.3 Governance behavior (P0 — must hold)
 - [ ] Malay flood-risk drainage case (`"Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat."`) → `awaiting_supervisor`; start/close blocked until a supervisor approves with a note

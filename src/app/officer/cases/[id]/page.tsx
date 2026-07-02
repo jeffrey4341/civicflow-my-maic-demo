@@ -31,7 +31,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
 
   return (
     <div>
-      <Link href="/officer" className="text-xs text-slate-400 hover:underline">← Back to queue</Link>
+      <Link href="/officer" className="text-xs text-slate-600 hover:underline">← Back to queue</Link>
 
       {/* Header */}
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
@@ -42,7 +42,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
             <UrgencyBadge urgency={c.urgency} />
             {c.pii_risk !== "low" && <PiiBadge risk={c.pii_risk} />}
           </div>
-          <p className="mt-1 text-xs text-slate-400">
+          <p className="mt-1 text-xs text-slate-600">
             {c.case_id} · {LANGUAGE_NAMES[c.detected_language]} · via {c.source_channel} · {new Date(c.created_at).toLocaleString("en-GB")}
           </p>
         </div>
@@ -87,7 +87,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
               {c.routing && (
                 <div className="sm:col-span-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
                   <span className="font-medium text-slate-700">Routing ({c.routing.rule_id}):</span> {c.routing.rationale}
-                  <span className="ml-1 text-slate-400">SLA target: {c.routing.sla_hours}h.</span>
+                  <span className="ml-1 text-slate-600">SLA target: {c.routing.sla_hours}h.</span>
                 </div>
               )}
             </div>
@@ -210,7 +210,7 @@ function Panel({ title, badge, children }: { title: string; badge?: React.ReactN
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-[11px] uppercase tracking-wide text-slate-600">{label}</div>
       <div className="text-sm font-medium text-slate-800">{value}</div>
     </div>
   );

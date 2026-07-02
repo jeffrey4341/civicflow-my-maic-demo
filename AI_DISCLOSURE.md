@@ -100,7 +100,7 @@ Human oversight is structural, not optional. The casework lifecycle is gated so 
 **Lifecycle gates** (`CitizenCase` status):
 
 ```
-draft → needs_info → submitted → routed → awaiting_supervisor → in_progress → closed
+draft → needs_info → submitted → manual_review → routed → awaiting_supervisor → in_progress → closed
 ```
 
 - The transition into `awaiting_supervisor` exists specifically to enforce **human approval** for high-risk cases — the AI raises the `ApprovalTask`, but only a supervisor can clear it.

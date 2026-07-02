@@ -31,6 +31,7 @@ These packages support building, type-checking, styling, and testing. They are n
 | `postcss` | CSS transformation pipeline used by Tailwind | MIT |
 | `autoprefixer` | PostCSS plugin that adds vendor prefixes for cross-browser CSS | MIT |
 | `vitest` | Test runner for the deterministic AI/RAG pipeline and route handlers | MIT |
+| `playwright` | Browser automation for the MAIC e2e smoke script (`npm run smoke:e2e`) | Apache-2.0 |
 | `@types/node` | TypeScript type definitions for the Node.js runtime | MIT |
 | `@types/react` | TypeScript type definitions for React | MIT |
 | `@types/react-dom` | TypeScript type definitions for React DOM | MIT |

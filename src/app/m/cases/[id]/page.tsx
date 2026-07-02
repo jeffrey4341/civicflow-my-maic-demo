@@ -19,7 +19,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
   const currentIdx = CASE_STATUS_ORDER.indexOf(c.status);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col" lang={lang}>
       <div className="bg-flag-gold/15 px-4 py-2 text-center text-[11px] font-medium text-amber-900">
         {t(lang, "common.synthetic_banner")}
       </div>
@@ -40,7 +40,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
           <Info label={t(lang, "created.category")} value={categoryLabel(c.category, lang)} />
           <Info label={t(lang, "created.department")} value={`${c.department} – ${c.unit}`} />
           <div>
-            <div className="text-[10px] uppercase tracking-wide text-slate-400">{t(lang, "created.urgency")}</div>
+            <div className="text-[10px] uppercase tracking-wide text-slate-600">{t(lang, "created.urgency")}</div>
             <div className="mt-1"><UrgencyBadge urgency={c.urgency} locale={lang} /></div>
           </div>
         </div>
@@ -57,10 +57,10 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
               const isCurrent = s === c.status;
               return (
                 <li key={s} className="flex items-center gap-3">
-                  <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${reached ? "bg-civic-500 text-white" : "bg-slate-200 text-slate-400"}`}>
+                  <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] ${reached ? "bg-civic-500 text-white" : "bg-slate-200 text-slate-600"}`}>
                     {reached ? "✓" : "•"}
                   </span>
-                  <span className={`text-sm ${isCurrent ? "font-semibold text-civic-700" : reached ? "text-slate-600" : "text-slate-400"}`}>
+                  <span className={`text-sm ${isCurrent ? "font-semibold text-civic-700" : "text-slate-600"}`}>
                     {statusLabel(s, lang)}
                   </span>
                 </li>
@@ -95,7 +95,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
           )}
         </div>
 
-        <div className="mt-5 flex justify-between text-[11px] text-slate-400">
+        <div className="mt-5 flex justify-between text-[11px] text-slate-600">
           <Link href="/m" className="underline">＋ New request</Link>
           <Link href={`/officer/cases/${c.case_id}`} className="underline">Officer view →</Link>
         </div>
@@ -107,7 +107,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
 function Info({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-[10px] uppercase tracking-wide text-slate-600">{label}</div>
       <div className="font-medium text-slate-800">{value}</div>
     </div>
   );

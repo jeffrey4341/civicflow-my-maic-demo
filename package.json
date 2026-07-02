@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:reset": "node scripts/seed-reset.mjs"
+    "seed:reset": "node scripts/seed-reset.mjs",
+    "demo:video": "node scripts/demo/render_civicflow_video.mjs",
+    "smoke:e2e": "node scripts/smoke/maic_e2e_smoke.mjs"
   },
   "dependencies": {
     "next": "15.5.19",
@@ -24,6 +26,7 @@
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
     "autoprefixer": "10.4.19",
+    "playwright": "^1.60.0",
     "postcss": "8.5.15",
     "tailwindcss": "3.4.6",
     "typescript": "5.5.3",

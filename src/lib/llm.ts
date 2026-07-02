@@ -43,7 +43,7 @@ Classify the citizen's message. Reply with STRICT JSON only, no prose, matching:
 }
 Use "flood_risk" only when water is rising fast or entering premises. You only classify and translate; you do not decide eligibility, approve actions, or close cases.`;
 
-function validate(obj: unknown): LlmRefinement | null {
+export function validate(obj: unknown): LlmRefinement | null {
   if (!obj || typeof obj !== "object") return null;
   const o = obj as Record<string, unknown>;
   const lang = o.detected_language as Language;

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { listApprovals, listCases } from "@/lib/store";
-import { LANGUAGE_FLAGS, categoryLabel } from "@/lib/i18n";
+import { LANGUAGE_NAMES, categoryLabel } from "@/lib/i18n";
 import { PiiBadge, StatusBadge, UrgencyBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -35,8 +35,8 @@ export default async function OfficerQueuePage() {
         )}
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm">
+      <div className="mt-5 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table className="min-w-[760px] w-full text-left text-sm">
           <thead className="border-b border-slate-200 bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-2.5">Ref</th>
@@ -55,28 +55,30 @@ export default async function OfficerQueuePage() {
                     {c.citizen_ref}
                   </Link>
                   <div className="mt-1 flex items-center gap-1">
-                    <span title={c.detected_language}>{LANGUAGE_FLAGS[c.detected_language]}</span>
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] text-slate-700">
+                      {LANGUAGE_NAMES[c.detected_language]}
+                    </span>
                     {c.pii_risk !== "low" && <PiiBadge risk={c.pii_risk} />}
                   </div>
                 </td>
                 <td className="max-w-xs px-4 py-3 align-top">
                   <Link href={`/officer/cases/${c.case_id}`} className="block">
                     <span className="line-clamp-2 text-slate-700">{c.original_text}</span>
-                    <span className="mt-0.5 line-clamp-1 text-[11px] italic text-slate-400">{c.translated_text_en}</span>
+                    <span className="mt-0.5 line-clamp-1 text-[11px] italic text-slate-600">{c.translated_text_en}</span>
                   </Link>
                 </td>
                 <td className="px-4 py-3 align-top text-slate-600">{categoryLabel(c.category)}</td>
                 <td className="px-4 py-3 align-top"><UrgencyBadge urgency={c.urgency} /></td>
                 <td className="px-4 py-3 align-top text-slate-600">
                   {c.department}
-                  <div className="text-[11px] text-slate-400">{c.unit}</div>
+                  <div className="text-[11px] text-slate-600">{c.unit}</div>
                 </td>
                 <td className="px-4 py-3 align-top"><StatusBadge status={c.status} /></td>
               </tr>
             ))}
             {cases.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={6} className="px-4 py-8 text-center text-slate-600">
                   No cases yet. Submit one from the <Link href="/m" className="text-civic-600 underline">citizen app</Link>.
                 </td>
               </tr>

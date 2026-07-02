@@ -84,7 +84,6 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
       detected_language = refined.detected_language;
       category = refined.category;
       urgency = refined.urgency;
-      category_confidence = Math.max(category_confidence, 0.9);
       llmTranslation = refined.translated_text_en;
       ai_mode = "llm";
     }

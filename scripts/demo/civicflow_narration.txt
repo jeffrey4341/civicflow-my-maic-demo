@@ -1,0 +1,15 @@
+CivicFlow MY Mobile is a multilingual citizen-service AI casework platform for Malaysian public agencies. It is not a government chatbot. It is a governed workflow system where AI drafts, humans decide, and every case is auditable. The screen shows the mobile citizen app and the officer console workflow.
+
+First, a citizen submits a public-service request in Malay. The message says that a drain is blocked near Jalan SS2, and that water rises quickly when it rains. The system detects Malay, classifies the issue as drainage, identifies flood-risk urgency, and prepares the case for public-service routing.
+
+On the officer side, CivicFlow retrieves the relevant Drainage Response SOP. It recommends Engineering and the Drainage Unit, shows the flood-risk rationale, and creates an audit trail. Every recommendation is grounded in synthetic SOP citations. If there is no reliable citation, the case falls back to manual review.
+
+Because this is a high-risk flood case, the officer cannot start or close the case directly. Supervisor approval is required before work can proceed. After the supervisor records a decision note and approves, the case can move forward. The approval decision is recorded in the audit timeline.
+
+Next, a citizen asks a business licence question in Chinese. The citizen wants to know what documents are needed for a small food stall licence. CivicFlow detects Chinese, routes the case to the Licensing Unit, retrieves the Business Licensing FAQ, and identifies missing information such as location, business type, and operating hours. The case cannot be treated as normal work until the missing information is resolved.
+
+Finally, a citizen asks about education aid for a child. CivicFlow retrieves the welfare and education policy, prepares a document checklist, and routes the case for officer review. The AI does not approve eligibility. It helps officers review the case with evidence.
+
+Every step is visible in the officer audit view. Case creation, language detection, classification, retrieval, routing, approval, reply draft, and status changes are all recorded. This is the public-sector control layer: multilingual intake, SOP-grounded AI, human approval, and audit evidence.
+
+CivicFlow MY Mobile helps public agencies modernise citizen service while preserving accountability. AI drafts. Humans decide. Every case is traceable.

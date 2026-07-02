@@ -4,7 +4,11 @@ import type { ApprovalStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-/** Supervisor approves or rejects a high-risk case. Role-gated; no self-approval. */
+/**
+ * Supervisor approves or rejects a high-risk case.
+ * Demo-level gating only: the role/self-approval checks compare client-asserted
+ * body strings (no auth/session layer). Server-side identity is a pilot TODO.
+ */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json().catch(() => ({}));

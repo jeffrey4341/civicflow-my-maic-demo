@@ -42,3 +42,8 @@ yarn-error.log*
 
 # vitest
 /.vitest/
+
+# generated demo media & tool artifacts — keep out of commits (see docs/submission/final_submission_checklist.md)
+/output/
+/outputs/
+/.codex-remote-attachments/

@@ -14,17 +14,17 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
   const ready = reply?.status === "sent";
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col" lang={lang}>
       <div className="bg-flag-gold/15 px-4 py-2 text-center text-[11px] font-medium text-amber-900">
         {t(lang, "common.synthetic_banner")}
       </div>
       <section className="px-5 py-6">
-        <Link href={`/m/cases/${c.citizen_ref}`} className="text-xs text-slate-400">← {t(lang, "reply.back")}</Link>
+        <Link href={`/m/cases/${c.citizen_ref}`} className="text-xs text-slate-600">← {t(lang, "reply.back")}</Link>
         <h1 className="mt-2 text-lg font-bold text-slate-900">{t(lang, "reply.title")}</h1>
 
         {ready && reply ? (
           <>
-            <div className="mt-1 text-[11px] text-slate-400">
+            <div className="mt-1 text-[11px] text-slate-600">
               {t(lang, "reply.from")}: {c.department} – {c.unit}
               {reply.approved_by ? ` · ${reply.approved_by}` : ""}
             </div>
@@ -37,13 +37,13 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
                 <ul className="mt-1 space-y-1">
                   {reply.citations.map((cit, i) => (
                     <li key={i} className="text-[12px] text-slate-600">
-                      📄 {cit.doc_title} — <span className="text-slate-400">§ {cit.section}</span>
+                      📄 {cit.doc_title} — <span className="text-slate-600">§ {cit.section}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             )}
-            <p className="mt-5 text-[10px] text-slate-400">{t(lang, "reply.disclaimer")}</p>
+            <p className="mt-5 text-xs font-medium text-slate-600" role="note">{t(lang, "reply.disclaimer")}</p>
           </>
         ) : (
           <p className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">

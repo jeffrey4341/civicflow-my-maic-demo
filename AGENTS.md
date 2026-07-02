@@ -178,7 +178,7 @@ These are hard rules. Contributors must not weaken them.
 Case status lifecycle (humans drive the decisive transitions):
 
 ```
-draft → needs_info → submitted → routed → awaiting_supervisor → in_progress → closed
+draft → needs_info → submitted → manual_review → routed → awaiting_supervisor → in_progress → closed
 ```
 
 ---
@@ -196,7 +196,7 @@ This file is also the **agent-contributor contract**. If you add or modify a sta
 
 ### Tech context
 
-- **Stack:** a single **Next.js 14 (App Router) + React 18 + TypeScript + Tailwind CSS** application. Backend = Next.js route handlers under `/api`. Storage = in-memory JSON store seeded from `data/seed`.
+- **Stack:** a single **Next.js 15 (App Router) + React 18 + TypeScript + Tailwind CSS** application. Backend = Next.js route handlers under `/api`. Storage = in-memory JSON store seeded from `data/seed`.
 - **Routes:** citizen mobile `/m`; officer console `/officer`, `/officer/cases/[id]`, `/officer/approvals`, `/officer/audit`.
 - **Reset:** `POST /api/reset` re-seeds the in-memory store.
 - **Tests:** Vitest, pytest-style structure — exercise the deterministic path so suites pass with no API key.

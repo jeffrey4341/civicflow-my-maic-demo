@@ -32,7 +32,7 @@ export default async function ApprovalsPage() {
         Pending ({pending.length})
       </h2>
       <div className="mt-3 space-y-4">
-        {pending.length === 0 && <p className="text-sm text-slate-400">No pending approvals.</p>}
+        {pending.length === 0 && <p className="text-sm text-slate-600">No pending approvals.</p>}
         {pending.map((a) => {
           const c = caseById.get(a.case_id);
           return (
@@ -49,14 +49,14 @@ export default async function ApprovalsPage() {
                   </div>
                   <p className="mt-2 text-sm font-medium text-slate-800">{a.title}</p>
                   <p className="mt-1 text-xs text-slate-500">{a.reason}</p>
-                  {c && <p className="mt-2 text-xs italic text-slate-400">“{c.translated_text_en}”</p>}
+                  {c && <p className="mt-2 text-xs italic text-slate-600">“{c.translated_text_en}”</p>}
                   <ul className="mt-2 space-y-1">
                     {a.risk_factors.map((rf, i) => (
                       <li key={i} className="text-[12px] text-slate-600">⚠️ {rf}</li>
                     ))}
                   </ul>
                   {a.evidence.length > 0 && (
-                    <p className="mt-2 text-[11px] text-slate-400">
+                    <p className="mt-2 text-[11px] text-slate-600">
                       Evidence: {a.evidence.map((e) => e.doc_title).join(", ")}
                     </p>
                   )}
@@ -89,7 +89,7 @@ export default async function ApprovalsPage() {
                     )}
                     <span className="text-slate-600">{a.title}</span>
                   </div>
-                  <span className="text-[11px] text-slate-400">by {a.decision_by}</span>
+                  <span className="text-[11px] text-slate-600">by {a.decision_by}</span>
                 </div>
               );
             })}

@@ -35,7 +35,7 @@
 - **Citizen Agents** — A mobile-first intake agent that turns a free-text citizen request into a structured `CitizenCase`, detects missing information, and produces a draft citizen reply for officer review.
 - **RAG (policy retrieval with citations)** — Every recommendation is grounded in synthetic council policy documents. Each `PolicyCitation` carries `source_doc`, `section`, `snippet`, and `confidence` so officers can trace exactly which SOP, FAQ, or charter section supports a decision.
 - **E-Gov AI (workflow + approval gates)** — Department routing, status lifecycle, and a **supervisor approval gate** for high-risk cases. The full lifecycle is captured in an append-only `AuditEvent` timeline.
-- **Multilingual LLMs** — Native handling of **Malay, English, Chinese, and Tamil**: language detection on intake and citizen replies drafted in the citizen's language (with official Malay/English terms preserved where relevant).
+- **Multilingual LLMs** — Multilingual by design across **Malay, English, Chinese, and Tamil**: script/keyword language detection on intake and templated citizen replies in the citizen's language (with official Malay/English terms preserved where relevant); optional LLM refinement when an API key is set. Per-language quality is uneven — see `MODEL_CARD.md` §7.
 - **Civic Tech (transparency & safety)** — Synthetic-only data, a deterministic offline pipeline, explicit AI-disclosure and data/model cards, and a clearly drawn human-decision boundary suitable for public review.
 
 ---
@@ -58,7 +58,7 @@ The demo **always runs with no API key**. The optional LLM path is a drop-in enh
 
 ## Quick Start
 
-**Prerequisites:** Node.js **18+**.
+**Prerequisites:** Node.js **18.18+ (or 20+)** — Next.js 15 requires `^18.18.0 || >=20`.
 
 ```bash
 # 1. Install dependencies
@@ -97,6 +97,7 @@ npm run typecheck
 npm test
 npm run lint
 npm audit --omit=dev --audit-level=moderate
+npm run smoke:e2e   # Playwright browser smoke — builds & starts its own production server on 127.0.0.1:3012
 ```
 
 **Optional — Anthropic LLM path.** The demo runs end-to-end **without** any API key using the deterministic pipeline. If you wish to exercise the optional LLM path, set an `ANTHROPIC_API_KEY` in your environment before `npm run dev`. With no key present, the deterministic fallback returns structured output of identical shape, so the demo behaves consistently either way.
@@ -157,7 +158,7 @@ When no LLM key is present, a **deterministic fallback** produces output of iden
 **`CitizenCase` status lifecycle:**
 
 ```
-draft → needs_info → submitted → routed → awaiting_supervisor → in_progress → closed
+draft → needs_info → submitted → manual_review → routed → awaiting_supervisor → in_progress → closed
 ```
 
 ### Synthetic policy documents (`data/policies/`)
@@ -200,6 +201,14 @@ civicflow-my-maic-demo/
 
 ---
 
+## Product roadmap
+
+The current repository is a synthetic hackathon artifact, but the product direction is a governed integration layer for real public-service operators. CivicFlow should connect to each agency's existing apps and systems rather than replace them: case-management or ticketing databases, work-order tools, GIS / asset systems, notification channels, SSO, and approved SOP / FAQ / service-charter repositories.
+
+The roadmap moves from a pilot-ready hosted environment to one-agency integrations, then multi-agency tenancy, connector registries, multilingual service-equity checks, production RAG governance, immutable audit export, and procurement-grade security / privacy controls. See [`docs/roadmap/product_roadmap.md`](./docs/roadmap/product_roadmap.md) for the full roadmap.
+
+---
+
 ## Demo data & safety
 
 - **100% synthetic.** No real citizen data, no real government SOPs, no real NRIC, no real addresses, no real phone numbers, no private agency data. Any identifiers shown are obvious placeholders.
@@ -207,6 +216,7 @@ civicflow-my-maic-demo/
 - **No secrets.** No environment files, credentials, or enterprise modules are included. The optional `ANTHROPIC_API_KEY` is supplied by you at runtime and is never committed.
 - **Human-in-the-loop by design.** AI drafts; officers and supervisors decide. High-risk cases require explicit human approval before any escalation.
 - **Not production-ready.** This is a hackathon demo artifact. It is not hardened, certified, or intended for live citizen-facing deployment.
+- **Known demo limitations (by design).** There is no authentication layer: officer/supervisor roles are client-asserted demo strings, not verified identities. `POST /api/reset` is intentionally unauthenticated and wipes all in-memory state, including the audit timeline — do not expose a shared demo instance without protecting it. If `ANTHROPIC_API_KEY` is set, case submission and reset trigger outbound Anthropic API calls.
 
 This repository reuses only **architectural concepts** (not code) from a private reference project — role-aware workflow, RAG-with-citations, approval gates, append-only audit timeline, policy retrieval, model-draft + human-decision, deterministic fallback, synthetic demo data, and a test-first approach. No secrets, environment files, credentials, or enterprise modules were imported.
 

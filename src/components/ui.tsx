@@ -1,4 +1,5 @@
 import type {
+  AuditActor,
   AuditEvent,
   CaseStatus,
   Language,
@@ -77,18 +78,35 @@ export function CitationCard({ citation }: { citation: PolicyCitation }) {
       </div>
       <div className="mt-0.5 text-xs font-medium text-slate-500">§ {citation.section}</div>
       <p className="mt-2 text-sm text-slate-700">“{citation.snippet}”</p>
-      <div className="mt-2 text-[11px] text-slate-400">source: {citation.source_doc}</div>
+      <div className="mt-2 text-[11px] text-slate-600">source: {citation.source_doc}</div>
     </div>
   );
 }
 
-const ACTOR_DOT: Record<string, string> = {
-  citizen: "bg-sky-500",
-  ai_agent: "bg-civic-500",
-  system: "bg-slate-400",
-  officer: "bg-indigo-500",
-  supervisor: "bg-orange-500",
+const ACTOR_STYLE: Record<AuditActor, string> = {
+  citizen: "bg-sky-100 text-sky-800",
+  ai_agent: "bg-civic-100 text-civic-800",
+  system: "bg-slate-100 text-slate-700",
+  officer: "bg-indigo-100 text-indigo-800",
+  supervisor: "bg-orange-100 text-orange-800",
 };
+
+const ACTOR_LABEL: Record<AuditActor, string> = {
+  citizen: "Citizen",
+  ai_agent: "AI Agent",
+  system: "System",
+  officer: "Officer",
+  supervisor: "Supervisor",
+};
+
+export function ActorBadge({ actor, label }: { actor: AuditActor; label?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${ACTOR_STYLE[actor]}`}>
+      <span>{ACTOR_LABEL[actor]}</span>
+      {label ? <span className="font-normal">· {label}</span> : null}
+    </span>
+  );
+}
 
 function formatTime(iso: string): string {
   try {
@@ -111,11 +129,11 @@ export function AuditTimeline({ events }: { events: AuditEvent[] }) {
     <ol className="relative ml-3 border-l border-slate-200">
       {events.map((e) => (
         <li key={e.event_id} className="relative mb-4 pl-5">
-          <span className={`absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-white ${ACTOR_DOT[e.actor] ?? "bg-slate-400"}`} />
+          <span className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-white bg-slate-500" aria-hidden />
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[11px] text-slate-400">{e.event_type}</span>
-            <span className="text-[11px] text-slate-400">· {e.actor_label}</span>
-            <span className="text-[11px] text-slate-400">· {formatTime(e.created_at)}</span>
+            <span className="font-mono text-[11px] text-slate-600">{e.event_type}</span>
+            <ActorBadge actor={e.actor} label={e.actor_label} />
+            <span className="text-[11px] text-slate-600">· {formatTime(e.created_at)}</span>
           </div>
           <p className="mt-0.5 text-sm text-slate-700">{e.summary}</p>
         </li>
