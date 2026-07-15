@@ -21,6 +21,7 @@ import type {
 import { citizenRef, newId, nowIso } from "@/lib/util";
 import { runTriage } from "@/lib/ai/pipeline";
 import { buildApprovalTask } from "@/lib/ai/approval";
+import { assertSyntheticDataOnly } from "@/lib/ai/classify";
 import { makeAuditEvent } from "@/lib/audit";
 import { getStatusTransitionBlocker } from "@/lib/lifecycle";
 
@@ -89,6 +90,7 @@ async function buildCase(input: {
   original_text: string;
   location_text: string;
   media_refs: string[];
+  answers: Record<string, string>;
   created_at: string;
 }): Promise<BuildResult> {
   // case.created is generated first so it is the earliest event on the timeline.
@@ -108,12 +110,13 @@ async function buildCase(input: {
     text: input.original_text,
     selected_language: input.citizen_language,
     location_text: input.location_text,
+    answers: input.answers,
   });
   const r = triage.result;
   events.push(...triage.audit);
 
   let approval: ApprovalTask | null = null;
-  if (triage.gate.requires_supervisor) {
+  if (triage.status === "awaiting_supervisor") {
     approval = buildApprovalTask({
       case_id: input.case_id,
       title: `Supervisor approval — ${r.department} / ${r.unit}`,
@@ -138,7 +141,7 @@ async function buildCase(input: {
       actor: "system",
       event_type: "status.changed",
       summary: `Case status set to "${triage.status}".`,
-      payload: { status: triage.status },
+      payload: { from_status: "submitted", to_status: triage.status },
     }),
   );
 
@@ -151,6 +154,8 @@ async function buildCase(input: {
     category: r.category,
     location_text: input.location_text,
     media_refs: input.media_refs,
+    citizen_answers: input.answers,
+    triage_revision: 1,
     pii_risk: r.pii_risk,
     urgency: r.urgency,
     department: r.department,
@@ -188,6 +193,7 @@ async function seed(state: DemoState): Promise<void> {
       original_text: s.original_text,
       location_text: s.location_text,
       media_refs: s.media_refs ?? [],
+      answers: {},
       created_at: s.created_at ?? nowIso(),
     });
 
@@ -234,6 +240,7 @@ function setStatusInternal(
 ): CitizenCase | null {
   const record = state.cases.get(caseId);
   if (!record) return null;
+  const fromStatus = record.status;
   record.status = status;
   record.updated_at = nowIso();
   state.audit.push(
@@ -243,7 +250,7 @@ function setStatusInternal(
       actor_label: actorLabel,
       event_type: "status.changed",
       summary: `Status changed to "${status}".${note ? ` ${note}` : ""}`,
-      payload: { status },
+      payload: { from_status: fromStatus, to_status: status },
     }),
   );
   return record;
@@ -342,6 +349,7 @@ export interface SubmitInput {
   language: Language;
   location_text?: string;
   media_refs?: string[];
+  answers?: Record<string, string>;
   source_channel?: SourceChannel;
 }
 
@@ -351,14 +359,21 @@ function byCreatedDesc(a: CitizenCase, b: CitizenCase): number {
 
 export async function submitCase(input: SubmitInput): Promise<CitizenCase> {
   const state = await getState();
+  const answers = Object.fromEntries(
+    Object.entries(input.answers ?? {})
+      .map(([field, value]) => [field, String(value).trim()])
+      .filter(([, value]) => value),
+  ) as Record<string, string>;
+  assertSyntheticDataOnly(input.text, ...Object.values(answers));
   const built = await buildCase({
     case_id: newId("case"),
     citizen_ref: citizenRef(),
     source_channel: input.source_channel ?? "mobile_pwa",
     citizen_language: input.language,
     original_text: input.text.trim(),
-    location_text: (input.location_text ?? "").trim(),
+    location_text: (input.location_text ?? answers.location ?? "").trim(),
     media_refs: input.media_refs ?? [],
+    answers,
     created_at: nowIso(),
   });
   state.cases.set(built.record.case_id, built.record);
@@ -380,6 +395,126 @@ export async function getCase(idOrRef: string): Promise<CitizenCase | null> {
     if (c.citizen_ref.toUpperCase() === upper) return c;
   }
   return null;
+}
+
+function findCase(state: DemoState, idOrRef: string): CitizenCase | null {
+  if (state.cases.has(idOrRef)) return state.cases.get(idOrRef) ?? null;
+  const upper = idOrRef.toUpperCase();
+  for (const record of state.cases.values()) {
+    if (record.citizen_ref.toUpperCase() === upper) return record;
+  }
+  return null;
+}
+
+export async function updateCitizenDetails(args: {
+  id_or_ref: string;
+  triage_revision: number;
+  answers: Record<string, string>;
+}): Promise<CitizenCase> {
+  const state = await getState();
+  const record = findCase(state, args.id_or_ref);
+  if (!record) throw new Error("case_not_found");
+  if (record.triage_revision !== args.triage_revision) throw new Error("stale_triage_revision");
+  if (record.status !== "needs_info") throw new Error("case_not_waiting_for_details");
+
+  const allowed = new Set(
+    record.missing_info
+      .filter((item) => item.required && !item.satisfied)
+      .map((item) => item.field),
+  );
+  const answers = Object.fromEntries(
+    Object.entries(args.answers)
+      .map(([field, value]) => [field, String(value).trim()])
+      .filter(([, value]) => value),
+  ) as Record<string, string>;
+  if (Object.keys(answers).length === 0 || Object.keys(answers).some((field) => !allowed.has(field))) {
+    throw new Error("invalid_detail_fields");
+  }
+  for (const [field, value] of Object.entries(answers)) {
+    if (value.length > (field === "location" ? 200 : 500)) throw new Error("detail_too_long");
+  }
+  assertSyntheticDataOnly(...Object.values(answers));
+
+  const mergedAnswers = { ...record.citizen_answers, ...answers };
+  const nextRevision = record.triage_revision + 1;
+  const fromStatus = record.status;
+  const triage = await runTriage({
+    case_id: record.case_id,
+    citizen_ref: record.citizen_ref,
+    text: record.original_text,
+    selected_language: record.citizen_language,
+    location_text: mergedAnswers.location ?? record.location_text,
+    answers: mergedAnswers,
+  });
+  const result = triage.result;
+
+  let approval: ApprovalTask | null = null;
+  if (triage.status === "awaiting_supervisor") {
+    approval = buildApprovalTask({
+      case_id: record.case_id,
+      title: `Supervisor approval — ${result.department} / ${result.unit}`,
+      reason: triage.gate.reason,
+      risk_factors: triage.gate.risk_factors,
+      evidence: result.citations,
+    });
+    state.approvals.set(approval.approval_id, approval);
+  }
+
+  Object.assign(record, {
+    citizen_answers: mergedAnswers,
+    triage_revision: nextRevision,
+    location_text: mergedAnswers.location ?? record.location_text,
+    translated_text_en: result.translated_text_en,
+    category: result.category,
+    pii_risk: result.pii_risk,
+    urgency: result.urgency,
+    department: result.department,
+    status: triage.status,
+    updated_at: nowIso(),
+    detected_language: result.detected_language,
+    category_confidence: result.category_confidence,
+    unit: result.unit,
+    ai_mode: result.ai_mode,
+    missing_info: result.missing_info,
+    citations: result.citations,
+    routing: result.routing,
+    approval_task_id: approval?.approval_id ?? null,
+    manual_review_reason: result.manual_review_reason,
+    officer_review_only: result.officer_review_only,
+    reply_draft: result.reply_draft,
+  });
+
+  state.audit.push(
+    makeAuditEvent({
+      case_id: record.case_id,
+      actor: "citizen",
+      event_type: "citizen.details_submitted",
+      summary: "Citizen supplied requested case details.",
+      payload: { fields: Object.keys(answers), triage_revision: nextRevision },
+    }),
+    ...triage.audit,
+  );
+  if (approval) {
+    state.audit.push(
+      makeAuditEvent({
+        case_id: record.case_id,
+        actor: "system",
+        event_type: "approval.created",
+        summary: "Supervisor approval task created and queued.",
+        payload: { approval_id: approval.approval_id, triage_revision: nextRevision },
+      }),
+    );
+  }
+  state.audit.push(
+    makeAuditEvent({
+      case_id: record.case_id,
+      actor: "system",
+      event_type: "status.changed",
+      summary: `Status changed to "${triage.status}" after citizen follow-up.`,
+      payload: { from_status: fromStatus, to_status: triage.status, triage_revision: nextRevision },
+    }),
+  );
+  return record;
 }
 
 export async function listApprovals(status?: ApprovalStatus): Promise<ApprovalTask[]> {

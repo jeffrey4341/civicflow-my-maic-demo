@@ -133,6 +133,7 @@ describe("LLM refinement parity", () => {
     expect(out.result.citations.map((c) => c.source_doc)).toContain("business_licensing_faq.md");
     expect(out.result.category_confidence).toBeLessThan(0.5);
     expect(out.result.manual_review_reason).toBe(MANUAL_REVIEW_LOW_CONFIDENCE_REASON);
-    expect(out.status).toBe("manual_review");
+    // Citizen-facing missing details are resolved before the stored manual-review gate.
+    expect(out.status).toBe("needs_info");
   });
 });

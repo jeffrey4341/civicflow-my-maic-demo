@@ -11,6 +11,8 @@
 import type { CaseCategory, PiiRisk, Urgency } from "@/lib/types";
 import { clamp, round2 } from "@/lib/util";
 
+export const SYNTHETIC_DATA_ONLY_CODE = "synthetic_data_only";
+
 interface Keyword {
   term: string;
   weight: number;
@@ -115,6 +117,12 @@ export function detectPiiRisk(text: string): PiiRisk {
   if (nric.test(text) || phone.test(text) || email.test(text)) return "high";
   if (longDigits.test(text) || idWords.test(text)) return "medium";
   return "low";
+}
+
+/** Fail before optional model calls or persistence when input looks personal. */
+export function assertSyntheticDataOnly(...values: string[]): void {
+  if (detectPiiRisk(values.join("\n")) === "low") return;
+  throw Object.assign(new Error(SYNTHETIC_DATA_ONLY_CODE), { code: SYNTHETIC_DATA_ONLY_CODE });
 }
 
 /** Classify free-text into category + urgency + PII-risk with a confidence. */

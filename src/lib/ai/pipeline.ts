@@ -34,6 +34,7 @@ export interface TriageInput {
   text: string;
   selected_language: Language;
   location_text: string;
+  answers?: Record<string, string>;
 }
 
 export interface TriageOutput {
@@ -55,21 +56,26 @@ export interface TriageOutput {
  * visible to the citizen even though it is never the current status here.
  */
 function computeStatus(needsInfo: boolean, gate: GateResult, manualReviewReason: string | null): CaseStatus {
-  if (manualReviewReason) return "manual_review";
   if (needsInfo) return "needs_info";
+  if (manualReviewReason) return "manual_review";
   if (gate.requires_supervisor) return "awaiting_supervisor";
   return "routed";
 }
 
 export async function runTriage(input: TriageInput): Promise<TriageOutput> {
-  const { case_id, citizen_ref, text, selected_language, location_text } = input;
+  const { case_id, citizen_ref, text, selected_language, location_text, answers = {} } = input;
   const audit: AuditEvent[] = [];
+  const answerText = Object.entries(answers)
+    .filter(([, value]) => value.trim())
+    .map(([field, value]) => `${field}: ${value.trim()}`)
+    .join("\n");
+  const analysisText = answerText ? `${text}\n${answerText}` : text;
 
   // 1. Language detection
   let detected_language = detectLanguage(text);
 
   // 2. Classification (deterministic baseline)
-  const baseline = classifyCase(text);
+  const baseline = classifyCase(analysisText);
   let category = baseline.category;
   let urgency = baseline.urgency;
   let category_confidence = baseline.category_confidence;
@@ -79,7 +85,7 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
   // 2b. Optional LLM refinement (no-op offline; deterministic fallback on error)
   let llmTranslation: string | null = null;
   if (isLlmConfigured()) {
-    const refined = await llmRefineClassification(text);
+    const refined = await llmRefineClassification(analysisText);
     if (refined) {
       detected_language = refined.detected_language;
       category = refined.category;
@@ -114,7 +120,7 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
   );
 
   // 4. Policy retrieval (RAG)
-  const citations: PolicyCitation[] = retrievePolicies(`${text} ${translated_text_en}`, {
+  const citations: PolicyCitation[] = retrievePolicies(`${analysisText} ${translated_text_en}`, {
     category,
     hints: baseline.matched_terms,
     topK: 3,
@@ -146,7 +152,7 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
   );
 
   // 6. Missing-info detection
-  const missing_info = detectMissingInfo(category, text, location_text, detected_language);
+  const missing_info = detectMissingInfo(category, text, location_text, selected_language, answers);
   const needsInfo = hasBlockingGaps(missing_info);
   const blockingCount = missing_info.filter((m) => m.required && !m.satisfied).length;
   if (missing_info.length > 0) {
@@ -192,7 +198,7 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
   // 8. Reply draft
   const reply_draft = generateReplyDraft({
     case_id,
-    language: detected_language,
+    language: selected_language,
     category,
     citizen_ref,
     department: routing.department,
@@ -209,8 +215,8 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
       case_id,
       actor: "ai_agent",
       event_type: "reply.drafted",
-      summary: `Drafted citizen reply in ${detected_language} (awaiting officer review).`,
-      payload: { language: detected_language, grounded_on: primaryCitation?.source_doc ?? "manual-review" },
+      summary: `Drafted citizen reply in ${selected_language} (awaiting officer review).`,
+      payload: { language: selected_language, grounded_on: primaryCitation?.source_doc ?? "manual-review" },
     }),
   );
 

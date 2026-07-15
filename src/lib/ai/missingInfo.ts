@@ -167,10 +167,11 @@ export function detectMissingInfo(
   text: string,
   location: string,
   language: Language,
+  answers: Record<string, string> = {},
 ): MissingInfoItem[] {
   const specs = CATEGORY_FIELDS[category] ?? [];
   return specs.map((spec) => {
-    const satisfied = spec.satisfied(text, location);
+    const satisfied = Boolean(answers[spec.field]?.trim()) || spec.satisfied(text, location);
     return {
       field: spec.field,
       label: spec.label,

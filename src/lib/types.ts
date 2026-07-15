@@ -169,6 +169,8 @@ export interface CitizenCase {
   category: CaseCategory;
   location_text: string;
   media_refs: string[]; // synthetic placeholders, e.g. "photo:drain_ss2_mock.jpg"
+  citizen_answers: Record<string, string>; // structured follow-up values keyed by MissingInfoItem.field
+  triage_revision: number; // increments when citizen details or reviewed triage facts change
   pii_risk: PiiRisk;
   urgency: Urgency;
   department: string;
