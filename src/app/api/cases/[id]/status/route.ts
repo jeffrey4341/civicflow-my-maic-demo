@@ -15,11 +15,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try {
     const updated = await setStatus({
       case_id: id,
+      triage_revision: Number(body.triage_revision),
       status,
       actor_label: String(body.officer ?? "Council Officer"),
+      note: body.note == null ? undefined : String(body.note),
     });
     return NextResponse.json(updated);
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
+    const message = (err as Error).message;
+    return NextResponse.json(
+      { error: message },
+      { status: message === "stale_triage_revision" ? 409 : message.includes("not found") ? 404 : 400 },
+    );
   }
 }

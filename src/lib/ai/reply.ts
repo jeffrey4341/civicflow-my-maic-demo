@@ -185,6 +185,7 @@ export function generateReplyDraft(p: ReplyParams): CitizenReplyDraft {
     status: "draft",
     drafted_by: "ai_agent",
     approved_by: null,
+    approved_revision: null,
     created_at: nowIso(),
   };
 }

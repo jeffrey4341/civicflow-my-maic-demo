@@ -12,18 +12,24 @@ import { join } from "node:path";
 import type {
   ApprovalStatus,
   ApprovalTask,
+  CaseCategory,
   AuditEvent,
   CaseStatus,
   CitizenCase,
   Language,
+  OfficerReviewResolution,
+  PolicyCitation,
   SourceChannel,
+  WelfareOutcome,
 } from "@/lib/types";
 import { citizenRef, newId, nowIso } from "@/lib/util";
 import { runTriage } from "@/lib/ai/pipeline";
 import { buildApprovalTask } from "@/lib/ai/approval";
+import { evaluateApprovalGate } from "@/lib/ai/approval";
 import { assertSyntheticDataOnly } from "@/lib/ai/classify";
+import { detectMissingInfo, hasBlockingGaps } from "@/lib/ai/missingInfo";
 import { makeAuditEvent } from "@/lib/audit";
-import { getStatusTransitionBlocker } from "@/lib/lifecycle";
+import { loadPolicyChunks } from "@/lib/rag/policies";
 
 interface DemoState {
   cases: Map<string, CitizenCase>;
@@ -119,6 +125,7 @@ async function buildCase(input: {
   if (triage.status === "awaiting_supervisor") {
     approval = buildApprovalTask({
       case_id: input.case_id,
+      triage_revision: 1,
       title: `Supervisor approval — ${r.department} / ${r.unit}`,
       reason: triage.gate.reason,
       risk_factors: triage.gate.risk_factors,
@@ -130,7 +137,11 @@ async function buildCase(input: {
         actor: "system",
         event_type: "approval.created",
         summary: "Supervisor approval task created and queued.",
-        payload: { approval_id: approval.approval_id, approver_role: approval.approver_role },
+        payload: {
+          approval_id: approval.approval_id,
+          approver_role: approval.approver_role,
+          triage_revision: 1,
+        },
       }),
     );
   }
@@ -156,6 +167,7 @@ async function buildCase(input: {
     media_refs: input.media_refs,
     citizen_answers: input.answers,
     triage_revision: 1,
+    officer_review: null,
     pii_risk: r.pii_risk,
     urgency: r.urgency,
     department: r.department,
@@ -204,8 +216,38 @@ async function seed(state: DemoState): Promise<void> {
 
     // Optional demo adjustments to populate a realistic officer queue.
     const demo = s.demo;
+    const needsSeedReview = Boolean(
+      demo?.approve
+      || demo?.reply_sent
+      || demo?.override_status === "in_progress"
+      || demo?.override_status === "closed",
+    );
+    if (needsSeedReview) {
+      const officer = demo?.officer ?? "Officer (demo)";
+      record.officer_review = {
+        triage_revision: record.triage_revision,
+        officer,
+        reviewed_at: nowIso(),
+        note: "Synthetic seed review for the public demo.",
+        resolution: "proceed",
+        welfare_outcome: record.category === "education_aid_welfare" ? "eligible" : null,
+      };
+      if (record.reply_draft) {
+        record.reply_draft.status = "approved";
+        record.reply_draft.approved_by = officer;
+        record.reply_draft.approved_revision = record.triage_revision;
+      }
+    }
     if (demo?.approve && built.approval) {
-      applyDecision(state, built.approval.approval_id, "approved", demo.officer ?? "Supervisor (demo)", "supervisor", "Approved for the demo seed.");
+      applyDecision(
+        state,
+        built.approval.approval_id,
+        record.triage_revision,
+        "approved",
+        demo.officer ?? "Supervisor (demo)",
+        "supervisor",
+        "Approved for the demo seed.",
+      );
     }
     if (demo?.reply_sent && record.reply_draft) {
       record.reply_draft.status = "sent";
@@ -250,7 +292,7 @@ function setStatusInternal(
       actor_label: actorLabel,
       event_type: "status.changed",
       summary: `Status changed to "${status}".${note ? ` ${note}` : ""}`,
-      payload: { from_status: fromStatus, to_status: status },
+      payload: { from_status: fromStatus, to_status: status, triage_revision: record.triage_revision },
     }),
   );
   return record;
@@ -268,9 +310,9 @@ function recordDeniedStatus(
       case_id: record.case_id,
       actor: "officer",
       actor_label: actorLabel,
-      event_type: "status.denied",
-      summary: `Denied status change to "${status}". ${reason}`,
-      payload: { status, current_status: record.status, reason },
+      event_type: "status.held",
+      summary: `Held status change to "${status}". ${reason}`,
+      payload: { status, current_status: record.status, reason, triage_revision: record.triage_revision },
     }),
   );
 }
@@ -278,7 +320,8 @@ function recordDeniedStatus(
 function applyDecision(
   state: DemoState,
   approvalId: string,
-  decision: ApprovalStatus,
+  triageRevision: number,
+  decision: "approved" | "rejected",
   decidedBy: string,
   decidedRole: string,
   note: string,
@@ -288,7 +331,24 @@ function applyDecision(
 
   const task = state.approvals.get(approvalId);
   if (!task) throw new Error("Approval task not found.");
+  const record = state.cases.get(task.case_id);
+  if (!record) throw new Error("Case not found.");
+  if (record.status === "closed") throw new Error("Closed cases are immutable.");
+  if (record.triage_revision !== triageRevision || task.triage_revision !== triageRevision) {
+    throw new Error("stale_triage_revision");
+  }
+  if (record.approval_task_id !== task.approval_id) throw new Error("Approval task is not current.");
   if (task.status !== "pending") throw new Error("Approval task already decided.");
+  if (
+    !record.officer_review
+    || record.officer_review.triage_revision !== triageRevision
+    || !["proceed", "resubmit_approval"].includes(record.officer_review.resolution)
+  ) {
+    throw new Error("Current officer review is required before supervisor decision.");
+  }
+  if (hasBlockingGaps(record.missing_info) || record.status === "needs_info") {
+    throw new Error("Missing information must be resolved before supervisor decision.");
+  }
   // Governance: AI requested this; a human must decide. No self-approval.
   if (decidedBy === task.requested_by) throw new Error("Self-approval is not allowed.");
   if (decidedRole !== task.approver_role) {
@@ -309,16 +369,20 @@ function applyDecision(
       summary: decision === "approved"
         ? "Supervisor approved the high-risk action."
         : "Supervisor rejected the high-risk action.",
-      payload: { approval_id: approvalId, note: trimmedNote },
+      payload: { approval_id: approvalId, note: trimmedNote, triage_revision: triageRevision },
     }),
   );
 
   if (decision === "approved") {
-    setStatusInternal(state, task.case_id, "in_progress", "supervisor", decidedBy);
+    record.manual_review_reason = null;
+    setStatusInternal(state, task.case_id, "routed", "supervisor", decidedBy);
   } else {
-    const record = state.cases.get(task.case_id);
-    if (record) {
-      record.manual_review_reason = "Supervisor rejected this case; manual officer review is required before further action.";
+    record.manual_review_reason = "Supervisor rejected this case; a new officer resolution is required before further action.";
+    record.officer_review = null;
+    if (record.reply_draft) {
+      record.reply_draft.status = "draft";
+      record.reply_draft.approved_by = null;
+      record.reply_draft.approved_revision = null;
     }
     setStatusInternal(state, task.case_id, "manual_review", "supervisor", decidedBy);
   }
@@ -408,6 +472,287 @@ function findCase(state: DemoState, idOrRef: string): CitizenCase | null {
   return null;
 }
 
+export interface CitationKey {
+  source_doc: string;
+  section: string;
+}
+
+export interface ReviewCaseInput {
+  case_id: string;
+  triage_revision: number;
+  officer: string;
+  note: string;
+  citizen_language: Language;
+  category: CaseCategory;
+  routing: { department: string; unit: string };
+  citation_keys: CitationKey[];
+  reply_body: string;
+  reply_body_en: string;
+  resolution: OfficerReviewResolution;
+  welfare_outcome?: WelfareOutcome | null;
+}
+
+function citationId(citation: CitationKey): string {
+  return `${citation.source_doc}\u0000${citation.section}`;
+}
+
+function sameCitationKeys(left: CitationKey[], right: CitationKey[]): boolean {
+  const a = [...new Set(left.map(citationId))].sort();
+  const b = [...new Set(right.map(citationId))].sort();
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function resolvePolicyCitations(record: CitizenCase, keys: CitationKey[]): PolicyCitation[] {
+  const chunks = loadPolicyChunks();
+  const unique = [...new Map(keys.map((key) => [citationId(key), key])).values()];
+  return unique.map((key) => {
+    const chunk = chunks.find(
+      (candidate) => candidate.source_doc === key.source_doc && candidate.section === key.section,
+    );
+    if (!chunk) throw new Error("invalid_citation_key");
+    const existing = record.citations.find(
+      (citation) => citation.source_doc === key.source_doc && citation.section === key.section,
+    );
+    return {
+      source_doc: chunk.source_doc,
+      doc_title: chunk.doc_title,
+      section: chunk.section,
+      snippet: existing?.snippet ?? chunk.text.slice(0, 360),
+      confidence: existing?.confidence ?? 1,
+    };
+  });
+}
+
+function currentGate(record: CitizenCase) {
+  return evaluateApprovalGate({
+    category: record.category,
+    urgency: record.urgency,
+    pii_risk: record.pii_risk,
+    category_confidence: record.category_confidence,
+  });
+}
+
+export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
+  const state = await getState();
+  const record = state.cases.get(input.case_id);
+  if (!record) throw new Error("case_not_found");
+  if (record.status === "closed") throw new Error("Closed cases are immutable.");
+  if (record.triage_revision !== input.triage_revision) throw new Error("stale_triage_revision");
+  if (!record.reply_draft) throw new Error("Reply draft not found.");
+
+  const officer = input.officer.trim();
+  const note = input.note.trim();
+  const department = input.routing.department.trim();
+  const unit = input.routing.unit.trim();
+  const replyBody = input.reply_body.trim();
+  const replyBodyEn = input.reply_body_en.trim();
+  if (!officer || !note || !department || !unit || !replyBody || !replyBodyEn) {
+    throw new Error("Officer, note, routing and reply fields are required.");
+  }
+  assertSyntheticDataOnly(officer, note, department, unit, replyBody, replyBodyEn);
+
+  const citations = resolvePolicyCitations(record, input.citation_keys);
+  if (input.resolution !== "close_no_action" && citations.length === 0) {
+    throw new Error("At least one valid policy citation is required to proceed.");
+  }
+
+  const substantive = record.citizen_language !== input.citizen_language
+    || record.category !== input.category
+    || record.department !== department
+    || record.unit !== unit
+    || !sameCitationKeys(record.citations, citations);
+  const routingChanged = record.citizen_language !== input.citizen_language
+    || record.category !== input.category
+    || record.department !== department
+    || record.unit !== unit;
+  const replyEdited = record.reply_draft.language !== input.citizen_language
+    || record.reply_draft.body !== replyBody
+    || record.reply_draft.body_en !== replyBodyEn;
+  const preserveSentReply = record.reply_draft.status === "sent" && !substantive && !replyEdited;
+  const nextRevision = record.triage_revision + (substantive ? 1 : 0);
+  const proposedMissing = detectMissingInfo(
+    input.category,
+    record.original_text,
+    record.location_text,
+    input.citizen_language,
+    record.citizen_answers,
+  );
+  if (input.resolution !== "close_no_action" && hasBlockingGaps(proposedMissing)) {
+    throw new Error("Missing information must be resolved before officer review can proceed.");
+  }
+
+  const proposedGate = evaluateApprovalGate({
+    category: input.category,
+    urgency: record.urgency,
+    pii_risk: record.pii_risk,
+    category_confidence: record.category_confidence,
+  });
+  const rejectedTask = [...state.approvals.values()].find(
+    (task) => task.case_id === record.case_id && task.status === "rejected",
+  );
+  if (rejectedTask && proposedGate.requires_supervisor && input.resolution === "proceed") {
+    throw new Error("Choose close without action or resubmit the rejected high-risk approval.");
+  }
+  if (
+    input.resolution === "resubmit_approval"
+    && (!rejectedTask || !substantive || !proposedGate.requires_supervisor)
+  ) {
+    throw new Error("Rejected high-risk approval requires substantive edits before resubmission.");
+  }
+
+  const fromStatus = record.status;
+  const preserveInProgress = fromStatus === "in_progress"
+    && !substantive
+    && input.resolution === "proceed";
+  const superseded: ApprovalTask[] = [];
+  if (substantive) {
+    for (const task of state.approvals.values()) {
+      if (task.case_id !== record.case_id || !["pending", "approved"].includes(task.status)) continue;
+      task.status = "superseded";
+      if (!task.decided_at) {
+        task.decided_at = nowIso();
+        task.decision_by = officer;
+        task.decision_note = `Superseded by triage revision ${nextRevision}.`;
+      }
+      superseded.push(task);
+    }
+  }
+
+  Object.assign(record, {
+    citizen_language: input.citizen_language,
+    category: input.category,
+    department,
+    unit,
+    citations,
+    missing_info: proposedMissing,
+    triage_revision: nextRevision,
+    manual_review_reason: null,
+    officer_review_only: proposedGate.officer_review_only,
+    updated_at: nowIso(),
+  });
+  if (record.routing) {
+    Object.assign(record.routing, {
+      category: input.category,
+      department,
+      unit,
+      requires_supervisor: proposedGate.requires_supervisor,
+      rule_id: routingChanged ? "officer-confirmed" : record.routing.rule_id,
+      rationale: routingChanged
+        ? "Routing facts confirmed by a council officer during case review."
+        : record.routing.rationale,
+    });
+  }
+
+  let approval = record.approval_task_id ? state.approvals.get(record.approval_task_id) ?? null : null;
+  let createdApproval: ApprovalTask | null = null;
+  if (input.resolution !== "close_no_action" && proposedGate.requires_supervisor) {
+    const reusable = !substantive
+      && approval?.triage_revision === nextRevision
+      && ["pending", "approved"].includes(approval.status);
+    if (!reusable) {
+      approval = buildApprovalTask({
+        case_id: record.case_id,
+        triage_revision: nextRevision,
+        title: `Supervisor approval - ${department} / ${unit}`,
+        reason: proposedGate.reason,
+        risk_factors: proposedGate.risk_factors,
+        evidence: citations,
+      });
+      state.approvals.set(approval.approval_id, approval);
+      createdApproval = approval;
+    }
+    record.approval_task_id = approval!.approval_id;
+    record.status = preserveInProgress
+      ? "in_progress"
+      : approval!.status === "approved"
+        ? "routed"
+        : "awaiting_supervisor";
+  } else if (input.resolution === "close_no_action") {
+    record.status = "manual_review";
+    record.manual_review_reason = "Officer resolved this case for closure without operational action.";
+  } else {
+    record.approval_task_id = null;
+    record.status = preserveInProgress ? "in_progress" : "routed";
+  }
+
+  Object.assign(record.reply_draft, {
+    language: input.citizen_language,
+    body: replyBody,
+    body_en: replyBodyEn,
+    citations,
+    status: preserveSentReply ? "sent" : "approved",
+    approved_by: officer,
+    approved_revision: nextRevision,
+  });
+  record.officer_review = {
+    triage_revision: nextRevision,
+    officer,
+    reviewed_at: nowIso(),
+    note,
+    resolution: input.resolution,
+    welfare_outcome: input.welfare_outcome ?? null,
+  };
+
+  for (const task of superseded) {
+    state.audit.push(
+      makeAuditEvent({
+        case_id: record.case_id,
+        actor: "officer",
+        actor_label: officer,
+        event_type: "approval.superseded",
+        summary: "A prior supervisor approval was superseded by revised triage facts.",
+        payload: { approval_id: task.approval_id, triage_revision: nextRevision },
+      }),
+    );
+  }
+  if (createdApproval) {
+    state.audit.push(
+      makeAuditEvent({
+        case_id: record.case_id,
+        actor: "system",
+        event_type: "approval.created",
+        summary: "Supervisor approval task created for the reviewed triage revision.",
+        payload: { approval_id: createdApproval.approval_id, triage_revision: nextRevision },
+      }),
+    );
+  }
+  state.audit.push(
+    makeAuditEvent({
+      case_id: record.case_id,
+      actor: "officer",
+      actor_label: officer,
+      event_type: "officer.reviewed",
+      summary: "Officer confirmed the case triage and citizen reply.",
+      payload: { triage_revision: nextRevision, resolution: input.resolution, substantive },
+    }),
+  );
+  if (!preserveSentReply) {
+    state.audit.push(
+      makeAuditEvent({
+        case_id: record.case_id,
+        actor: "officer",
+        actor_label: officer,
+        event_type: "reply.approved",
+        summary: "Officer approved the citizen reply for the current triage revision.",
+        payload: { triage_revision: nextRevision, language: input.citizen_language },
+      }),
+    );
+  }
+  if (fromStatus !== record.status) {
+    state.audit.push(
+      makeAuditEvent({
+        case_id: record.case_id,
+        actor: "officer",
+        actor_label: officer,
+        event_type: "status.changed",
+        summary: `Status changed to "${record.status}" after officer review.`,
+        payload: { from_status: fromStatus, to_status: record.status, triage_revision: nextRevision },
+      }),
+    );
+  }
+  return record;
+}
+
 export async function updateCitizenDetails(args: {
   id_or_ref: string;
   triage_revision: number;
@@ -462,6 +807,7 @@ export async function updateCitizenDetails(args: {
   if (triage.status === "awaiting_supervisor") {
     approval = buildApprovalTask({
       case_id: record.case_id,
+      triage_revision: nextRevision,
       title: `Supervisor approval — ${result.department} / ${result.unit}`,
       reason: triage.gate.reason,
       risk_factors: triage.gate.risk_factors,
@@ -531,7 +877,8 @@ export async function getApproval(id: string): Promise<ApprovalTask | null> {
 
 export async function decideApproval(args: {
   approval_id: string;
-  decision: ApprovalStatus;
+  triage_revision: number;
+  decision: "approved" | "rejected";
   decided_by?: string;
   decided_role?: string;
   note?: string;
@@ -542,6 +889,7 @@ export async function decideApproval(args: {
   return applyDecision(
     state,
     args.approval_id,
+    args.triage_revision,
     args.decision,
     args.decided_by ?? "Supervisor (demo)",
     args.decided_role ?? "supervisor",
@@ -555,47 +903,131 @@ export async function listAudit(caseId?: string): Promise<AuditEvent[]> {
   return caseId ? all.filter((e) => e.case_id === caseId) : all;
 }
 
-export async function releaseReply(caseId: string, officer = "Officer (demo)"): Promise<CitizenCase> {
+export async function releaseReply(args: {
+  case_id: string;
+  triage_revision: number;
+  officer?: string;
+}): Promise<CitizenCase> {
   const state = await getState();
-  const record = state.cases.get(caseId);
+  const record = state.cases.get(args.case_id);
   if (!record || !record.reply_draft) throw new Error("Case or reply draft not found.");
+  if (record.status === "closed") throw new Error("Closed cases are immutable.");
+  if (record.triage_revision !== args.triage_revision) throw new Error("stale_triage_revision");
+  const review = record.officer_review;
+  if (!review || review.triage_revision !== record.triage_revision) {
+    throw new Error("Current officer review is required before reply release.");
+  }
+  if (
+    record.reply_draft.status !== "approved"
+    || record.reply_draft.approved_revision !== record.triage_revision
+  ) {
+    throw new Error("The current citizen reply must be approved before release.");
+  }
+  if (hasBlockingGaps(record.missing_info) && review.resolution !== "close_no_action") {
+    throw new Error("Missing information must be resolved before reply release.");
+  }
+  if (review.resolution !== "close_no_action" && currentGate(record).requires_supervisor) {
+    const approval = record.approval_task_id
+      ? state.approvals.get(record.approval_task_id) ?? null
+      : null;
+    if (
+      !approval
+      || approval.triage_revision !== record.triage_revision
+      || approval.status !== "approved"
+    ) {
+      throw new Error("Current supervisor approval is required before reply release.");
+    }
+  }
+  const officer = (args.officer ?? "Officer (demo)").trim();
+  if (!officer) throw new Error("Officer is required.");
   record.reply_draft.status = "sent";
   record.reply_draft.approved_by = officer;
   record.updated_at = nowIso();
   state.audit.push(
     makeAuditEvent({
-      case_id: caseId,
+      case_id: record.case_id,
       actor: "officer",
       actor_label: officer,
       event_type: "reply.sent",
       summary: "Officer reviewed and released the citizen reply.",
-      payload: { language: record.reply_draft.language },
+      payload: { language: record.reply_draft.language, triage_revision: record.triage_revision },
     }),
   );
-  if (record.status === "routed" || record.status === "in_progress") {
-    setStatusInternal(state, caseId, "in_progress", "officer", officer);
-  }
   return record;
 }
 
 export async function setStatus(args: {
   case_id: string;
+  triage_revision: number;
   status: CaseStatus;
   actor_label?: string;
+  note?: string;
 }): Promise<CitizenCase> {
   const state = await getState();
   const record = state.cases.get(args.case_id);
   if (!record) throw new Error("Case not found.");
-
-  const approval = record.approval_task_id ? state.approvals.get(record.approval_task_id) ?? null : null;
   const actorLabel = args.actor_label ?? "Council Officer";
-  const blocker = getStatusTransitionBlocker(record, args.status, approval);
-  if (blocker) {
-    recordDeniedStatus(state, record, args.status, actorLabel, blocker);
-    throw new Error(blocker);
+  const hold = (reason: string): never => {
+    recordDeniedStatus(state, record, args.status, actorLabel, reason);
+    throw new Error(reason);
+  };
+
+  if (record.status === "closed") hold("Closed cases are immutable.");
+  if (record.triage_revision !== args.triage_revision) throw new Error("stale_triage_revision");
+  if (args.status !== "in_progress" && args.status !== "closed") {
+    hold("Only start-work and close actions are available through this endpoint.");
+  }
+  if (hasBlockingGaps(record.missing_info)) {
+    hold("Missing information must be resolved before work can start or the case can be closed.");
+  }
+  if (record.status === "manual_review" && !record.officer_review) {
+    hold(record.manual_review_reason ?? "Manual review is required before changing case status.");
+  }
+  const review = record.officer_review;
+  if (!review) {
+    const reason = "Current officer review is required before changing case status.";
+    recordDeniedStatus(state, record, args.status, actorLabel, reason);
+    throw new Error(reason);
+  }
+  if (review.triage_revision !== record.triage_revision) {
+    hold("Current officer review is required before changing case status.");
   }
 
-  return setStatusInternal(state, args.case_id, args.status, "officer", actorLabel)!;
+  if (args.status === "in_progress") {
+    if (review.resolution !== "proceed") hold("Only a proceed resolution may start operational work.");
+    if (record.citations.length === 0) hold("A valid policy citation is required before work can start.");
+    if (currentGate(record).requires_supervisor) {
+      const approval = record.approval_task_id
+        ? state.approvals.get(record.approval_task_id) ?? null
+        : null;
+      if (
+        !approval
+        || approval.triage_revision !== record.triage_revision
+        || approval.status !== "approved"
+      ) {
+        hold("Current supervisor approval is required before work can start.");
+      }
+    }
+    if (record.status !== "routed") hold("The case must be routed before work can start.");
+  } else {
+    if (record.reply_draft?.status !== "sent") hold("Citizen reply must be sent before closure.");
+    if (!(args.note ?? "").trim()) hold("A non-empty closure note is required.");
+    if (record.category === "education_aid_welfare" && !review.welfare_outcome) {
+      hold("A human welfare outcome is required before closure.");
+    }
+    if (review.resolution === "proceed" && record.status !== "in_progress") {
+      hold("Proceed cases must start work before closure.");
+    }
+  }
+
+  return setStatusInternal(
+    state,
+    args.case_id,
+    args.status,
+    "officer",
+    actorLabel,
+    args.note?.trim(),
+  )!;
 }
 
 export async function resetStore(): Promise<void> {

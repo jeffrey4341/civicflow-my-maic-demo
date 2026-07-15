@@ -69,7 +69,10 @@ export const CASE_STATUS_ORDER: CaseStatus[] = [
   "closed",
 ];
 
-export type ApprovalStatus = "pending" | "approved" | "rejected";
+export type ApprovalStatus = "pending" | "approved" | "rejected" | "superseded";
+
+export type OfficerReviewResolution = "proceed" | "close_no_action" | "resubmit_approval";
+export type WelfareOutcome = "eligible" | "not_eligible";
 
 /** Who performed an audited action. */
 export type AuditActor = "system" | "ai_agent" | "citizen" | "officer" | "supervisor";
@@ -124,6 +127,7 @@ export interface ApprovalTask {
   requested_by: string; // "ai_agent" — never auto-approves
   status: ApprovalStatus;
   evidence: PolicyCitation[]; // citations backing the recommendation
+  triage_revision: number; // review revision this approval authorises
   decision_by: string | null; // who decided (must differ from requester)
   decision_note: string | null;
   created_at: string;
@@ -140,7 +144,18 @@ export interface CitizenReplyDraft {
   status: "draft" | "approved" | "sent";
   drafted_by: "ai_agent";
   approved_by: string | null; // officer who released it
+  approved_revision: number | null; // review revision approved by the officer
   created_at: string;
+}
+
+/** Human confirmation of the current triage facts and citizen reply. */
+export interface OfficerReview {
+  triage_revision: number;
+  officer: string;
+  reviewed_at: string;
+  note: string;
+  resolution: OfficerReviewResolution;
+  welfare_outcome: WelfareOutcome | null;
 }
 
 /** Append-only audit event. One per state change / AI decision. */
@@ -171,6 +186,7 @@ export interface CitizenCase {
   media_refs: string[]; // synthetic placeholders, e.g. "photo:drain_ss2_mock.jpg"
   citizen_answers: Record<string, string>; // structured follow-up values keyed by MissingInfoItem.field
   triage_revision: number; // increments when citizen details or reviewed triage facts change
+  officer_review: OfficerReview | null;
   pii_risk: PiiRisk;
   urgency: Urgency;
   department: string;
