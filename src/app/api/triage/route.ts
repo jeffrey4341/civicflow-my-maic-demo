@@ -29,14 +29,17 @@ export async function POST(req: Request) {
     throw error;
   }
 
-  const out = await runTriage({
-    case_id: "preview",
-    citizen_ref: "PREVIEW",
-    text,
-    selected_language: language,
-    location_text,
-    answers,
-  });
+  const out = await runTriage(
+    {
+      case_id: "preview",
+      citizen_ref: "PREVIEW",
+      text,
+      selected_language: language,
+      location_text,
+      answers,
+    },
+    { allowLlm: false },
+  );
 
   return NextResponse.json({
     result: out.result,

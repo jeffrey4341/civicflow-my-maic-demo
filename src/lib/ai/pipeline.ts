@@ -62,7 +62,10 @@ function computeStatus(needsInfo: boolean, gate: GateResult, manualReviewReason:
   return "routed";
 }
 
-export async function runTriage(input: TriageInput): Promise<TriageOutput> {
+export async function runTriage(
+  input: TriageInput,
+  { allowLlm = true }: { allowLlm?: boolean } = {},
+): Promise<TriageOutput> {
   const { case_id, citizen_ref, text, selected_language, location_text, answers = {} } = input;
   const audit: AuditEvent[] = [];
   const answerText = Object.entries(answers)
@@ -84,7 +87,7 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
 
   // 2b. Optional LLM refinement (no-op offline; deterministic fallback on error)
   let llmTranslation: string | null = null;
-  if (isLlmConfigured()) {
+  if (allowLlm && isLlmConfigured()) {
     const refined = await llmRefineClassification(analysisText);
     if (refined) {
       detected_language = refined.detected_language;

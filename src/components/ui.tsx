@@ -4,8 +4,6 @@ import type {
   AuditEvent,
   CaseStatus,
   Language,
-  PiiRisk,
-  PolicyCitation,
   Urgency,
 } from "@/lib/types";
 
@@ -28,12 +26,6 @@ const URGENCY_STYLE: Record<Urgency, string> = {
   flood_risk: "bg-red-100 text-red-800",
 };
 
-const PII_STYLE: Record<PiiRisk, string> = {
-  low: "bg-slate-100 text-slate-700",
-  medium: "bg-amber-100 text-amber-900",
-  high: "bg-red-100 text-red-800",
-};
-
 export function Badge({ className = "", children }: { className?: string; children: React.ReactNode }) {
   return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${className}`}>{children}</span>;
 }
@@ -44,37 +36,6 @@ export function StatusBadge({ status, locale = "en" }: { status: CaseStatus; loc
 
 export function UrgencyBadge({ urgency, locale = "en" }: { urgency: Urgency; locale?: Language }) {
   return <Badge className={URGENCY_STYLE[urgency]}>{urgencyLabel(urgency, locale)}</Badge>;
-}
-
-export function PiiBadge({ risk }: { risk: PiiRisk }) {
-  return <Badge className={PII_STYLE[risk]}>PII review: {risk}</Badge>;
-}
-
-export function ConfidenceBar({ value, label }: { value: number; label?: string }) {
-  const pct = Math.round(value * 100);
-  return (
-    <div>
-      {label ? <label htmlFor={`confidence-${label.replaceAll(" ", "-")}`} className="mb-1 block text-xs text-slate-600">{label}</label> : null}
-      <div className="flex items-center gap-2">
-        <progress id={label ? `confidence-${label.replaceAll(" ", "-")}` : undefined} max={100} value={pct} aria-label={label ?? "Confidence"} className="h-2 w-full accent-civic-700" />
-        <span className="w-10 text-right text-xs tabular-nums text-slate-600">{pct}%</span>
-      </div>
-    </div>
-  );
-}
-
-export function CitationCard({ citation }: { citation: PolicyCitation }) {
-  return (
-    <article className="border-l-2 border-slate-300 pl-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <h3 className="text-sm font-semibold text-civic-800">{citation.doc_title}</h3>
-        <Badge className="bg-civic-50 text-civic-800">{Math.round(citation.confidence * 100)}% match</Badge>
-      </div>
-      <p className="mt-1 text-xs font-medium text-slate-600">§ {citation.section}</p>
-      <p className="mt-2 text-sm leading-6 text-slate-700">{citation.snippet}</p>
-      <p className="mt-2 font-mono text-xs text-slate-500">{citation.source_doc}</p>
-    </article>
-  );
 }
 
 const ACTOR_STYLE: Record<AuditActor, string> = {
@@ -140,8 +101,4 @@ export function AuditTimeline({ events }: { events: AuditEvent[] }) {
       })}
     </ol>
   );
-}
-
-export function SafetyBanner({ text }: { text: string }) {
-  return <aside className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-950" role="note">{text}</aside>;
 }

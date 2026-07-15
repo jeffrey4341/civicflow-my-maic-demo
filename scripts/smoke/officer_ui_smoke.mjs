@@ -1,7 +1,13 @@
-import { spawn } from "node:child_process";
-import { once } from "node:events";
-import { createServer } from "node:net";
 import { chromium } from "playwright";
+import {
+  assert,
+  assertPortAvailable,
+  requestJson as requestJsonAt,
+  startNextServer,
+  stopServer,
+  waitForServer,
+  watchBrowser,
+} from "./helpers.mjs";
 
 const port = 3012;
 const baseUrl = `http://127.0.0.1:${port}`;
@@ -14,74 +20,7 @@ const sectionOrder = [
   "Audit trail",
 ];
 
-function assert(condition, message) {
-  if (!condition) throw new Error(message);
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function assertPortAvailable() {
-  await new Promise((resolve, reject) => {
-    const probe = createServer();
-    probe.once("error", () => reject(new Error(`Port ${port} is already in use; refusing to attach to a server this smoke did not start.`)));
-    probe.once("listening", () => probe.close(resolve));
-    probe.listen(port, "127.0.0.1");
-  });
-}
-
-async function waitForServer(server, getLaunchError) {
-  const deadline = Date.now() + 45_000;
-  while (Date.now() < deadline) {
-    if (getLaunchError()) throw getLaunchError();
-    if (server.exitCode !== null) throw new Error(`Next dev server exited early with code ${server.exitCode}.`);
-    try {
-      const response = await fetch(`${baseUrl}/officer`);
-      if (response.ok) return;
-    } catch {
-      // Next is still starting.
-    }
-    await sleep(500);
-  }
-  throw new Error(`Officer smoke server did not become ready at ${baseUrl}`);
-}
-
-async function stopServer(server) {
-  if (!server?.pid || server.exitCode !== null) return;
-  if (process.platform === "win32") {
-    await new Promise((resolve) => {
-      const killer = spawn("taskkill", ["/pid", String(server.pid), "/T", "/F"], {
-        stdio: "ignore",
-        windowsHide: true,
-      });
-      killer.once("error", resolve);
-      killer.once("exit", resolve);
-    });
-    return;
-  }
-  const exited = once(server, "exit");
-  server.kill("SIGTERM");
-  await Promise.race([exited, sleep(3_000)]);
-  if (server.exitCode === null) server.kill("SIGKILL");
-}
-
-async function requestJson(method, pathname, body) {
-  const response = await fetch(`${baseUrl}${pathname}`, {
-    method,
-    headers: body === undefined ? undefined : { "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const text = await response.text();
-  let json;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    throw new Error(`${method} ${pathname} returned non-JSON: ${text.slice(0, 160)}`);
-  }
-  if (!response.ok) throw new Error(`${method} ${pathname} failed with ${response.status}: ${text.slice(0, 240)}`);
-  return json;
-}
+const requestJson = (method, pathname, body) => requestJsonAt(baseUrl, method, pathname, body);
 
 async function performApiAction(page, pathname, action) {
   const [response] = await Promise.all([
@@ -113,20 +52,12 @@ async function assertHeadingOrder(page) {
 }
 
 async function main() {
-  await assertPortAvailable();
-  let launchError = null;
-  const server = spawn(
-    process.execPath,
-    ["node_modules/next/dist/bin/next", "dev", "--hostname", "127.0.0.1", "--port", String(port)],
-    { cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"] },
-  );
-  server.once("error", (error) => { launchError = error; });
-  server.stdout.on("data", (chunk) => process.stdout.write(`[next] ${chunk}`));
-  server.stderr.on("data", (chunk) => process.stderr.write(`[next] ${chunk}`));
+  await assertPortAvailable(port);
+  const { server, getLaunchError } = startNextServer("dev", port);
 
   let browser = null;
   try {
-    await waitForServer(server, () => launchError);
+    await waitForServer({ baseUrl, pathname: "/officer", server, getLaunchError, label: "Next dev server" });
     const reset = await requestJson("POST", "/api/reset");
     assert(reset.ok === true, "POST /api/reset did not return ok=true.");
 
@@ -153,36 +84,20 @@ async function main() {
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
     page.setDefaultTimeout(12_000);
-    const browserFailures = [];
-    const sameOrigin = (url) => {
-      try {
-        return new URL(url).origin === baseUrl;
-      } catch {
-        return false;
-      }
-    };
-    const assertBrowserHealthy = () => assert(browserFailures.length === 0, browserFailures.join("\n"));
-
-    page.on("pageerror", (error) => browserFailures.push(`pageerror: ${error.message}`));
-    page.on("console", (message) => {
-      if (["warning", "error"].includes(message.type())) {
-        browserFailures.push(`console ${message.type()}: ${message.text()}`);
-      }
-    });
-    page.on("requestfailed", (request) => {
-      const url = new URL(request.url());
-      const failure = request.failure()?.errorText ?? "unknown error";
-      const cancelledAppRouterRefresh = request.method() === "GET"
-        && url.searchParams.has("_rsc")
-        && failure === "net::ERR_ABORTED";
-      if (sameOrigin(request.url()) && !cancelledAppRouterRefresh) {
-        browserFailures.push(`request failed: ${request.method()} ${request.url()} (${failure})`);
-      }
-    });
-    page.on("response", (response) => {
-      if (sameOrigin(response.url()) && response.status() >= 400) {
-        browserFailures.push(`HTTP ${response.status()}: ${response.request().method()} ${response.url()}`);
-      }
+    const assertBrowserHealthy = watchBrowser(page, {
+      baseUrl,
+      isExpectedConsoleMessage: (message) => {
+        const text = message.text();
+        return message.type() === "warning"
+          && text.startsWith(`The resource ${baseUrl}/_next/static/css/app/layout.css?v=`)
+          && text.endsWith(" was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.");
+      },
+      isExpectedRequestFailure: (request) => {
+        const url = new URL(request.url());
+        return request.method() === "GET"
+          && url.searchParams.has("_rsc")
+          && request.failure()?.errorText === "net::ERR_ABORTED";
+      },
     });
 
     await page.goto(`${baseUrl}/officer`, { waitUntil: "networkidle" });

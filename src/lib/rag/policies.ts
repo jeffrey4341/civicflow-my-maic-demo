@@ -100,8 +100,3 @@ export function loadPolicyChunks(): PolicyChunk[] {
   CACHE = chunks;
   return chunks;
 }
-
-/** Test/Dev helper: clear the cache so reloaded policies are re-read. */
-export function clearPolicyCache(): void {
-  CACHE = null;
-}

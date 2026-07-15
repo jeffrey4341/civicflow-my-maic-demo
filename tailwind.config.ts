@@ -18,21 +18,12 @@ const config: Config = {
           800: "#1a4644",
           900: "#173b3a",
         },
-        flag: {
-          blue: "#010066",
-          red: "#cc0001",
-          gold: "#ffcc00",
-        },
       },
       fontFamily: {
         sans: ["ui-sans-serif", "system-ui", "Segoe UI", "Roboto", "Arial", "sans-serif"],
       },
-      maxWidth: {
-        phone: "26rem",
-      },
     },
   },
-  plugins: [],
 };
 
 export default config;

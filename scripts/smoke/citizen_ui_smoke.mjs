@@ -1,5 +1,12 @@
-import { spawn } from "node:child_process";
 import { chromium } from "playwright";
+import {
+  assert,
+  assertPortAvailable,
+  startNextServer,
+  stopServer,
+  waitForServer,
+  watchBrowser,
+} from "./helpers.mjs";
 
 const port = Number(process.env.CIVICFLOW_CITIZEN_SMOKE_PORT || 3013);
 const baseUrl = process.env.CIVICFLOW_CITIZEN_BASE_URL || `http://127.0.0.1:${port}`;
@@ -36,43 +43,17 @@ const notFoundCopy = {
   ta: { title: "வழக்கு கிடைக்கவில்லை", action: "வழக்குக் கண்காணிப்பிற்குத் திரும்பவும்" },
 };
 
-function assert(condition, message) {
-  if (!condition) throw new Error(message);
-}
-
-async function sleep(ms) {
-  await new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function waitForServer() {
-  const deadline = Date.now() + 45000;
-  while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`${baseUrl}/m`);
-      if (response.ok) return;
-    } catch {
-      // The dev server is still starting.
-    }
-    await sleep(500);
-  }
-  throw new Error(`Citizen smoke server did not become ready at ${baseUrl}`);
-}
-
 async function main() {
   let server = null;
+  let getLaunchError = () => null;
   if (startServer) {
-    server = spawn(
-      process.execPath,
-      ["node_modules/next/dist/bin/next", "dev", "--hostname", "127.0.0.1", "--port", String(port)],
-      { cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"] },
-    );
-    server.stdout.on("data", (chunk) => process.stdout.write(`[next] ${chunk}`));
-    server.stderr.on("data", (chunk) => process.stderr.write(`[next] ${chunk}`));
+    await assertPortAvailable(port);
+    ({ server, getLaunchError } = startNextServer("dev", port));
   }
 
   let browser = null;
   try {
-    await waitForServer();
+    await waitForServer({ baseUrl, pathname: "/m", server, getLaunchError, label: "Citizen smoke server" });
     await fetch(`${baseUrl}/api/reset`, { method: "POST" });
     const localizedTrackingHtml = await (await fetch(`${baseUrl}/m?view=track&lang=zh`)).text();
     const newPanelTag = localizedTrackingHtml.match(/<div[^>]*id="citizen-panel-new"[^>]*>/)?.[0] ?? "";
@@ -82,54 +63,32 @@ async function main() {
     assert(/\shidden(?:="")?/.test(newPanelTag) && !/\shidden(?:="")?/.test(trackPanelTag), "Citizen server HTML does not preserve ?view=track before hydration");
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    const failures = [];
-    const consoleMessages = [];
     let expectedApiFailure = null;
     let expectNotFound = false;
-    page.on("pageerror", (error) => failures.push(`pageerror: ${error.message}`));
-    page.on("console", (message) => {
-      if (["error", "warning"].includes(message.type())) {
-        const text = message.text();
-        const exactExpectedApiMessage = expectedApiFailure
-          ? `Failed to load resource: the server responded with a status of ${expectedApiFailure.status} (${expectedApiFailure.statusText})`
-          : null;
-        consoleMessages.push({
-          type: message.type(),
-          text,
-          expected: message.type() === "error" && (
-            (exactExpectedApiMessage !== null && text === exactExpectedApiMessage)
-            || (expectNotFound && text === "Failed to load resource: the server responded with a status of 404 (Not Found)")
-          ),
-        });
-      }
-    });
-    page.on("requestfailed", (request) => {
-      const url = new URL(request.url());
-      const failure = request.failure()?.errorText ?? "unknown error";
-      const cancelledRsc = request.method() === "GET"
-        && url.searchParams.has("_rsc")
-        && failure === "net::ERR_ABORTED";
-      const cancelledHotUpdate = url.pathname.includes("/_next/static/webpack/")
-        && url.pathname.endsWith(".hot-update.js")
-        && failure === "net::ERR_ABORTED";
-      if (request.url().startsWith(baseUrl) && !cancelledRsc && !cancelledHotUpdate) {
-        failures.push(`request failed: ${request.method()} ${request.url()} (${failure})`);
-      }
-    });
-    page.on("response", (response) => {
-      const url = new URL(response.url());
-      const expectedInvalidPage = response.status() === 404
-        && (url.pathname === "/not-a-real-page" || url.pathname.startsWith("/m/cases/CF-NOTREAL"));
-      const exactExpectedApiFailure = expectedApiFailure
-        && response.request().method() === expectedApiFailure.method
-        && response.status() === expectedApiFailure.status
-        && url.pathname === expectedApiFailure.pathname;
-      if (response.url().startsWith(baseUrl) && response.status() >= 400 && !expectedInvalidPage && !exactExpectedApiFailure) {
-        failures.push(`HTTP ${response.status()}: ${response.url()}`);
-      }
+    const assertBrowserHealthy = watchBrowser(page, {
+      baseUrl,
+      isExpectedRequestFailure: (request) => {
+        const url = new URL(request.url());
+        const failure = request.failure()?.errorText ?? "unknown error";
+        return failure === "net::ERR_ABORTED" && (
+          (request.method() === "GET" && url.searchParams.has("_rsc"))
+          || (url.pathname.includes("/_next/static/webpack/") && url.pathname.endsWith(".hot-update.js"))
+        );
+      },
+      isExpectedResponse: (response) => {
+        const url = new URL(response.url());
+        const expectedInvalidPage = expectNotFound
+          && response.status() === 404
+          && (url.pathname === "/not-a-real-page" || url.pathname.startsWith("/m/cases/CF-NOTREAL"));
+        const exactExpectedApiFailure = expectedApiFailure
+          && response.request().method() === expectedApiFailure.method
+          && response.status() === expectedApiFailure.status
+          && url.pathname === expectedApiFailure.pathname;
+        return expectedInvalidPage || exactExpectedApiFailure;
+      },
     });
 
-    async function withExpectedApiFailure({ method, pathname, status, statusText, body }, action) {
+    async function withExpectedApiFailure({ method, pathname, status, body }, action) {
       const pattern = `**${pathname}`;
       const handler = (route) => route.fulfill({
         status,
@@ -137,10 +96,10 @@ async function main() {
         body: JSON.stringify(body),
       });
       await page.route(pattern, handler);
-      expectedApiFailure = { method, pathname, status, statusText };
+      expectedApiFailure = { method, pathname, status };
       try {
         await action();
-        await page.waitForTimeout(25);
+        assertBrowserHealthy();
       } finally {
         expectedApiFailure = null;
         await page.unroute(pattern, handler);
@@ -351,14 +310,14 @@ async function main() {
     await page.goto(`${baseUrl}/m/cases/${languagePartsCase.citizen_ref}`, { waitUntil: "networkidle" });
     const statusDepartment = page.locator('[data-language-part="department"]');
     const statusUnit = page.locator('[data-language-part="unit"]');
-    assert(await statusDepartment.count() === 1 && await statusDepartment.innerText() === "Licensing" && await statusDepartment.getAttribute("lang") === "en", "Chinese status does not mark the department as an English language part");
-    assert(await statusUnit.count() === 1 && await statusUnit.innerText() === "Licensing Unit" && await statusUnit.getAttribute("lang") === "en", "Chinese status does not mark the unit as an English language part");
+    assert(await statusDepartment.count() === 1 && await statusDepartment.innerText() === languagePartsCase.department && await statusDepartment.getAttribute("lang") === "en", "Chinese status does not mark the fixture department as an English language part");
+    assert(await statusUnit.count() === 1 && await statusUnit.innerText() === languagePartsCase.unit && await statusUnit.getAttribute("lang") === "en", "Chinese status does not mark the fixture unit as an English language part");
     await page.goto(`${baseUrl}/m/cases/${languagePartsCase.citizen_ref}/reply`, { waitUntil: "networkidle" });
     const replyDepartment = page.locator('[data-language-part="department"]');
     const replyUnit = page.locator('[data-language-part="unit"]');
     const replyApprover = page.locator('[data-language-part="approver"]');
-    assert(await replyDepartment.count() === 1 && await replyDepartment.innerText() === "Licensing" && await replyDepartment.getAttribute("lang") === "en", "Chinese reply does not mark the department as an English language part");
-    assert(await replyUnit.count() === 1 && await replyUnit.innerText() === "Licensing Unit" && await replyUnit.getAttribute("lang") === "en", "Chinese reply does not mark the unit as an English language part");
+    assert(await replyDepartment.count() === 1 && await replyDepartment.innerText() === languagePartsCase.department && await replyDepartment.getAttribute("lang") === "en", "Chinese reply does not mark the fixture department as an English language part");
+    assert(await replyUnit.count() === 1 && await replyUnit.innerText() === languagePartsCase.unit && await replyUnit.getAttribute("lang") === "en", "Chinese reply does not mark the fixture unit as an English language part");
     assert(await replyApprover.count() === 1 && await replyApprover.innerText() === "Officer Aishah (demo)" && await replyApprover.getAttribute("lang") === "en", "Chinese reply does not mark the approver as an English language part");
     const policyTitles = page.locator('[data-language-part="policy-title"]');
     const policySections = page.locator('[data-language-part="policy-section"]');
@@ -380,11 +339,13 @@ async function main() {
       assert(await page.locator('a[href^="/officer"]').count() === 0, `${locale} invalid citizen route exposes an officer link`);
       const invalidOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       assert(invalidOverflow <= 1, `320px ${locale} not-found view overflows horizontally by ${invalidOverflow}px`);
+      assertBrowserHealthy();
     }
 
     const directInvalid = await page.goto(`${baseUrl}/m/cases/CF-NOTREAL`, { waitUntil: "networkidle" });
     assert(directInvalid?.status() === 404, "Direct invalid citizen tracking route did not return HTTP 404");
     await page.getByRole("heading", { level: 1, name: notFoundCopy.en.title, exact: true }).waitFor();
+    assertBrowserHealthy();
     expectNotFound = false;
     await page.goto(`${baseUrl}/m?view=track&lang=zh`, { waitUntil: "networkidle" });
     assert(await page.getByRole("tab", { name: "查询个案", exact: true }).getAttribute("aria-selected") === "true", "Localized not-found return path did not reopen case tracking");
@@ -402,19 +363,13 @@ async function main() {
         return style.outlineStyle !== "none" || style.boxShadow !== "none";
       }), "Global not-found action has no visible focus indicator");
     }
+    assertBrowserHealthy();
     expectNotFound = false;
-    failures.push(...consoleMessages
-      .filter((message) => !message.expected)
-      .map((message) => `console ${message.type}: ${message.text}`));
-    assert(failures.length === 0, failures.join("\n"));
+    assertBrowserHealthy();
     console.log("Citizen UI smoke passed");
   } finally {
     if (browser) await browser.close();
-    if (server) {
-      server.kill("SIGTERM");
-      await sleep(800);
-      if (!server.killed) server.kill("SIGKILL");
-    }
+    if (server) await stopServer(server);
   }
 }
 

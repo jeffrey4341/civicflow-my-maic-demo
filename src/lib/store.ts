@@ -437,10 +437,6 @@ export interface SubmitInput {
   source_channel?: SourceChannel;
 }
 
-function byCreatedDesc(a: CitizenCase, b: CitizenCase): number {
-  return b.created_at.localeCompare(a.created_at);
-}
-
 export async function submitCase(input: SubmitInput): Promise<CitizenCase> {
   const state = await getState();
   const answers = Object.fromEntries(
@@ -470,17 +466,12 @@ export async function submitCase(input: SubmitInput): Promise<CitizenCase> {
 
 export async function listCases(): Promise<CitizenCase[]> {
   const state = await getState();
-  return [...state.cases.values()].sort(byCreatedDesc);
+  return [...state.cases.values()].sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
 export async function getCase(idOrRef: string): Promise<CitizenCase | null> {
   const state = await getState();
-  if (state.cases.has(idOrRef)) return state.cases.get(idOrRef) ?? null;
-  const upper = idOrRef.toUpperCase();
-  for (const c of state.cases.values()) {
-    if (c.citizen_ref.toUpperCase() === upper) return c;
-  }
-  return null;
+  return findCase(state, idOrRef);
 }
 
 function findCase(state: DemoState, idOrRef: string): CitizenCase | null {

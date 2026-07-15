@@ -107,7 +107,6 @@ Run the test suite:
 ```bash
 npm run typecheck
 npm test
-npm run lint
 npm audit --omit=dev --audit-level=moderate
 npm run build
 npm run smoke:citizen  # Mobile citizen journey; starts and stops its own dev server on 127.0.0.1:3013

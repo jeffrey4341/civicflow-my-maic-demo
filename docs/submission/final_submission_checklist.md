@@ -103,15 +103,12 @@ All gates below are reported as **passing** in the audit trail; re-run them on t
 
 ### 4.1 Build, types, tests, dependencies
 - [ ] `npm run typecheck` — TypeScript compiles clean (`tsc --noEmit`)
-- [ ] `npm test` — Vitest passes (**10 test files / 64 tests**, including governance, LLM parity, RAG evaluation, citizen detail integrity, and officer lifecycle review)
+- [ ] `npm test` — Vitest passes (**10 test files / 67 tests**, including governance, LLM parity, RAG evaluation, citizen detail integrity, and officer lifecycle review)
 - [ ] `npm run build` — Next.js **15.5.19** production build completes; all routes build (`/m`, `/officer`, `/officer/cases/[id]`, `/officer/approvals`, `/officer/audit`, `/api/*`)
 - [ ] `npm run smoke:citizen` — real 320 px mobile flow covers keyboard tabs, language mismatch confirmation, needs-info submission, structured follow-up, tracking, and overflow checks
 - [ ] `npm run smoke:officer` — real staff flow covers search/default closed filtering, Enter-key policy search without review submission, officer review, reply sending, explicit work start, and note-gated closure
 - [ ] `npm run smoke:e2e` — production-server smoke covers synthetic-data rejection, the four canonical governance paths, closure/immutability gates, and eight rendered routes
-- [ ] `npm run lint` — passes (note: aliases to `tsc --noEmit`, not full ESLint)
 - [ ] `npm audit --omit=dev --audit-level=moderate` — **0 vulnerabilities** in production deps; PostCSS pinned via `overrides` to `8.5.15` — see [package.json](../../package.json)
-
-> Run order note: run `npm run build` **before** `npm run lint` separately — running them in parallel can transiently fail because lint reads `.next/types` while the build rewrites them.
 
 ### 4.2 Production server smoke test
 Launch: `npm run build && npm run start -- --hostname 127.0.0.1 --port 3000` (use an alternate port such as 3015 if 3000 is busy).

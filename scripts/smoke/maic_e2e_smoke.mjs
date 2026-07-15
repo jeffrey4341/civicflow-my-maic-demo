@@ -1,9 +1,16 @@
-import { spawn } from "node:child_process";
-import { once } from "node:events";
 import fs from "node:fs/promises";
-import { createServer } from "node:net";
 import path from "node:path";
 import { chromium } from "playwright";
+import {
+  assert,
+  assertPortAvailable,
+  rawRequest as rawRequestAt,
+  requestJson as requestJsonAt,
+  startNextServer,
+  stopServer,
+  waitForServer,
+  watchBrowser,
+} from "./helpers.mjs";
 
 const root = process.cwd();
 const port = Number(process.env.CIVICFLOW_SMOKE_PORT || 3012);
@@ -18,81 +25,8 @@ const CASE_TEXT = {
   unknown: "QWERTY zzzz unrelated synthetic demo text.",
 };
 
-function assert(condition, message) {
-  if (!condition) throw new Error(message);
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function assertPortAvailable() {
-  await new Promise((resolve, reject) => {
-    const probe = createServer();
-    probe.once("error", () => reject(new Error(`Port ${port} is already in use; refusing to attach to a server this smoke did not start.`)));
-    probe.once("listening", () => probe.close(resolve));
-    probe.listen(port, "127.0.0.1");
-  });
-}
-
-async function waitForServer(server, getLaunchError) {
-  const deadline = Date.now() + 45_000;
-  while (Date.now() < deadline) {
-    if (getLaunchError()) throw getLaunchError();
-    if (server?.exitCode != null) throw new Error(`Next production server exited early with code ${server.exitCode}.`);
-    try {
-      const response = await fetch(`${baseUrl}/m`);
-      if (response.ok) return;
-    } catch {
-      // Production server is still starting.
-    }
-    await sleep(500);
-  }
-  throw new Error(`Production server did not become ready at ${baseUrl}`);
-}
-
-async function stopServer(server) {
-  if (!server?.pid || server.exitCode !== null) return;
-  if (process.platform === "win32") {
-    await new Promise((resolve) => {
-      const killer = spawn("taskkill", ["/pid", String(server.pid), "/T", "/F"], {
-        stdio: "ignore",
-        windowsHide: true,
-      });
-      killer.once("error", resolve);
-      killer.once("exit", resolve);
-    });
-    return;
-  }
-  const exited = once(server, "exit");
-  server.kill("SIGTERM");
-  await Promise.race([exited, sleep(3_000)]);
-  if (server.exitCode === null) server.kill("SIGKILL");
-}
-
-async function rawRequest(method, endpoint, body) {
-  const response = await fetch(`${baseUrl}${endpoint}`, {
-    method,
-    headers: body === undefined ? undefined : { "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const text = await response.text();
-  let json = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    throw new Error(`${method} ${endpoint} returned non-JSON: ${text.slice(0, 160)}`);
-  }
-  return { response, json, text };
-}
-
-async function requestJson(method, endpoint, body) {
-  const result = await rawRequest(method, endpoint, body);
-  if (!result.response.ok) {
-    throw new Error(`${method} ${endpoint} failed with ${result.response.status}: ${result.text.slice(0, 240)}`);
-  }
-  return result.json;
-}
+const rawRequest = (method, endpoint, body) => rawRequestAt(baseUrl, method, endpoint, body);
+const requestJson = (method, endpoint, body) => requestJsonAt(baseUrl, method, endpoint, body);
 
 async function submitCase({ text, language, locationText, answers }) {
   return requestJson("POST", "/api/cases", {
@@ -130,23 +64,16 @@ async function expectVisibleText(page, text, label) {
 async function main() {
   await fs.mkdir(screenshotDir, { recursive: true });
   let server = null;
-  let launchError = null;
+  let getLaunchError = () => null;
   let browser = null;
 
   if (startServer) {
-    await assertPortAvailable();
-    server = spawn(
-      process.execPath,
-      ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)],
-      { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
-    );
-    server.once("error", (error) => { launchError = error; });
-    server.stdout.on("data", (chunk) => process.stdout.write(`[next] ${chunk}`));
-    server.stderr.on("data", (chunk) => process.stderr.write(`[next] ${chunk}`));
+    await assertPortAvailable(port);
+    ({ server, getLaunchError } = startNextServer("start", port, root));
   }
 
   try {
-    await waitForServer(server, () => launchError);
+    await waitForServer({ baseUrl, pathname: "/m", server, getLaunchError, label: "Production server" });
     const reset = await requestJson("POST", "/api/reset");
     assert(reset.ok === true, "POST /api/reset did not return ok=true.");
 
@@ -294,26 +221,15 @@ async function main() {
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
     page.setDefaultTimeout(15_000);
-    const browserFailures = [];
-    const sameOrigin = (url) => {
-      try { return new URL(url).origin === new URL(baseUrl).origin; } catch { return false; }
-    };
-    page.on("pageerror", (error) => browserFailures.push(`pageerror: ${error.message}`));
-    page.on("console", (message) => {
-      if (["warning", "error"].includes(message.type())) browserFailures.push(`console ${message.type()}: ${message.text()}`);
+    const assertBrowserHealthy = watchBrowser(page, {
+      baseUrl,
+      isExpectedRequestFailure: (request) => {
+        const url = new URL(request.url());
+        return request.method() === "GET"
+          && url.searchParams.has("_rsc")
+          && request.failure()?.errorText === "net::ERR_ABORTED";
+      },
     });
-    page.on("requestfailed", (request) => {
-      const url = new URL(request.url());
-      const failure = request.failure()?.errorText ?? "unknown error";
-      const cancelledRsc = request.method() === "GET" && url.searchParams.has("_rsc") && failure === "net::ERR_ABORTED";
-      if (sameOrigin(request.url()) && !cancelledRsc) browserFailures.push(`request failed: ${request.method()} ${request.url()} (${failure})`);
-    });
-    page.on("response", (response) => {
-      if (sameOrigin(response.url()) && response.status() >= 400) {
-        browserFailures.push(`HTTP ${response.status()}: ${response.request().method()} ${response.url()}`);
-      }
-    });
-    const assertBrowserHealthy = () => assert(browserFailures.length === 0, browserFailures.join("\n"));
 
     await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
     await expectVisibleText(page, "A clear path from citizen request to human decision.", "role launcher renders");

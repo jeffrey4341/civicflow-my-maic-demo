@@ -153,6 +153,38 @@ describe("citizen details and triage revisions", () => {
     }
   });
 
+  it("keeps preview triage deterministic when the optional LLM is configured", async () => {
+    const savedKey = process.env.ANTHROPIC_API_KEY;
+    const savedForce = process.env.CIVICFLOW_FORCE_DETERMINISTIC;
+    const originalFetch = global.fetch;
+    process.env.ANTHROPIC_API_KEY = "sk-test";
+    delete process.env.CIVICFLOW_FORCE_DETERMINISTIC;
+    global.fetch = vi.fn(async () =>
+      new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }] }), { status: 200 }),
+    ) as typeof fetch;
+
+    try {
+      const response = await previewTriage(
+        new Request("http://localhost/api/triage", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text: "A blocked drain needs attention.", language: "en" }),
+        }),
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.result.ai_mode).toBe("deterministic");
+      expect(global.fetch).not.toHaveBeenCalled();
+    } finally {
+      if (savedKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+      else process.env.ANTHROPIC_API_KEY = savedKey;
+      if (savedForce === undefined) delete process.env.CIVICFLOW_FORCE_DETERMINISTIC;
+      else process.env.CIVICFLOW_FORCE_DETERMINISTIC = savedForce;
+      global.fetch = originalFetch;
+    }
+  });
+
   it("rejects realistic street addresses while keeping documented demo locations", async () => {
     for (const location_text of ["12 Jalan Ampang Kuala Lumpur"]) {
       const realAddress = await previewTriage(
