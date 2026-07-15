@@ -119,7 +119,7 @@ export function OfficerReviewForm({
 
   if (caseData.status === "closed") {
     return (
-      <p className="border-l-4 border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+      <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
         This case is closed. Its reviewed facts remain read-only.
       </p>
     );
@@ -228,7 +228,7 @@ export function OfficerReviewForm({
             })}
           </div>
         ) : (
-          <p className="mt-4 border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-950">No policy evidence is selected. Search before choosing a proceed decision.</p>
+          <p className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">No policy evidence is selected. Search before choosing a proceed decision.</p>
         )}
       </fieldset>
 
@@ -245,7 +245,7 @@ export function OfficerReviewForm({
         </div>
       </fieldset>
 
-      {error ? <p role="alert" className="border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p> : null}
+      {error ? <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p> : null}
       {message ? <p role="status" className="text-sm text-slate-700">{message}</p> : null}
 
       <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 pt-6">

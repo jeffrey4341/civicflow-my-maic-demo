@@ -22,10 +22,10 @@ function nextRequiredAction(c: CitizenCase, approval: ApprovalTask | null): { ti
   if (!hasCurrentReview(c)) return { title: "Complete officer review", detail: "Confirm the case facts, policy evidence, routing, and citizen reply for this revision." };
   if (approval?.status === "pending") return { title: "Supervisor decision required", detail: "The current reviewed revision is high risk and cannot proceed until a supervisor decides." };
   if (approval?.status === "rejected") return { title: "Resolve rejected decision", detail: "Close without operational action, or make substantive changes and resubmit for supervisor approval." };
-  if (c.reply_draft?.status !== "sent") return { title: "Release the reviewed reply", detail: "The reply is approved for this revision but remains a draft until an officer releases it." };
-  if (c.status === "routed") return { title: "Start council work", detail: "The reviewed case is routed and the citizen reply is released. Record the explicit start of work." };
+  if (c.reply_draft?.status !== "sent") return { title: "Send the reviewed reply", detail: "The reply is approved for this revision but remains a draft until an officer sends it." };
+  if (c.status === "routed") return { title: "Start council work", detail: "The reviewed case is routed and the citizen reply is sent. Record the explicit start of work." };
   if (c.status === "in_progress") return { title: "Complete and close", detail: "When council work is complete, record a closure note and close the case." };
-  if (c.officer_review?.resolution === "close_no_action") return { title: "Close with a recorded note", detail: "The reviewed reply has been released. Record why no operational action is required." };
+  if (c.officer_review?.resolution === "close_no_action") return { title: "Close with a recorded note", detail: "The reviewed reply has been sent. Record why no operational action is required." };
   return { title: "Review current case state", detail: "Check the reviewed facts and audit trail before the next action." };
 }
 
@@ -38,13 +38,13 @@ function replyBlocker(c: CitizenCase, approval: ApprovalTask | null): string | n
     return "Required citizen information is still missing.";
   }
   if (approval && approval.triage_revision === c.triage_revision && approval.status !== "approved") {
-    return "The current supervisor decision must be approved before the reply can be released.";
+    return "The current supervisor decision must be approved before the reply can be sent.";
   }
   return null;
 }
 
 function startBlocker(c: CitizenCase, approval: ApprovalTask | null): string | null {
-  if (c.reply_draft?.status !== "sent") return "Release the reviewed citizen reply before starting work.";
+  if (c.reply_draft?.status !== "sent") return "Send the reviewed citizen reply before starting work.";
   if (!hasCurrentReview(c) || !["proceed", "resubmit_approval"].includes(c.officer_review!.resolution)) {
     return "A current proceed or approved-resubmission review is required before work can start.";
   }
@@ -58,7 +58,7 @@ function startBlocker(c: CitizenCase, approval: ApprovalTask | null): string | n
 
 function closeBlocker(c: CitizenCase): string | null {
   if (!hasCurrentReview(c)) return "A current officer review is required before closure.";
-  if (c.reply_draft?.status !== "sent") return "Release the citizen reply before closure.";
+  if (c.reply_draft?.status !== "sent") return "Send the citizen reply before closure.";
   if (c.category === "education_aid_welfare" && !c.officer_review?.welfare_outcome) {
     return "Record a human welfare outcome in the officer review before closure.";
   }
@@ -106,7 +106,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
 
       <div className="space-y-8 pt-8">
         <DecisionSection id="next-required-action" title="Next required action">
-          <div className="border-l-4 border-civic-700 bg-civic-50 px-5 py-4">
+          <div className="rounded-lg border border-civic-200 bg-civic-50 px-5 py-4">
             <p className="text-lg font-semibold text-civic-950">{nextAction.title}</p>
             <p className="mt-1 text-sm leading-6 text-civic-950">{nextAction.detail}</p>
           </div>
@@ -114,7 +114,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
 
         <DecisionSection id="officer-review" title="Officer review">
           <p className="max-w-3xl text-sm leading-6 text-slate-600">
-            The automated triage is a starting point. An officer confirms the facts, evidence, routing, and reply before anything is released or work begins.
+            The automated triage is a starting point. An officer confirms the facts, evidence, routing, and reply before anything is sent or work begins.
           </p>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.6fr)]">
@@ -163,7 +163,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
                   />
                 ) : null}
               </dl>
-              {c.manual_review_reason ? <p className="mt-5 border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">{c.manual_review_reason}</p> : null}
+              {c.manual_review_reason ? <p className="mt-5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">{c.manual_review_reason}</p> : null}
               {c.missing_info.some((item) => item.required && !item.satisfied) ? (
                 <div className="mt-5">
                   <h3 className="text-sm font-semibold text-slate-950">Still required</h3>
@@ -216,7 +216,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
                     disabledReason={!currentReview ? "Complete the officer review for this revision before the supervisor decides." : null}
                   />
                 ) : (
-                  <p className="border-l-4 border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+                  <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
                     {approval.status === "superseded" ? "This task is historical and cannot be acted on." : "This supervisor decision is complete."}
                   </p>
                 )}
@@ -235,19 +235,19 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
               <div>
                 <div className="flex flex-wrap items-center gap-3">
                   <Badge className={reply.status === "sent" ? "bg-emerald-100 text-emerald-800" : reply.status === "approved" ? "bg-civic-100 text-civic-800" : "bg-slate-100 text-slate-700"}>
-                    {reply.status === "sent" ? "Released" : reply.status === "approved" ? "Officer approved" : "Draft"}
+                    {reply.status === "sent" ? "Sent" : reply.status === "approved" ? "Officer approved" : "Draft"}
                   </Badge>
                   <span className="text-sm text-slate-600">{LANGUAGE_NAMES[reply.language]}</span>
                 </div>
                 <div className="mt-4 border-y border-civic-200 bg-civic-50 px-4 py-5 text-sm leading-7 text-slate-900">{reply.body}</div>
                 <details className="mt-4 text-sm text-slate-600">
-                  <summary className="cursor-pointer font-medium text-slate-800">English reference</summary>
+                  <summary className="flex min-h-11 cursor-pointer items-center rounded-md font-medium text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2">English reference</summary>
                   <p className="mt-2 leading-6">{reply.body_en}</p>
                 </details>
               </div>
               <div>
-                <h3 className="font-semibold text-slate-950">Release control</h3>
-                <p className="mt-1 text-sm leading-6 text-slate-600">Saving a review approves the draft. Releasing it is a separate human action.</p>
+                <h3 className="font-semibold text-slate-950">Send control</h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">Saving a review approves the draft. Sending it is a separate human action.</p>
                 <div className="mt-4">
                   <ReplyActions caseId={c.case_id} triageRevision={c.triage_revision} sent={reply.status === "sent"} blocker={replyBlocker(c, approval)} />
                 </div>

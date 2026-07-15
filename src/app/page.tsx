@@ -24,7 +24,7 @@ export default function HomePage() {
           </p>
         </section>
 
-        <aside className="mt-8 max-w-3xl border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
+        <aside className="mt-8 max-w-3xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
           This public demo uses synthetic cases and policies only. Do not enter real personal details.
           The system drafts and recommends; council staff make the decisions.
         </aside>

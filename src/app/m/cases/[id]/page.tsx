@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { CitizenFollowUpForm } from "@/components/citizen/CitizenFollowUpForm";
+import { CitizenFollowUpForm, CitizenUpdateStatus } from "@/components/citizen/CitizenFollowUpForm";
 import { LANGUAGE_NAMES, categoryLabel, statusLabel, t } from "@/lib/i18n";
 import { getCase } from "@/lib/store";
 import type { CaseStatus, CitizenCase, Language } from "@/lib/types";
@@ -66,8 +66,14 @@ function nextStepText(c: CitizenCase, language: Language): string {
   return t(language, key[c.status]);
 }
 
-export default async function CitizenCasePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function CitizenCasePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ updated?: string }>;
+}) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const c = await getCase(id);
   if (!c) notFound();
   const language = c.citizen_language;
@@ -78,7 +84,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
 
   return (
     <div lang={language}>
-      <aside className="border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
+      <aside className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
         {t(language, "common.synthetic_banner")}
       </aside>
 
@@ -95,6 +101,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
         <h2 id="next-action-heading" className="text-lg font-semibold text-slate-950">
           {t(language, "status.what_next")}
         </h2>
+        {query.updated === "1" ? <CitizenUpdateStatus message={t(language, "status.details_saved")} /> : null}
         <p className="mt-2 text-sm leading-6 text-slate-700">{nextStepText(c, language)}</p>
         {c.status === "needs_info" && required.length > 0 ? (
           <CitizenFollowUpForm
@@ -128,7 +135,10 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
           <SummaryItem label={t(language, "created.category")} value={categoryLabel(c.category, language)} />
           <SummaryItem label={t(language, "landing.choose_language")} value={LANGUAGE_NAMES[language]} />
           {showAssignment ? (
-            <SummaryItem label={t(language, "status.assigned_to")} value={`${c.department} — ${c.unit}`} />
+            <SummaryItem
+              label={t(language, "status.assigned_to")}
+              value={<span lang={language === "en" ? undefined : "en"}>{c.department} — {c.unit}</span>}
+            />
           ) : null}
         </dl>
       </section>
@@ -149,14 +159,14 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
         )}
       </section>
 
-      <nav className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-t border-slate-200 pt-6 text-sm font-medium" aria-label="Citizen case actions">
+      <nav className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-t border-slate-200 pt-6 text-sm font-medium" aria-label={t(language, "a11y.case_actions")}>
         <Link href="/m" className="inline-flex min-h-11 items-center text-civic-800 underline-offset-4 hover:underline">{t(language, "status.new_request")}</Link>
       </nav>
     </div>
   );
 }
 
-function SummaryItem({ label, value }: { label: string; value: string }) {
+function SummaryItem({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
       <dt className="text-sm text-slate-600">{label}</dt>

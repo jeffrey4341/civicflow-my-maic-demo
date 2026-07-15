@@ -21,7 +21,14 @@ export default async function AuditPage() {
         </p>
       </header>
 
-      <div className="mt-7 overflow-x-auto border-y border-slate-200 bg-white">
+      <p id="audit-scroll-hint" className="mt-5 text-sm text-slate-600 sm:hidden">Scroll horizontally to view all audit columns.</p>
+      <div
+        role="region"
+        aria-label="Audit events table"
+        aria-describedby="audit-scroll-hint"
+        tabIndex={0}
+        className="mt-3 overflow-x-auto border-y border-slate-200 bg-white outline-none focus-visible:ring-2 focus-visible:ring-civic-700 focus-visible:ring-offset-2 sm:mt-7"
+      >
         <table className="w-full min-w-[860px] text-left text-sm">
           <caption className="sr-only">Newest audit events across all CivicFlow cases</caption>
           <thead className="border-b border-slate-300 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-600">

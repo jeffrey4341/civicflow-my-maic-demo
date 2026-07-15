@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { LANGUAGE_NAMES, categoryLabel, t } from "@/lib/i18n";
 import { LANGUAGES, type Language, type TriageResult } from "@/lib/types";
@@ -23,10 +23,17 @@ const EXAMPLES: { key: string; text: string }[] = [
 ];
 
 export default function CitizenHome() {
+  return <Suspense fallback={null}><CitizenHomeContent /></Suspense>;
+}
+
+function CitizenHomeContent() {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("new");
+  const searchParams = useSearchParams();
+  const requestedLanguage = searchParams.get("lang") as Language | null;
+  const initialLanguage = requestedLanguage && LANGUAGES.includes(requestedLanguage) ? requestedLanguage : "en";
+  const [mode, setMode] = useState<Mode>(searchParams.get("view") === "track" ? "track" : "new");
   const [step, setStep] = useState<Step>("compose");
-  const [language, setLanguage] = useState<Language>("en");
+  const [language, setLanguage] = useState<Language>(initialLanguage);
   const [text, setText] = useState("");
   const [trackingCode, setTrackingCode] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
@@ -70,14 +77,14 @@ export default function CitizenHome() {
         body: JSON.stringify({ text: text.trim(), language: selectedLanguage, answers }),
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error ?? "We could not review this request.");
+      if (!response.ok) throw new Error();
       const nextPreview = body as Preview;
       setPreview(nextPreview);
       setLanguageConfirmed(nextPreview.result.detected_language === selectedLanguage);
       setAnnouncement(`${t(selectedLanguage, "review.title")}. ${t(selectedLanguage, "review.intro")}`);
       setStep("review");
-    } catch (caught) {
-      setError((caught as Error).message);
+    } catch {
+      setError(t(selectedLanguage, "error.review"));
     } finally {
       setLoading(false);
     }
@@ -110,10 +117,10 @@ export default function CitizenHome() {
         }),
       });
       const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error ?? "We could not submit this request.");
+      if (!response.ok) throw new Error();
       router.push(`/m/cases/${body.citizen_ref}`);
-    } catch (caught) {
-      setError((caught as Error).message);
+    } catch {
+      setError(t(language, "error.submit"));
       setLoading(false);
     }
   }
@@ -122,13 +129,13 @@ export default function CitizenHome() {
     event.preventDefault();
     const code = trackingCode.trim().toUpperCase();
     if (!code) return;
-    router.push(`/m/cases/${encodeURIComponent(code)}`);
+    router.push(`/m/cases/${encodeURIComponent(code)}?lang=${language}`);
   }
 
   return (
     <div lang={language}>
       <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
-      <aside className="border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
+      <aside className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
         {t(language, "common.synthetic_banner")}
       </aside>
 
@@ -137,7 +144,7 @@ export default function CitizenHome() {
         <p className="mt-2 text-base leading-7 text-slate-700">{t(language, "landing.subtitle")}</p>
       </div>
 
-      <div className="mt-7 grid grid-cols-2 border-b border-slate-200" role="tablist" aria-label="Citizen services">
+      <div className="mt-7 grid grid-cols-2 border-b border-slate-200" role="tablist" aria-label={t(language, "a11y.citizen_services")}>
         <button
           ref={newTabRef}
           id="citizen-tab-new"
@@ -345,7 +352,7 @@ function ReviewRequest(props: {
       <p className="mt-2 text-sm leading-6 text-slate-600">{t(props.language, "review.intro")}</p>
 
       {mismatch ? (
-        <div className="mt-6 border-l-4 border-amber-400 bg-amber-50 p-4">
+        <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4">
           <p className="font-semibold text-amber-950">
             {t(props.language, "review.detected", { language: LANGUAGE_NAMES[result.detected_language] })}
           </p>
@@ -376,7 +383,10 @@ function ReviewRequest(props: {
           <SummaryItem label={t(props.language, "created.category")} value={categoryLabel(result.category, props.language)} />
           <SummaryItem label={t(props.language, "created.detected_lang")} value={LANGUAGE_NAMES[result.detected_language]} />
           {!manualReview ? (
-            <SummaryItem label={t(props.language, "review.suggested_team")} value={`${result.department} — ${result.unit}`} />
+            <SummaryItem
+              label={t(props.language, "review.suggested_team")}
+              value={<span lang={props.language === "en" ? undefined : "en"}>{result.department} — {result.unit}</span>}
+            />
           ) : null}
         </dl>
       </div>
@@ -427,7 +437,7 @@ function ReviewRequest(props: {
   );
 }
 
-function SummaryItem({ label, value }: { label: string; value: string }) {
+function SummaryItem({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
       <dt className="text-sm text-slate-600">{label}</dt>
@@ -438,7 +448,7 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
 
 function InlineError({ message }: { message: string | null }) {
   return message ? (
-    <p className="mt-5 border-l-4 border-red-500 bg-red-50 px-3 py-2 text-sm text-red-900" role="alert" aria-live="polite">
+    <p className="mt-5 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900" role="alert" aria-live="polite">
       {message}
     </p>
   ) : null;

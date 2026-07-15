@@ -29,8 +29,7 @@ export function ReplyActions({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ triage_revision: triageRevision, officer: "Officer Tan (demo)" }),
       });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error ?? "Reply release failed.");
+      if (!response.ok) throw new Error("Reply could not be sent. Refresh the case and review the current requirements.");
       router.refresh();
     } catch (caught) {
       setError((caught as Error).message);

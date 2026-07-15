@@ -16,7 +16,7 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
 
   return (
     <div lang={language}>
-      <aside className="border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
+      <aside className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
         {t(language, "common.synthetic_banner")}
       </aside>
       <section className="mt-7">
@@ -28,8 +28,9 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
         {ready && reply ? (
           <>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              {t(language, "reply.from")}: {c.department} — {c.unit}
-              {reply.approved_by ? ` · ${reply.approved_by}` : ""}
+              {t(language, "reply.from")}: <span lang={language === "en" ? undefined : "en"}>{c.department} — {c.unit}
+                {reply.approved_by ? ` · ${reply.approved_by}` : ""}
+              </span>
             </p>
             <div className="mt-6 border-y border-civic-200 bg-civic-50 px-4 py-5 text-base leading-7 text-slate-900">
               {reply.body}
@@ -37,11 +38,11 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
             {reply.citations.length > 0 ? (
               <div className="mt-7">
                 <h2 className="font-semibold text-slate-950">{t(language, "reply.citations")}</h2>
-                <ul className="mt-3 space-y-3">
+                <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
                   {reply.citations.map((citation) => (
-                    <li key={`${citation.source_doc}-${citation.section}`} className="border-l-2 border-slate-300 pl-3 text-sm leading-6 text-slate-700">
-                      <span className="font-medium text-slate-900">{citation.doc_title}</span>
-                      <span className="block">{citation.section}</span>
+                    <li key={`${citation.source_doc}-${citation.section}`} className="py-3 text-sm leading-6 text-slate-700">
+                      <span lang={language === "en" ? undefined : "en"} className="font-medium text-slate-900">{citation.doc_title}</span>
+                      <span lang={language === "en" ? undefined : "en"} className="block">{citation.section}</span>
                     </li>
                   ))}
                 </ul>
@@ -52,7 +53,7 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
             </p>
           </>
         ) : (
-          <p className="mt-6 border-l-4 border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+          <p className="mt-6 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
             {t(language, "reply.not_ready")}
           </p>
         )}

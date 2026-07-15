@@ -187,6 +187,11 @@ async function main() {
 
     await page.goto(`${baseUrl}/officer`, { waitUntil: "networkidle" });
     await page.getByRole("heading", { name: "Case queue", exact: true }).waitFor();
+    const skipLink = page.getByRole("link", { name: "Skip to main content", exact: true });
+    assert(await skipLink.getAttribute("href") === "#main-content", "Officer skip link does not target the main content");
+    const brandBox = await page.getByRole("link", { name: /CivicFlow MY/ }).boundingBox();
+    assert((brandBox?.height ?? 0) >= 44, `Officer brand target is shorter than 44px (${brandBox?.height ?? 0}px)`);
+    assert(await page.locator(".border-l-4").count() === 0, "Officer queue still renders a decorative border-l-4 callout");
     const search = page.getByRole("textbox", { name: "Search cases", exact: true });
     await search.waitFor();
     assert((await page.getByText(closedCase.citizen_ref, { exact: true }).count()) === 0, `Closed case ${closedCase.citizen_ref} is visible in the default queue.`);
@@ -196,11 +201,20 @@ async function main() {
     await search.fill(created.citizen_ref);
     const caseLink = page.getByRole("link").filter({ hasText: created.citizen_ref }).first();
     await caseLink.waitFor();
+    await caseLink.focus();
+    assert(await caseLink.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return style.outlineStyle !== "none" || style.boxShadow !== "none";
+    }), "Focused queue row has no visible high-contrast indicator");
     await Promise.all([
       page.waitForURL(`${baseUrl}/officer/cases/${created.case_id}`),
       caseLink.click(),
     ]);
     await assertHeadingOrder(page);
+    assert(await page.locator(".border-l-4").count() === 0, "Officer case detail still renders a decorative border-l-4 callout");
+    const englishReference = page.getByText("English reference", { exact: true }).last();
+    const referenceBox = await englishReference.boundingBox();
+    assert((referenceBox?.height ?? 0) >= 44, `English reference target is shorter than 44px (${referenceBox?.height ?? 0}px)`);
 
     const reviewSection = page.locator("section").filter({
       has: page.getByRole("heading", { name: "Officer review", exact: true }),
@@ -237,6 +251,8 @@ async function main() {
     await settleServerRefresh(page);
     let current = await requestJson("GET", `/api/cases/${created.case_id}`);
     assert(current.officer_review?.triage_revision === current.triage_revision, "Officer review was not saved for the current revision.");
+    await page.getByText("Send the reviewed reply", { exact: true }).waitFor();
+    assert(await page.getByText("Release control", { exact: true }).count() === 0, "Officer reply control still uses Release copy");
 
     const releaseReply = page.getByRole("button", { name: "Send reply to citizen", exact: true });
     await releaseReply.waitFor();
@@ -244,6 +260,7 @@ async function main() {
     await settleServerRefresh(page);
     current = await requestJson("GET", `/api/cases/${created.case_id}`);
     assert(current.reply_draft?.status === "sent", "Citizen reply was not released.");
+    await page.getByText("Sent", { exact: true }).first().waitFor();
 
     const startWork = page.getByRole("button", { name: "Start work", exact: true });
     await startWork.waitFor();
@@ -261,6 +278,21 @@ async function main() {
     current = await requestJson("GET", `/api/cases/${created.case_id}`);
     assert(current.status === "closed", `Close case left case in ${current.status}.`);
     await page.getByText("Closed", { exact: true }).first().waitFor();
+
+    await page.goto(`${baseUrl}/officer/audit`, { waitUntil: "networkidle" });
+    await page.setViewportSize({ width: 320, height: 700 });
+    const auditRegion = page.getByRole("region", { name: "Audit events table", exact: true });
+    await auditRegion.waitFor();
+    assert(await auditRegion.getAttribute("tabindex") === "0", "Audit table region is not keyboard focusable");
+    await auditRegion.focus();
+    assert(await auditRegion.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return style.outlineStyle !== "none" || style.boxShadow !== "none";
+    }), "Focused audit table region has no visible focus indicator");
+    await page.getByText("Scroll horizontally to view all audit columns.", { exact: true }).waitFor();
+    const auditOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    assert(auditOverflow <= 1, `320px audit view overflows the page by ${auditOverflow}px`);
+    assert(await page.locator(".border-l-4").count() === 0, "Audit view still renders a decorative border-l-4 callout");
     assertBrowserHealthy();
 
     console.log(`Officer UI smoke passed at ${baseUrl}`);

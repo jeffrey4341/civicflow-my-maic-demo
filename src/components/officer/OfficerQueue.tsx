@@ -23,7 +23,7 @@ function nextAction(c: CitizenCase): string {
   if (c.status === "needs_info") return "Waiting for citizen details";
   if (!c.officer_review || c.officer_review.triage_revision !== c.triage_revision) return "Officer review required";
   if (c.status === "awaiting_supervisor") return "Supervisor decision required";
-  if (c.reply_draft?.status !== "sent") return "Release reviewed reply";
+  if (c.reply_draft?.status !== "sent") return "Send reviewed reply";
   if (c.status === "routed") return "Start council work";
   if (c.status === "in_progress") return "Record closure when complete";
   return "Review case";
@@ -111,7 +111,7 @@ export function OfficerQueue({ cases }: { cases: CitizenCase[] }) {
               <Link
                 href={`/officer/cases/${c.case_id}`}
                 prefetch={false}
-                className="grid gap-3 px-3 py-5 outline-none hover:bg-slate-50 focus-visible:bg-civic-50 md:grid-cols-[120px_minmax(220px,1.5fr)_minmax(150px,1fr)_140px_200px] md:items-start md:gap-4"
+                className="grid gap-3 px-3 py-5 outline-none hover:bg-slate-50 focus-visible:bg-civic-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-civic-700 md:grid-cols-[120px_minmax(220px,1.5fr)_minmax(150px,1fr)_140px_200px] md:items-start md:gap-4"
               >
                 <div>
                   <span className="font-mono text-sm font-semibold text-civic-800">{c.citizen_ref}</span>

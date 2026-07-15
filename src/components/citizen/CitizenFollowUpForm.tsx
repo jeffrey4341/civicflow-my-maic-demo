@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { t } from "@/lib/i18n";
@@ -34,11 +34,11 @@ export function CitizenFollowUpForm({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ triage_revision: triageRevision, answers }),
       });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.error ?? "We could not save these details.");
-      router.refresh();
-    } catch (caught) {
-      setError((caught as Error).message);
+      await response.json().catch(() => null);
+      if (!response.ok) throw new Error();
+      router.replace(`/m/cases/${encodeURIComponent(citizenRef)}?updated=1#case-update-status`);
+    } catch {
+      setError(t(language, "error.follow_up"));
     } finally {
       setBusy(false);
     }
@@ -61,7 +61,7 @@ export function CitizenFollowUpForm({
         </div>
       ))}
       {error ? (
-        <p className="border-l-4 border-red-500 bg-red-50 px-3 py-2 text-sm text-red-900" role="alert" aria-live="polite">
+        <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900" role="alert" aria-live="polite">
           {error}
         </p>
       ) : null}
@@ -73,5 +73,25 @@ export function CitizenFollowUpForm({
         {busy ? t(language, "common.working") : t(language, "status.send_details")}
       </button>
     </form>
+  );
+}
+
+export function CitizenUpdateStatus({ message }: { message: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    ref.current?.focus();
+  }, []);
+
+  return (
+    <p
+      ref={ref}
+      id="case-update-status"
+      role="status"
+      tabIndex={-1}
+      className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium leading-6 text-emerald-900 outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2"
+    >
+      {message}
+    </p>
   );
 }
