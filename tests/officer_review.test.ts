@@ -278,6 +278,103 @@ describe("officer review contract", () => {
     expect((await getApproval(body.approval_task_id))?.triage_revision).toBe(2);
   });
 
+  it("keeps the supervisor gate when a high-risk case is reclassified", async () => {
+    const c = await submitFloodCase();
+    const oldApprovalId = c.approval_task_id!;
+    const reviewed = await postJson(
+      reviewCaseRoute,
+      "http://localhost/review",
+      c.case_id,
+      reviewBody(c, {
+        category: "roads_potholes",
+        routing: { department: "Engineering", unit: "Roads & Maintenance Unit" },
+      }),
+    );
+    expect(reviewed.status).toBe(200);
+    const body = await reviewed.json();
+    expect(body).toMatchObject({
+      triage_revision: 2,
+      status: "awaiting_supervisor",
+      routing: { requires_supervisor: true },
+    });
+    expect(body.approval_task_id).not.toBe(oldApprovalId);
+    expect((await getApproval(oldApprovalId))?.status).toBe("superseded");
+    expect(await getApproval(body.approval_task_id)).toMatchObject({
+      triage_revision: 2,
+      status: "pending",
+    });
+
+    const blockedReply = await postJson(
+      releaseReplyRoute,
+      "http://localhost/reply",
+      c.case_id,
+      { triage_revision: 2, officer: "Officer Tan (demo)" },
+    );
+    expect(blockedReply.status).toBe(400);
+    expect((await blockedReply.json()).error).toMatch(/current supervisor approval/i);
+
+    const blockedStart = await postJson(
+      setStatusRoute,
+      "http://localhost/status",
+      c.case_id,
+      { triage_revision: 2, status: "in_progress", officer: "Officer Tan (demo)" },
+    );
+    expect(blockedStart.status).toBe(400);
+    expect((await blockedStart.json()).error).toMatch(/current supervisor approval/i);
+
+    expect((await postJson(
+      decideApprovalRoute,
+      "http://localhost/approval",
+      body.approval_task_id,
+      {
+        triage_revision: 2,
+        decision: "approved",
+        decided_by: "Supervisor Lim (demo)",
+        decided_role: "supervisor",
+        note: "The retained flood-risk gate was reviewed.",
+      },
+    )).status).toBe(200);
+    expect((await postJson(
+      releaseReplyRoute,
+      "http://localhost/reply",
+      c.case_id,
+      { triage_revision: 2, officer: "Officer Tan (demo)" },
+    )).status).toBe(200);
+    expect((await postJson(
+      setStatusRoute,
+      "http://localhost/status",
+      c.case_id,
+      { triage_revision: 2, status: "in_progress", officer: "Officer Tan (demo)" },
+    )).status).toBe(200);
+  });
+
+  it("creates a supervisor gate when an officer corrects a case into a gated category", async () => {
+    const c = await submitStandardCase();
+    c.urgency = "flood_risk";
+    expect(c.approval_task_id).toBeNull();
+
+    const reviewed = await postJson(
+      reviewCaseRoute,
+      "http://localhost/review",
+      c.case_id,
+      reviewBody(c, {
+        category: "drainage",
+        routing: { department: "Engineering", unit: "Drainage Unit" },
+      }),
+    );
+    expect(reviewed.status).toBe(200);
+    const body = await reviewed.json();
+    expect(body).toMatchObject({
+      triage_revision: 2,
+      status: "awaiting_supervisor",
+      routing: { requires_supervisor: true },
+    });
+    expect(await getApproval(body.approval_task_id)).toMatchObject({
+      triage_revision: 2,
+      status: "pending",
+    });
+  });
+
   it("supports rejected close-no-action and revised resubmission without permitting work", async () => {
     const closeCase = await submitFloodCase();
     const closeTask = await getApproval(closeCase.approval_task_id!);

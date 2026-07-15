@@ -552,6 +552,10 @@ function currentGate(record: CitizenCase) {
   });
 }
 
+function requiresSupervisorApproval(record: CitizenCase): boolean {
+  return Boolean(record.routing?.requires_supervisor) || currentGate(record).requires_supervisor;
+}
+
 export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
   const state = await getState();
   const record = state.cases.get(input.case_id);
@@ -601,6 +605,7 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
     throw new Error("Missing information must be resolved before officer review can proceed.");
   }
 
+  const storedGate = currentGate(record);
   const proposedGate = evaluateApprovalGate({
     category: input.category,
     urgency: record.urgency,
@@ -610,6 +615,15 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
   const currentApproval = record.approval_task_id
     ? state.approvals.get(record.approval_task_id) ?? null
     : null;
+  const requiresSupervisor = Boolean(record.routing?.requires_supervisor)
+    || storedGate.requires_supervisor
+    || proposedGate.requires_supervisor;
+  const approvalReason = proposedGate.requires_supervisor
+    ? proposedGate.reason
+    : currentApproval?.reason ?? storedGate.reason;
+  const approvalRiskFactors = proposedGate.requires_supervisor
+    ? proposedGate.risk_factors
+    : currentApproval?.risk_factors ?? storedGate.risk_factors;
   const rejectedTask = currentApproval?.status === "rejected" ? currentApproval : null;
   const priorHumanDecision = currentApproval && ["approved", "rejected"].includes(currentApproval.status)
     ? currentApproval
@@ -620,21 +634,21 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
     && record.officer_review.resolution === "close_no_action";
   if (
     input.resolution === "close_no_action"
-    && proposedGate.requires_supervisor
+    && requiresSupervisor
     && (currentApproval?.status === "pending" || (!priorHumanDecision && !repeatsAcceptedClose))
   ) {
     throw new Error("A supervisor decision is required before a high-risk case can be closed without action.");
   }
-  if (rejectedTask && proposedGate.requires_supervisor && input.resolution === "proceed") {
+  if (rejectedTask && requiresSupervisor && input.resolution === "proceed") {
     throw new Error("Choose close without action or resubmit the rejected high-risk approval.");
   }
-  const startsRevisedResubmission = Boolean(rejectedTask && substantive && proposedGate.requires_supervisor);
+  const startsRevisedResubmission = Boolean(rejectedTask && substantive && requiresSupervisor);
   const continuesApprovedResubmission = Boolean(
     currentApproval?.status === "approved"
     && record.officer_review?.triage_revision === record.triage_revision
     && record.officer_review.resolution === "resubmit_approval"
     && !substantive
-    && proposedGate.requires_supervisor,
+    && requiresSupervisor,
   );
   if (input.resolution === "resubmit_approval" && !startsRevisedResubmission && !continuesApprovedResubmission) {
     throw new Error("Rejected high-risk approval requires substantive edits before resubmission.");
@@ -677,7 +691,7 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
       category: input.category,
       department,
       unit,
-      requires_supervisor: proposedGate.requires_supervisor,
+      requires_supervisor: requiresSupervisor,
       rule_id: routingChanged ? "officer-confirmed" : record.routing.rule_id,
       rationale: routingChanged
         ? "Routing facts confirmed by a council officer during case review."
@@ -687,7 +701,7 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
 
   let approval = record.approval_task_id ? state.approvals.get(record.approval_task_id) ?? null : null;
   let createdApproval: ApprovalTask | null = null;
-  if (input.resolution !== "close_no_action" && proposedGate.requires_supervisor) {
+  if (input.resolution !== "close_no_action" && requiresSupervisor) {
     const reusable = !substantive
       && approval?.triage_revision === nextRevision
       && ["pending", "approved"].includes(approval.status);
@@ -696,8 +710,8 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
         case_id: record.case_id,
         triage_revision: nextRevision,
         title: `Supervisor approval - ${department} / ${unit}`,
-        reason: proposedGate.reason,
-        risk_factors: proposedGate.risk_factors,
+        reason: approvalReason,
+        risk_factors: approvalRiskFactors,
         evidence: citations,
       });
       state.approvals.set(approval.approval_id, approval);
@@ -975,7 +989,7 @@ export async function releaseReply(args: {
   if (hasBlockingGaps(record.missing_info) && review.resolution !== "close_no_action") {
     throw new Error("Missing information must be resolved before reply release.");
   }
-  if (review.resolution !== "close_no_action" && currentGate(record).requires_supervisor) {
+  if (review.resolution !== "close_no_action" && requiresSupervisorApproval(record)) {
     const approval = record.approval_task_id
       ? state.approvals.get(record.approval_task_id) ?? null
       : null;
@@ -1051,7 +1065,7 @@ export async function setStatus(args: {
       hold("Only a proceed or approved-resubmission resolution may start operational work.");
     }
     if (record.citations.length === 0) hold("A valid policy citation is required before work can start.");
-    if (currentGate(record).requires_supervisor) {
+    if (requiresSupervisorApproval(record)) {
       const approval = record.approval_task_id
         ? state.approvals.get(record.approval_task_id) ?? null
         : null;
