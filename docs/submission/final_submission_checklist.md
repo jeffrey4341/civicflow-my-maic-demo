@@ -103,11 +103,11 @@ All gates below are reported as **passing** in the audit trail; re-run them on t
 
 ### 4.1 Build, types, tests, dependencies
 - [ ] `npm run typecheck` — TypeScript compiles clean (`tsc --noEmit`)
-- [ ] `npm test` — Vitest passes (**10 test files / 57 tests**, including governance, LLM parity, RAG evaluation, citizen detail integrity, and officer lifecycle review)
+- [ ] `npm test` — Vitest passes (**10 test files / 64 tests**, including governance, LLM parity, RAG evaluation, citizen detail integrity, and officer lifecycle review)
 - [ ] `npm run build` — Next.js **15.5.19** production build completes; all routes build (`/m`, `/officer`, `/officer/cases/[id]`, `/officer/approvals`, `/officer/audit`, `/api/*`)
-- [ ] `npm run smoke:citizen` — real mobile flow covers language mismatch confirmation, needs-info submission, structured follow-up, tracking, and 320 px overflow
-- [ ] `npm run smoke:officer` — real staff flow covers search/default closed filtering, officer review, reply release, explicit work start, and note-gated closure
-- [ ] `npm run smoke:e2e` — production-server smoke covers the four canonical governance paths and route rendering
+- [ ] `npm run smoke:citizen` — real 320 px mobile flow covers keyboard tabs, language mismatch confirmation, needs-info submission, structured follow-up, tracking, and overflow checks
+- [ ] `npm run smoke:officer` — real staff flow covers search/default closed filtering, Enter-key policy search without review submission, officer review, reply sending, explicit work start, and note-gated closure
+- [ ] `npm run smoke:e2e` — production-server smoke covers synthetic-data rejection, the four canonical governance paths, closure/immutability gates, and eight rendered routes
 - [ ] `npm run lint` — passes (note: aliases to `tsc --noEmit`, not full ESLint)
 - [ ] `npm audit --omit=dev --audit-level=moderate` — **0 vulnerabilities** in production deps; PostCSS pinned via `overrides` to `8.5.15` — see [package.json](../../package.json)
 
@@ -127,7 +127,7 @@ Launch: `npm run build && npm run start -- --hostname 127.0.0.1 --port 3000` (us
 - [ ] English education-aid question (`"Can I apply for education aid for my child?"`) → `officer_review_only = true`; requires a recorded human welfare outcome and never auto-approves eligibility
 - [ ] Unknown/general enquiry with no qualifying citation → `manual_review`; start/close blocked
 - [ ] Attempting a blocked status transition (e.g. `POST /api/cases/{id}/status` → `in_progress`) is rejected and logged as a `status.denied` audit event
-- [ ] Officer UI orders each case by **Next required action** and keeps review, supervisor decision, reply release, start work, and note-gated closure as separate controls with blocker reasons
+- [ ] Officer UI orders each case by **Next required action** and keeps review, supervisor decision, reply sending, start work, and note-gated closure as separate controls with accessible blocker reasons
 - [ ] `/officer/audit` shows the full per-case trail: language detection → classification → retrieval → routing → approval → reply draft → status changes (and denials)
 
 ### 4.4 Public-artifact safety

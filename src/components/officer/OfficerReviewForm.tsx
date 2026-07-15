@@ -22,13 +22,17 @@ function citationKey(citation: Pick<PolicyCitation, "source_doc" | "section">): 
 export function OfficerReviewForm({
   caseData,
   canResubmit = false,
+  closeNoActionBlocker = null,
 }: {
   caseData: CitizenCase;
   canResubmit?: boolean;
+  closeNoActionBlocker?: string | null;
 }) {
   const router = useRouter();
   const review = caseData.officer_review;
-  const [resolution, setResolution] = useState<OfficerReviewResolution>(review?.resolution ?? "proceed");
+  const [resolution, setResolution] = useState<OfficerReviewResolution>(
+    review?.resolution === "resubmit_approval" && !canResubmit ? "proceed" : review?.resolution ?? "proceed",
+  );
   const [language, setLanguage] = useState<Language>(caseData.citizen_language);
   const [category, setCategory] = useState<CaseCategory>(caseData.category);
   const [department, setDepartment] = useState(caseData.department);
@@ -47,7 +51,7 @@ export function OfficerReviewForm({
 
   async function searchPolicies() {
     const query = policyQuery.trim();
-    if (!query) return;
+    if (!query || searching) return;
     setSearching(true);
     setError(null);
     try {
@@ -74,6 +78,10 @@ export function OfficerReviewForm({
 
   async function submitReview(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (resolution === "close_no_action" && closeNoActionBlocker) {
+      setError(closeNoActionBlocker);
+      return;
+    }
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -128,12 +136,14 @@ export function OfficerReviewForm({
               id="review-resolution"
               value={resolution}
               onChange={(event) => setResolution(event.target.value as OfficerReviewResolution)}
+              aria-describedby={closeNoActionBlocker ? "close-no-action-blocker" : undefined}
               className="form-control"
             >
               <option value="proceed">Proceed with routing</option>
-              <option value="close_no_action">Close with no operational action</option>
+              <option value="close_no_action" disabled={Boolean(closeNoActionBlocker)}>Close with no operational action</option>
               {canResubmit ? <option value="resubmit_approval">Revise and resubmit for approval</option> : null}
             </select>
+            {closeNoActionBlocker ? <p id="close-no-action-blocker" className="mt-2 text-sm leading-6 text-amber-800">{closeNoActionBlocker}</p> : null}
           </FormField>
           <FormField label="Confirmed language" htmlFor="review-language">
             <select id="review-language" value={language} onChange={(event) => setLanguage(event.target.value as Language)} className="form-control">
@@ -178,6 +188,11 @@ export function OfficerReviewForm({
             type="search"
             value={policyQuery}
             onChange={(event) => setPolicyQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+              event.preventDefault();
+              void searchPolicies();
+            }}
             placeholder="Search policy evidence"
             className="form-control"
           />

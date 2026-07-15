@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { LANGUAGE_NAMES, categoryLabel, t } from "@/lib/i18n";
@@ -34,10 +34,29 @@ export default function CitizenHome() {
   const [languageConfirmed, setLanguageConfirmed] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const newTabRef = useRef<HTMLButtonElement>(null);
+  const trackTabRef = useRef<HTMLButtonElement>(null);
+  const reviewHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  useEffect(() => {
+    if (step === "review") reviewHeadingRef.current?.focus();
+  }, [step]);
 
   function selectMode(nextMode: Mode) {
     setMode(nextMode);
     setError(null);
+  }
+
+  function handleTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, current: Mode) {
+    let next: Mode | null = null;
+    if (event.key === "Home") next = "new";
+    if (event.key === "End") next = "track";
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") next = current === "new" ? "track" : "new";
+    if (!next) return;
+    event.preventDefault();
+    selectMode(next);
+    (next === "new" ? newTabRef : trackTabRef).current?.focus();
   }
 
   async function analyse(selectedLanguage: Language = language) {
@@ -55,6 +74,7 @@ export default function CitizenHome() {
       const nextPreview = body as Preview;
       setPreview(nextPreview);
       setLanguageConfirmed(nextPreview.result.detected_language === selectedLanguage);
+      setAnnouncement(`${t(selectedLanguage, "review.title")}. ${t(selectedLanguage, "review.intro")}`);
       setStep("review");
     } catch (caught) {
       setError((caught as Error).message);
@@ -107,6 +127,7 @@ export default function CitizenHome() {
 
   return (
     <div lang={language}>
+      <p className="sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
       <aside className="border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
         {t(language, "common.synthetic_banner")}
       </aside>
@@ -118,57 +139,71 @@ export default function CitizenHome() {
 
       <div className="mt-7 grid grid-cols-2 border-b border-slate-200" role="tablist" aria-label="Citizen services">
         <button
+          ref={newTabRef}
+          id="citizen-tab-new"
           type="button"
           role="tab"
+          aria-controls="citizen-panel-new"
           aria-selected={mode === "new"}
+          tabIndex={mode === "new" ? 0 : -1}
           onClick={() => selectMode("new")}
+          onKeyDown={(event) => handleTabKeyDown(event, "new")}
           className={`min-h-12 border-b-2 px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-civic-600 ${mode === "new" ? "border-civic-700 text-civic-800" : "border-transparent text-slate-600 hover:text-slate-900"}`}
         >
           {t(language, "nav.new_request")}
         </button>
         <button
+          ref={trackTabRef}
+          id="citizen-tab-track"
           type="button"
           role="tab"
+          aria-controls="citizen-panel-track"
           aria-selected={mode === "track"}
+          tabIndex={mode === "track" ? 0 : -1}
           onClick={() => selectMode("track")}
+          onKeyDown={(event) => handleTabKeyDown(event, "track")}
           className={`min-h-12 border-b-2 px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-civic-600 ${mode === "track" ? "border-civic-700 text-civic-800" : "border-transparent text-slate-600 hover:text-slate-900"}`}
         >
           {t(language, "nav.track_case")}
         </button>
       </div>
 
-      {mode === "track" ? (
+      <div id="citizen-panel-new" role="tabpanel" aria-labelledby="citizen-tab-new" hidden={mode !== "new"}>
+        {step === "compose" ? (
+          <ComposeRequest
+            language={language}
+            setLanguage={setLanguage}
+            text={text}
+            setText={setText}
+            loading={loading}
+            error={error}
+            onAnalyse={() => analyse()}
+          />
+        ) : preview ? (
+          <ReviewRequest
+            headingRef={reviewHeadingRef}
+            language={language}
+            preview={preview}
+            answers={answers}
+            setAnswers={setAnswers}
+            languageConfirmed={languageConfirmed}
+            loading={loading}
+            error={error}
+            onKeepLanguage={() => setLanguageConfirmed(true)}
+            onUseDetected={switchToDetected}
+            onBack={() => { setAnnouncement(""); setStep("compose"); }}
+            onSubmit={submitRequest}
+          />
+        ) : null}
+      </div>
+      <div id="citizen-panel-track" role="tabpanel" aria-labelledby="citizen-tab-track" hidden={mode !== "track"}>
         <TrackCaseForm
           language={language}
           trackingCode={trackingCode}
           setTrackingCode={setTrackingCode}
           onSubmit={trackCase}
         />
-      ) : step === "compose" ? (
-        <ComposeRequest
-          language={language}
-          setLanguage={setLanguage}
-          text={text}
-          setText={setText}
-          loading={loading}
-          error={error}
-          onAnalyse={() => analyse()}
-        />
-      ) : preview ? (
-        <ReviewRequest
-          language={language}
-          preview={preview}
-          answers={answers}
-          setAnswers={setAnswers}
-          languageConfirmed={languageConfirmed}
-          loading={loading}
-          error={error}
-          onKeepLanguage={() => setLanguageConfirmed(true)}
-          onUseDetected={switchToDetected}
-          onBack={() => setStep("compose")}
-          onSubmit={submitRequest}
-        />
-      ) : null}
+      </div>
     </div>
   );
 }
@@ -276,6 +311,7 @@ function ComposeRequest(props: {
 }
 
 function ReviewRequest(props: {
+  headingRef: React.RefObject<HTMLHeadingElement>;
   language: Language;
   preview: Preview;
   answers: Record<string, string>;
@@ -305,7 +341,7 @@ function ReviewRequest(props: {
       <button type="button" onClick={props.onBack} className="min-h-11 text-sm font-medium text-civic-800 underline-offset-4 hover:underline">
         ← {t(props.language, "common.back")}
       </button>
-      <h2 className="mt-3 text-xl font-semibold text-slate-950">{t(props.language, "review.title")}</h2>
+      <h2 ref={props.headingRef} tabIndex={-1} className="mt-3 rounded-sm text-xl font-semibold text-slate-950 focus:outline-none focus:ring-2 focus:ring-civic-600 focus:ring-offset-2">{t(props.language, "review.title")}</h2>
       <p className="mt-2 text-sm leading-6 text-slate-600">{t(props.language, "review.intro")}</p>
 
       {mismatch ? (

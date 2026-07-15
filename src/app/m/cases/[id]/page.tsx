@@ -150,7 +150,7 @@ export default async function CitizenCasePage({ params }: { params: Promise<{ id
       </section>
 
       <nav className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-t border-slate-200 pt-6 text-sm font-medium" aria-label="Citizen case actions">
-        <Link href="/m" className="text-civic-800 underline-offset-4 hover:underline">{t(language, "status.new_request")}</Link>
+        <Link href="/m" className="inline-flex min-h-11 items-center text-civic-800 underline-offset-4 hover:underline">{t(language, "status.new_request")}</Link>
       </nav>
     </div>
   );

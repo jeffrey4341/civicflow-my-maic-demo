@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { makeAuditEvent } from "@/lib/audit";
 import { runTriage } from "@/lib/ai/pipeline";
+import { listAudit, listCases, resetStore } from "@/lib/store";
 
 describe("audit event creation", () => {
   it("creates a well-formed, timestamped audit event", () => {
@@ -52,5 +53,18 @@ describe("audit event creation", () => {
     // Chinese reply includes the official bilingual term per spec.
     expect(out.result.reply_draft.body).toContain("business licence");
     expect(out.needsInfo).toBe(true); // location, business type, operating hours
+  });
+
+  it("records seeded human review and reply approval state in the audit trail", async () => {
+    await resetStore();
+    const cases = await listCases();
+    const reviewed = cases.find(
+      (record) => record.officer_review && record.reply_draft?.status === "approved",
+    );
+    expect(reviewed).toBeDefined();
+
+    const audit = await listAudit(reviewed!.case_id);
+    expect(audit.some((event) => event.event_type === "officer.reviewed")).toBe(true);
+    expect(audit.some((event) => event.event_type === "reply.approved")).toBe(true);
   });
 });

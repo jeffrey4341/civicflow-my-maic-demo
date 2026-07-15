@@ -232,10 +232,30 @@ async function seed(state: DemoState): Promise<void> {
         resolution: "proceed",
         welfare_outcome: record.category === "education_aid_welfare" ? "eligible" : null,
       };
+      state.audit.push(
+        makeAuditEvent({
+          case_id: record.case_id,
+          actor: "officer",
+          actor_label: officer,
+          event_type: "officer.reviewed",
+          summary: "Officer confirmed the seeded case triage and citizen reply.",
+          payload: { triage_revision: record.triage_revision, resolution: "proceed", seeded: true },
+        }),
+      );
       if (record.reply_draft) {
         record.reply_draft.status = "approved";
         record.reply_draft.approved_by = officer;
         record.reply_draft.approved_revision = record.triage_revision;
+        state.audit.push(
+          makeAuditEvent({
+            case_id: record.case_id,
+            actor: "officer",
+            actor_label: officer,
+            event_type: "reply.approved",
+            summary: "Officer approved the seeded citizen reply.",
+            payload: { triage_revision: record.triage_revision, seeded: true },
+          }),
+        );
       }
     }
     if (demo?.approve && built.approval) {
@@ -587,32 +607,54 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
     pii_risk: record.pii_risk,
     category_confidence: record.category_confidence,
   });
-  const rejectedTask = [...state.approvals.values()].find(
-    (task) => task.case_id === record.case_id && task.status === "rejected",
-  );
+  const currentApproval = record.approval_task_id
+    ? state.approvals.get(record.approval_task_id) ?? null
+    : null;
+  const rejectedTask = currentApproval?.status === "rejected" ? currentApproval : null;
+  const priorHumanDecision = currentApproval && ["approved", "rejected"].includes(currentApproval.status)
+    ? currentApproval
+    : [...state.approvals.values()].find(
+        (task) => task.case_id === record.case_id && ["approved", "rejected"].includes(task.status),
+      ) ?? null;
+  const repeatsAcceptedClose = record.officer_review?.triage_revision === record.triage_revision
+    && record.officer_review.resolution === "close_no_action";
+  if (
+    input.resolution === "close_no_action"
+    && proposedGate.requires_supervisor
+    && (currentApproval?.status === "pending" || (!priorHumanDecision && !repeatsAcceptedClose))
+  ) {
+    throw new Error("A supervisor decision is required before a high-risk case can be closed without action.");
+  }
   if (rejectedTask && proposedGate.requires_supervisor && input.resolution === "proceed") {
     throw new Error("Choose close without action or resubmit the rejected high-risk approval.");
   }
-  if (
-    input.resolution === "resubmit_approval"
-    && (!rejectedTask || !substantive || !proposedGate.requires_supervisor)
-  ) {
+  const startsRevisedResubmission = Boolean(rejectedTask && substantive && proposedGate.requires_supervisor);
+  const continuesApprovedResubmission = Boolean(
+    currentApproval?.status === "approved"
+    && record.officer_review?.triage_revision === record.triage_revision
+    && record.officer_review.resolution === "resubmit_approval"
+    && !substantive
+    && proposedGate.requires_supervisor,
+  );
+  if (input.resolution === "resubmit_approval" && !startsRevisedResubmission && !continuesApprovedResubmission) {
     throw new Error("Rejected high-risk approval requires substantive edits before resubmission.");
   }
 
   const fromStatus = record.status;
   const preserveInProgress = fromStatus === "in_progress"
     && !substantive
-    && input.resolution === "proceed";
+    && ["proceed", "resubmit_approval"].includes(input.resolution);
   const superseded: ApprovalTask[] = [];
-  if (substantive) {
+  if (substantive || input.resolution === "close_no_action") {
     for (const task of state.approvals.values()) {
       if (task.case_id !== record.case_id || !["pending", "approved"].includes(task.status)) continue;
       task.status = "superseded";
       if (!task.decided_at) {
         task.decided_at = nowIso();
         task.decision_by = officer;
-        task.decision_note = `Superseded by triage revision ${nextRevision}.`;
+        task.decision_note = input.resolution === "close_no_action"
+          ? `Superseded by close-without-action resolution at triage revision ${nextRevision}.`
+          : `Superseded by triage revision ${nextRevision}.`;
       }
       superseded.push(task);
     }
@@ -668,6 +710,7 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
         ? "routed"
         : "awaiting_supervisor";
   } else if (input.resolution === "close_no_action") {
+    record.approval_task_id = null;
     record.status = "manual_review";
     record.manual_review_reason = "Officer resolved this case for closure without operational action.";
   } else {
@@ -700,8 +743,14 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
         actor: "officer",
         actor_label: officer,
         event_type: "approval.superseded",
-        summary: "A prior supervisor approval was superseded by revised triage facts.",
-        payload: { approval_id: task.approval_id, triage_revision: nextRevision },
+        summary: input.resolution === "close_no_action"
+          ? "A supervisor approval was superseded by the reviewed close-without-action resolution."
+          : "A prior supervisor approval was superseded by revised triage facts.",
+        payload: {
+          approval_id: task.approval_id,
+          triage_revision: nextRevision,
+          reason: input.resolution === "close_no_action" ? "close_no_action" : "triage_revision",
+        },
       }),
     );
   }
@@ -977,13 +1026,17 @@ export async function setStatus(args: {
   if (args.status !== "in_progress" && args.status !== "closed") {
     hold("Only start-work and close actions are available through this endpoint.");
   }
-  if (hasBlockingGaps(record.missing_info)) {
+  const currentReview = record.officer_review;
+  const closingWithoutAction = args.status === "closed"
+    && currentReview?.triage_revision === record.triage_revision
+    && currentReview.resolution === "close_no_action";
+  if (hasBlockingGaps(record.missing_info) && !closingWithoutAction) {
     hold("Missing information must be resolved before work can start or the case can be closed.");
   }
   if (record.status === "manual_review" && !record.officer_review) {
     hold(record.manual_review_reason ?? "Manual review is required before changing case status.");
   }
-  const review = record.officer_review;
+  const review = currentReview;
   if (!review) {
     const reason = "Current officer review is required before changing case status.";
     recordDeniedStatus(state, record, args.status, actorLabel, reason);
@@ -994,7 +1047,9 @@ export async function setStatus(args: {
   }
 
   if (args.status === "in_progress") {
-    if (review.resolution !== "proceed") hold("Only a proceed resolution may start operational work.");
+    if (!["proceed", "resubmit_approval"].includes(review.resolution)) {
+      hold("Only a proceed or approved-resubmission resolution may start operational work.");
+    }
     if (record.citations.length === 0) hold("A valid policy citation is required before work can start.");
     if (currentGate(record).requires_supervisor) {
       const approval = record.approval_task_id
@@ -1008,6 +1063,7 @@ export async function setStatus(args: {
         hold("Current supervisor approval is required before work can start.");
       }
     }
+    if (record.reply_draft?.status !== "sent") hold("Citizen reply must be sent before work can start.");
     if (record.status !== "routed") hold("The case must be routed before work can start.");
   } else {
     if (record.reply_draft?.status !== "sent") hold("Citizen reply must be sent before closure.");
@@ -1015,8 +1071,8 @@ export async function setStatus(args: {
     if (record.category === "education_aid_welfare" && !review.welfare_outcome) {
       hold("A human welfare outcome is required before closure.");
     }
-    if (review.resolution === "proceed" && record.status !== "in_progress") {
-      hold("Proceed cases must start work before closure.");
+    if (review.resolution !== "close_no_action" && record.status !== "in_progress") {
+      hold("Actionable cases must start work before closure.");
     }
   }
 

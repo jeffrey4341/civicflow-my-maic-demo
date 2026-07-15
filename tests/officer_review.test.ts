@@ -7,6 +7,7 @@ import { POST as setStatusRoute } from "@/app/api/cases/[id]/status/route";
 import {
   getApproval,
   getCase,
+  listAudit,
   listApprovals,
   resetStore,
   submitCase,
@@ -134,6 +135,15 @@ describe("officer review contract", () => {
       reviewBody(c),
     )).status).toBe(200);
 
+    const beforeReply = await postJson(
+      setStatusRoute,
+      `http://localhost/api/cases/${c.case_id}/status`,
+      c.case_id,
+      { triage_revision: 1, status: "in_progress", officer: "Officer Tan (demo)" },
+    );
+    expect(beforeReply.status).toBe(400);
+    expect((await beforeReply.json()).error).toMatch(/reply must be sent/i);
+
     const sent = await postJson(
       releaseReplyRoute,
       `http://localhost/api/cases/${c.case_id}/reply`,
@@ -226,13 +236,27 @@ describe("officer review contract", () => {
     expect((await replyOnlyReview.json()).triage_revision).toBe(1);
     expect((await getApproval(task!.approval_id))?.status).toBe("approved");
 
-    const started = await postJson(
+    const approvalOnlyStart = await postJson(
       setStatusRoute,
       `http://localhost/api/cases/${c.case_id}/status`,
       c.case_id,
       { triage_revision: 1, status: "in_progress", officer: "Officer Tan (demo)" },
     );
-    expect(started.status).toBe(200);
+    expect(approvalOnlyStart.status).toBe(400);
+    expect((await approvalOnlyStart.json()).error).toMatch(/reply must be sent/i);
+
+    expect((await postJson(
+      releaseReplyRoute,
+      `http://localhost/api/cases/${c.case_id}/reply`,
+      c.case_id,
+      { triage_revision: 1, officer: "Officer Tan (demo)" },
+    )).status).toBe(200);
+    expect((await postJson(
+      setStatusRoute,
+      `http://localhost/api/cases/${c.case_id}/status`,
+      c.case_id,
+      { triage_revision: 1, status: "in_progress", officer: "Officer Tan (demo)" },
+    )).status).toBe(200);
   });
 
   it("supersedes an old approval when substantive reviewed triage facts change", async () => {
@@ -280,6 +304,7 @@ describe("officer review contract", () => {
     const closeReviewed = await closeReview.json();
     expect(closeReviewed.status).toBe("manual_review");
     expect(closeReviewed.triage_revision).toBe(2);
+    expect(closeReviewed.approval_task_id).toBeNull();
 
     expect((await postJson(
       releaseReplyRoute,
@@ -329,8 +354,170 @@ describe("officer review contract", () => {
     expect(resubmitted.status).toBe(200);
     const resubmittedBody = await resubmitted.json();
     expect(resubmittedBody.triage_revision).toBe(2);
-    expect((await getApproval(resubmittedBody.approval_task_id))?.status).toBe("pending");
+    const resubmittedTask = await getApproval(resubmittedBody.approval_task_id);
+    expect(resubmittedTask?.status).toBe("pending");
     expect((await listApprovals()).filter((task) => task.case_id === resubmitCase.case_id)).toHaveLength(2);
+
+    expect((await postJson(decideApprovalRoute, "http://localhost/approval", resubmittedTask!.approval_id, {
+      triage_revision: 2,
+      decision: "approved",
+      decided_by: "Supervisor Lim (demo)",
+      decided_role: "supervisor",
+      note: "Revised response route approved.",
+    })).status).toBe(200);
+    expect((await getCase(resubmitCase.case_id))?.officer_review?.resolution).toBe("resubmit_approval");
+    const reviewedAgain = await postJson(
+      reviewCaseRoute,
+      "http://localhost/review",
+      resubmitCase.case_id,
+      reviewBody(await getCase(resubmitCase.case_id) as CitizenCase, {
+        triage_revision: 2,
+        resolution: "resubmit_approval",
+        routing: { department: "Engineering", unit: "Emergency Drainage Desk" },
+        reply_body: "Updated synthetic reply after the revised approval.",
+      }),
+    );
+    expect(reviewedAgain.status).toBe(200);
+    expect((await reviewedAgain.json()).status).toBe("routed");
+    expect((await getApproval(resubmittedTask!.approval_id))?.status).toBe("approved");
+    expect((await postJson(
+      releaseReplyRoute,
+      "http://localhost/reply",
+      resubmitCase.case_id,
+      { triage_revision: 2, officer: "Officer Tan (demo)" },
+    )).status).toBe(200);
+    const prematureClose = await postJson(
+      setStatusRoute,
+      "http://localhost/status",
+      resubmitCase.case_id,
+      {
+        triage_revision: 2,
+        status: "closed",
+        officer: "Officer Tan (demo)",
+        note: "This must not close before work starts.",
+      },
+    );
+    expect(prematureClose.status).toBe(400);
+    expect((await prematureClose.json()).error).toMatch(/start work before closure/i);
+    expect((await postJson(
+      setStatusRoute,
+      "http://localhost/status",
+      resubmitCase.case_id,
+      { triage_revision: 2, status: "in_progress", officer: "Officer Tan (demo)" },
+    )).status).toBe(200);
+
+    const postApprovalReview = await postJson(
+      reviewCaseRoute,
+      "http://localhost/review",
+      resubmitCase.case_id,
+      reviewBody(await getCase(resubmitCase.case_id) as CitizenCase, {
+        triage_revision: 2,
+        resolution: "proceed",
+        routing: { department: "Engineering", unit: "Emergency Drainage Desk" },
+        reply_body: "Updated officer-reviewed synthetic reply after approval.",
+      }),
+    );
+    expect(postApprovalReview.status).toBe(200);
+    expect((await postApprovalReview.json()).status).toBe("in_progress");
+  });
+
+  it("does not let an officer bypass a pending high-risk approval with close-no-action", async () => {
+    const c = await submitFloodCase();
+    const task = await getApproval(c.approval_task_id!);
+
+    const blocked = await postJson(
+      reviewCaseRoute,
+      "http://localhost/review",
+      c.case_id,
+      reviewBody(c, {
+        resolution: "close_no_action",
+        note: "Close without operational action.",
+      }),
+    );
+    expect(blocked.status).toBe(400);
+    expect((await blocked.json()).error).toMatch(/supervisor.*decision/i);
+    expect((await getApproval(task!.approval_id))?.status).toBe("pending");
+    expect((await getCase(c.case_id))?.officer_review).toBeNull();
+  });
+
+  it("supersedes an approved high-risk task when reviewed for close-no-action", async () => {
+    const c = await submitFloodCase();
+    const task = await getApproval(c.approval_task_id!);
+    await postJson(reviewCaseRoute, "http://localhost/review", c.case_id, reviewBody(c));
+    await postJson(decideApprovalRoute, "http://localhost/approval", task!.approval_id, {
+      triage_revision: 1,
+      decision: "approved",
+      decided_by: "Supervisor Lim (demo)",
+      decided_role: "supervisor",
+      note: "Human checkpoint completed.",
+    });
+
+    const reviewed = await postJson(
+      reviewCaseRoute,
+      "http://localhost/review",
+      c.case_id,
+      reviewBody(await getCase(c.case_id) as CitizenCase, {
+        resolution: "close_no_action",
+        note: "No operational action is now required.",
+      }),
+    );
+    expect(reviewed.status).toBe(200);
+    const body = await reviewed.json();
+    expect(body.approval_task_id).toBeNull();
+    expect((await getApproval(task!.approval_id))?.status).toBe("superseded");
+    expect((await listAudit(c.case_id)).some((event) => event.event_type === "approval.superseded")).toBe(true);
+
+    const repeatedReview = await postJson(
+      reviewCaseRoute,
+      "http://localhost/review",
+      c.case_id,
+      reviewBody(body as CitizenCase, {
+        resolution: "close_no_action",
+        note: "No operational action is required; reply wording checked again.",
+      }),
+    );
+    expect(repeatedReview.status).toBe(200);
+    expect((await repeatedReview.json()).approval_task_id).toBeNull();
+  });
+
+  it("allows reviewed close-no-action closure when citizen details remain missing", async () => {
+    const c = await submitCase({
+      text: "I need a business licence.",
+      language: "en",
+      location_text: "",
+    });
+    expect(c.missing_info.some((item) => item.required && !item.satisfied)).toBe(true);
+
+    const reviewed = await postJson(
+      reviewCaseRoute,
+      "http://localhost/review",
+      c.case_id,
+      reviewBody(c, {
+        citation_keys: [],
+        resolution: "close_no_action",
+        note: "The incomplete request is being closed without operational action.",
+      }),
+    );
+    expect(reviewed.status).toBe(200);
+    expect((await postJson(
+      releaseReplyRoute,
+      "http://localhost/reply",
+      c.case_id,
+      { triage_revision: 2, officer: "Officer Tan (demo)" },
+    )).status).toBe(200);
+    const closed = await postJson(
+      setStatusRoute,
+      "http://localhost/status",
+      c.case_id,
+      {
+        triage_revision: 2,
+        status: "closed",
+        officer: "Officer Tan (demo)",
+        note: "Closed without action because required information was not supplied.",
+      },
+    );
+    expect(closed.status).toBe(200);
+    expect((await closed.json()).status).toBe("closed");
   });
 
   it("requires a human welfare outcome before closure", async () => {

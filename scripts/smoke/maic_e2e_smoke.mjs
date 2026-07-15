@@ -150,6 +150,16 @@ async function main() {
     const reset = await requestJson("POST", "/api/reset");
     assert(reset.ok === true, "POST /api/reset did not return ok=true.");
 
+    const rejectedPii = await rawRequest("POST", "/api/cases", {
+      text: "My name is Ahmad bin Ali and a blocked drain needs attention.",
+      language: "en",
+      location_text: "12 Jalan Ampang Kuala Lumpur",
+      media_refs: [],
+      source_channel: "web",
+    });
+    assert(rejectedPii.response.status === 422, `Realistic personal data should return 422, got ${rejectedPii.response.status}.`);
+    assert(rejectedPii.json?.code === "synthetic_data_only", "PII rejection did not use the synthetic-data-only boundary code.");
+
     let drainage = await submitCase({
       text: CASE_TEXT.drainage,
       language: "ms",
@@ -168,6 +178,17 @@ async function main() {
     assert(deniedStart.response.status === 400, `Pre-review flood-risk start should return 400, got ${deniedStart.response.status}.`);
     assert(!String(deniedStart.json?.error ?? "").includes("stale_triage_revision"), "Denied start only exercised the stale-revision guard.");
 
+    const deniedPendingClose = await rawRequest(
+      "POST",
+      `/api/cases/${drainage.case_id}/review`,
+      reviewPayload(drainage, {
+        resolution: "close_no_action",
+        note: "Attempt to close before a supervisor decision.",
+      }),
+    );
+    assert(deniedPendingClose.response.status === 400, `Pending high-risk close-no-action should return 400, got ${deniedPendingClose.response.status}.`);
+    assert(/supervisor.*decision/i.test(String(deniedPendingClose.json?.error ?? "")), "Pending high-risk close did not fail on the supervisor-decision gate.");
+
     drainage = await requestJson("POST", `/api/cases/${drainage.case_id}/review`, reviewPayload(drainage));
     assert(drainage.officer_review?.triage_revision === drainage.triage_revision, "Drainage officer review is not current.");
     const approval = await requestJson("POST", `/api/approvals/${drainage.approval_task_id}`, {
@@ -180,6 +201,13 @@ async function main() {
     assert(approval.status === "approved", "Drainage supervisor task was not approved.");
     drainage = await requestJson("GET", `/api/cases/${drainage.case_id}`);
     assert(drainage.status === "routed", `Approval should leave drainage routed, got ${drainage.status}.`);
+    const deniedUnreleasedStart = await rawRequest("POST", `/api/cases/${drainage.case_id}/status`, {
+      triage_revision: drainage.triage_revision,
+      status: "in_progress",
+      officer: "Officer Tan (demo)",
+    });
+    assert(deniedUnreleasedStart.response.status === 400, `Unreleased-reply start should return 400, got ${deniedUnreleasedStart.response.status}.`);
+    assert(/reply must be sent/i.test(String(deniedUnreleasedStart.json?.error ?? "")), "Unreleased-reply start did not fail on the citizen-reply gate.");
     drainage = await requestJson("POST", `/api/cases/${drainage.case_id}/reply`, {
       triage_revision: drainage.triage_revision,
       officer: "Officer Tan (demo)",
@@ -191,6 +219,20 @@ async function main() {
       officer: "Officer Tan (demo)",
     });
     assert(drainage.status === "in_progress", "Approved drainage did not start through the explicit work action.");
+    drainage = await requestJson("POST", `/api/cases/${drainage.case_id}/status`, {
+      triage_revision: drainage.triage_revision,
+      status: "closed",
+      officer: "Officer Tan (demo)",
+      note: "Synthetic drainage service action completed.",
+    });
+    assert(drainage.status === "closed", "Drainage case did not close after explicit work and a closure note.");
+    const deniedClosedMutation = await rawRequest("POST", `/api/cases/${drainage.case_id}/status`, {
+      triage_revision: drainage.triage_revision,
+      status: "in_progress",
+      officer: "Officer Tan (demo)",
+    });
+    assert(deniedClosedMutation.response.status === 400, `Closed-case mutation should return 400, got ${deniedClosedMutation.response.status}.`);
+    assert(/immutable/i.test(String(deniedClosedMutation.json?.error ?? "")), "Closed-case mutation did not fail on immutability.");
 
     let licence = await submitCase({ text: CASE_TEXT.licence, language: "zh" });
     assert(licence.status === "needs_info", `Incomplete licence case should need information, got ${licence.status}.`);
@@ -223,6 +265,22 @@ async function main() {
     assert(welfare.approval_task_id === null, "Welfare eligibility was incorrectly converted into an automated supervisor task.");
     assert(welfare.status === "routed", `Welfare review should not auto-start or auto-close, got ${welfare.status}.`);
     assert(welfare.reply_draft?.status === "approved", "Welfare reply should be approved but not auto-released.");
+    welfare = await requestJson("POST", `/api/cases/${welfare.case_id}/reply`, {
+      triage_revision: welfare.triage_revision,
+      officer: "Officer Tan (demo)",
+    });
+    welfare = await requestJson("POST", `/api/cases/${welfare.case_id}/status`, {
+      triage_revision: welfare.triage_revision,
+      status: "in_progress",
+      officer: "Officer Tan (demo)",
+    });
+    welfare = await requestJson("POST", `/api/cases/${welfare.case_id}/status`, {
+      triage_revision: welfare.triage_revision,
+      status: "closed",
+      officer: "Officer Tan (demo)",
+      note: "Human welfare review completed for this synthetic case.",
+    });
+    assert(welfare.status === "closed", "Welfare case did not close after the human outcome, released reply, start, and closure note.");
 
     const unknown = await submitCase({ text: CASE_TEXT.unknown, language: "en" });
     assert(unknown.status === "manual_review", `Unknown request should fall back to manual review, got ${unknown.status}.`);
@@ -230,6 +288,8 @@ async function main() {
 
     const audit = await requestJson("GET", "/api/audit");
     assert(audit.some((event) => event.case_id === drainage.case_id && event.event_type === "status.held"), "Held flood-risk start was not recorded in the audit trail.");
+    assert(audit.some((event) => event.case_id === drainage.case_id && event.event_type === "status.changed" && event.payload?.to_status === "closed"), "Drainage closure was not recorded in the audit trail.");
+    assert(audit.some((event) => event.case_id === welfare.case_id && event.event_type === "status.changed" && event.payload?.to_status === "closed"), "Welfare closure was not recorded in the audit trail.");
 
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
@@ -268,14 +328,15 @@ async function main() {
 
     await page.goto(`${baseUrl}/officer`, { waitUntil: "networkidle" });
     await page.getByRole("heading", { name: "Case queue", exact: true }).waitFor();
-    await expectVisibleText(page, drainage.citizen_ref, "drainage case appears in active queue");
+    await expectVisibleText(page, licence.citizen_ref, "licence case appears in active queue");
+    assert(await page.getByText(drainage.citizen_ref, { exact: false }).count() === 0, "Closed drainage case leaked into the default active queue.");
     await page.screenshot({ path: path.join(screenshotDir, "03-officer-queue.png"), fullPage: true });
     assertBrowserHealthy();
 
     await page.goto(`${baseUrl}/officer/cases/${drainage.case_id}`, { waitUntil: "networkidle" });
-    await expectVisibleText(page, "Complete and close", "approved drainage shows the correct next action");
+    await expectVisibleText(page, "No further action", "closed drainage shows the read-only next action");
     await expectVisibleText(page, "Drainage Response SOP", "drainage policy evidence renders");
-    await expectVisibleText(page, "Reply released to the citizen", "drainage reply release is visible");
+    await expectVisibleText(page, "Reply sent to the citizen", "drainage reply release is visible");
     await page.screenshot({ path: path.join(screenshotDir, "04-drainage-governed-flow.png"), fullPage: true });
     assertBrowserHealthy();
 
@@ -286,8 +347,8 @@ async function main() {
     assertBrowserHealthy();
 
     await page.goto(`${baseUrl}/officer/cases/${welfare.case_id}`, { waitUntil: "networkidle" });
-    await expectVisibleText(page, "Release the reviewed reply", "welfare case remains at a separate human release step");
-    await page.getByLabel("Human welfare outcome", { exact: true }).waitFor();
+    await expectVisibleText(page, "No further action", "closed welfare case remains visibly human-decided");
+    await expectVisibleText(page, "Eligible after officer review", "closed welfare case preserves the human outcome");
     await page.screenshot({ path: path.join(screenshotDir, "06-welfare-human-outcome.png"), fullPage: true });
     assertBrowserHealthy();
 
@@ -303,7 +364,7 @@ async function main() {
     await page.screenshot({ path: path.join(screenshotDir, "08-audit-trail.png"), fullPage: true });
     assertBrowserHealthy();
 
-    console.log(`MAIC e2e smoke passed: 4 canonical cases and 8 rendered routes at ${baseUrl}`);
+    console.log(`MAIC e2e smoke passed: 4 canonical cases, closure and immutability gates, and 8 rendered routes at ${baseUrl}`);
     console.log(`Screenshots: ${screenshotDir}`);
   } finally {
     if (browser) await browser.close();

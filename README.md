@@ -94,7 +94,7 @@ If port `3000` is already occupied on the demo machine, keep the same command an
 
 - **Citizen services (`/m`)** — one calm mobile flow for a new request or tracking code, explicit language confirmation when detection differs, a review-before-submit step, and structured follow-up fields for cases that need more information.
 - **Officer workspace (`/officer`)** — active cases by default, search and action filters, a plain-language **Next action** for every row, and a single decision page ordered as officer review → supervisor decision → citizen reply → start or close → audit trail.
-- **Human actions stay separate** — saving a review does not release a reply, approval does not start work, and closure requires a released reply plus an officer note.
+- **Human actions stay separate** — saving a review does not send a reply, approval does not start work, and closure requires a sent reply plus an officer note.
 
 ### Demo recording checklist
 
@@ -111,7 +111,7 @@ npm run lint
 npm audit --omit=dev --audit-level=moderate
 npm run build
 npm run smoke:citizen  # Mobile citizen journey; starts and stops its own dev server on 127.0.0.1:3013
-npm run smoke:officer  # Review → release → start → close; own dev server on 127.0.0.1:3012
+npm run smoke:officer  # Review → send → start → close; own dev server on 127.0.0.1:3012
 npm run smoke:e2e      # Canonical governance paths; starts the current production build on 127.0.0.1:3012
 ```
 
@@ -125,7 +125,7 @@ npm run smoke:e2e      # Canonical governance paths; starts the current producti
 | --- | --- | --- |
 | `/m` | Citizen | Submit or track a multilingual request; provide structured follow-up details |
 | `/officer` | Staff | Search and filter the active queue by next required human action |
-| `/officer/cases/[id]` | Staff | Review facts and evidence; decide, release, start or close; inspect audit history |
+| `/officer/cases/[id]` | Staff | Review facts and evidence; decide, send, start or close; inspect audit history |
 | `/officer/approvals` | Supervisor | Approval queue for high-risk cases (`awaiting_supervisor`) |
 | `/officer/audit` | Staff | Append-only audit timeline across cases |
 | `POST /api/reset` | System | Re-seed the in-memory store from `data/seed` |

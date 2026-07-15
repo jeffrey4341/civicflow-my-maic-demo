@@ -135,6 +135,74 @@ describe("citizen details and triage revisions", () => {
     expect((await getCase(needsInfo.case_id))?.triage_revision).toBe(1);
   });
 
+  it("rejects realistic personal names at the preview boundary", async () => {
+    for (const name of ["Ahmad bin Ali", "Nur Aisyah binti Rahman", "Ahmad Bin Ali", "John Smith"]) {
+      const response = await previewTriage(
+        new Request("http://localhost/api/triage", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            text: `My name is ${name}. A blocked drain needs attention.`,
+            language: "en",
+          }),
+        }),
+      );
+
+      expect(response.status).toBe(422);
+      expect(await response.json()).toMatchObject({ code: "synthetic_data_only" });
+    }
+  });
+
+  it("rejects realistic street addresses while keeping documented demo locations", async () => {
+    for (const location_text of ["12 Jalan Ampang Kuala Lumpur"]) {
+      const realAddress = await previewTriage(
+        new Request("http://localhost/api/triage", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            text: "A blocked drain needs attention.",
+            language: "en",
+            location_text,
+          }),
+        }),
+      );
+      expect(realAddress.status).toBe(422);
+      expect(await realAddress.json()).toMatchObject({ code: "synthetic_data_only" });
+    }
+
+    for (const location_text of ["Jalan SS2", "Taman Demo, Jalan Demo 9", "Synthetic Market A"]) {
+      const response = await previewTriage(
+        new Request("http://localhost/api/triage", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            text: "A blocked drain needs attention.",
+            language: "en",
+            location_text,
+          }),
+        }),
+      );
+
+      expect(response.status).toBe(200);
+    }
+  });
+
+  it("does not mistake ordinary Malay road and lane reports for personal addresses", async () => {
+    for (const text of [
+      "Jalan rosak dan berlubang dekat sekolah.",
+      "Lampu rosak di lorong belakang.",
+    ]) {
+      const response = await previewTriage(
+        new Request("http://localhost/api/triage", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ text, language: "ms" }),
+        }),
+      );
+      expect(response.status).toBe(200);
+    }
+  });
+
   it("keeps a structured answer as the canonical case location through the create route", async () => {
     const response = await createCase(
       new Request("http://localhost/api/cases", {

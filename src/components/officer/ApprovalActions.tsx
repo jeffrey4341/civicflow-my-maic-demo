@@ -16,8 +16,11 @@ export function ApprovalActions({
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const noteHintId = `approval-note-hint-${approvalId}`;
+  const blockerId = `approval-blocker-${approvalId}`;
 
   async function decide(decision: "approved" | "rejected") {
+    if (busy || disabledReason) return;
     const trimmedNote = note.trim();
     if (!trimmedNote) {
       setError("A supervisor decision note is required.");
@@ -47,7 +50,8 @@ export function ApprovalActions({
     }
   }
 
-  const disabled = busy || Boolean(disabledReason);
+  const disabled = busy || Boolean(disabledReason) || !note.trim();
+  const describedBy = `${noteHintId}${disabledReason ? ` ${blockerId}` : ""}`;
 
   return (
     <div>
@@ -60,25 +64,31 @@ export function ApprovalActions({
         onChange={(event) => setNote(event.target.value)}
         rows={3}
         required
+        aria-describedby={noteHintId}
         placeholder="Record the reason for this human decision"
         className="form-control mt-2 py-3"
       />
-      {disabledReason ? <p className="mt-2 text-sm leading-6 text-amber-800">{disabledReason}</p> : null}
+      <p id={noteHintId} className="mt-2 text-xs leading-5 text-slate-600">Enter a note before choosing a supervisor decision.</p>
+      {disabledReason ? <p id={blockerId} className="mt-2 text-sm leading-6 text-amber-800">{disabledReason}</p> : null}
       {error ? <p role="alert" className="mt-2 text-sm text-red-700">{error}</p> : null}
       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
         <button
           type="button"
           onClick={() => decide("approved")}
-          disabled={disabled || !note.trim()}
-          className="min-h-12 flex-1 rounded-lg bg-civic-800 px-4 text-sm font-semibold text-white outline-none hover:bg-civic-900 focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-disabled={disabled}
+          aria-describedby={describedBy}
+          aria-busy={busy}
+          className="min-h-12 flex-1 rounded-lg bg-civic-800 px-4 text-sm font-semibold text-white outline-none hover:bg-civic-900 focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
         >
           {busy ? "Saving…" : "Approve request"}
         </button>
         <button
           type="button"
           onClick={() => decide("rejected")}
-          disabled={disabled || !note.trim()}
-          className="min-h-12 flex-1 rounded-lg border border-red-300 bg-white px-4 text-sm font-semibold text-red-800 outline-none hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-disabled={disabled}
+          aria-describedby={describedBy}
+          aria-busy={busy}
+          className="min-h-12 flex-1 rounded-lg border border-red-300 bg-white px-4 text-sm font-semibold text-red-800 outline-none hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
         >
           Reject request
         </button>

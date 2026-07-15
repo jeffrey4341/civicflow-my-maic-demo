@@ -41,7 +41,7 @@ export default async function AuditPage() {
                   {typeof event.payload.triage_revision === "number" ? <span className="mt-1 block">Revision {event.payload.triage_revision}</span> : null}
                 </td>
                 <td className="px-4 py-4">
-                  <Link href={`/officer/cases/${event.case_id}`} className="font-mono text-xs font-semibold text-civic-800 underline-offset-4 hover:underline">{refs.get(event.case_id)}</Link>
+                  <Link href={`/officer/cases/${event.case_id}`} className="inline-flex min-h-11 items-center font-mono text-xs font-semibold text-civic-800 underline-offset-4 hover:underline">{refs.get(event.case_id)}</Link>
                 </td>
                 <td className="px-4 py-4"><ActorBadge actor={event.actor} label={event.actor_label} /></td>
                 <td className="px-4 py-4 font-mono text-xs text-slate-600">{event.event_type}</td>

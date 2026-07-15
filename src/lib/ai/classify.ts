@@ -113,9 +113,18 @@ export function detectPiiRisk(text: string): PiiRisk {
   const email = /[\w.+-]+@[\w-]+\.[\w.-]+/;
   const longDigits = /\b\d{7,}\b/;
   const idWords = /\b(nric|mykad|no\.?\s?kp|i\/?c\s?no|ic number|telefon|phone no)\b/i;
+  const patronymicName = /\b\p{Lu}[\p{L}'’.-]*(?:\s+\p{Lu}[\p{L}'’.-]*){0,2}\s+(?:[Bb][Ii][Nn](?:[Tt][Ii])?|[Aa]\/[LlPp])\s+\p{Lu}[\p{L}'’.-]*\b/u;
+  const declaredName = /\b(?:my name is|nama saya|name\s*:)\s+\p{L}[\p{L}'’.-]*(?:\s+\p{L}[\p{L}'’.-]*){1,4}\b/iu;
+  const numberedStreetAddress = /\b\d{1,5}[a-z]?(?:[-/]\d+)?\s*,?\s*(?:jalan|jln\.?|lorong|persiaran|lebuh|road|rd\.?|street|st\.?|avenue|ave\.?)\s+(?!(?:demo|synthetic|example|contoh|ss2)\b)[\p{L}\d]/iu;
 
   if (nric.test(text) || phone.test(text) || email.test(text)) return "high";
-  if (longDigits.test(text) || idWords.test(text)) return "medium";
+  if (
+    longDigits.test(text)
+    || idWords.test(text)
+    || patronymicName.test(text)
+    || declaredName.test(text)
+    || numberedStreetAddress.test(text)
+  ) return "medium";
   return "low";
 }
 

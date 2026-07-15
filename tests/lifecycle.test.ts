@@ -111,6 +111,18 @@ describe("case lifecycle governance", () => {
       note: "Flood risk verified; start field response.",
     });
 
+    await expect(setStatus({
+      case_id: c.case_id,
+      triage_revision: c.triage_revision,
+      status: "in_progress",
+      actor_label: "Officer Tan (demo)",
+    })).rejects.toThrow(/Citizen reply must be sent/i);
+    await releaseReply({
+      case_id: c.case_id,
+      triage_revision: c.triage_revision,
+      officer: "Officer Tan (demo)",
+    });
+
     const updated = await setStatus({
       case_id: c.case_id,
       triage_revision: c.triage_revision,

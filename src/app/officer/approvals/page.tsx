@@ -54,7 +54,7 @@ export default async function ApprovalsPage() {
                       <Badge className={STATUS_STYLE.pending}>Pending</Badge>
                       <span className="text-sm text-slate-600">Revision {approval.triage_revision}</span>
                       {c ? (
-                        <Link href={`/officer/cases/${c.case_id}`} className="font-mono text-sm font-semibold text-civic-800 underline-offset-4 hover:underline">
+                        <Link href={`/officer/cases/${c.case_id}`} className="inline-flex min-h-11 items-center font-mono text-sm font-semibold text-civic-800 underline-offset-4 hover:underline">
                           {c.citizen_ref}
                         </Link>
                       ) : null}
@@ -98,7 +98,7 @@ export default async function ApprovalsPage() {
                     <span className="mt-2 block text-xs text-slate-500">Revision {approval.triage_revision}</span>
                   </div>
                   {c ? (
-                    <Link href={`/officer/cases/${c.case_id}`} className="font-mono text-sm font-semibold text-civic-800 underline-offset-4 hover:underline">{c.citizen_ref}</Link>
+                    <Link href={`/officer/cases/${c.case_id}`} className="inline-flex min-h-11 items-center font-mono text-sm font-semibold text-civic-800 underline-offset-4 hover:underline">{c.citizen_ref}</Link>
                   ) : <span className="text-sm text-slate-500">Case unavailable</span>}
                   <div>
                     <p className="text-sm font-medium text-slate-900">{approval.title}</p>

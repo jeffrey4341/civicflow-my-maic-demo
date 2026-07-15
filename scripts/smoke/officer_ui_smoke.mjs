@@ -225,13 +225,20 @@ async function main() {
 
     await resolution.selectOption("proceed");
     await note.fill("Reviewed against the current synthetic request and cited policy.");
+    const policySearch = reviewSection.getByRole("searchbox", { name: "Search policy evidence", exact: true });
+    await policySearch.fill(created.category);
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes("/api/policies/search?") && response.status() === 200),
+      policySearch.press("Enter"),
+    ]);
+    assert((await requestJson("GET", `/api/cases/${created.case_id}`)).officer_review === null, "Pressing Enter in policy search submitted the officer review.");
     await performApiAction(page, `/api/cases/${created.case_id}/review`, () =>
       reviewSection.getByRole("button", { name: "Save officer review", exact: true }).click());
     await settleServerRefresh(page);
     let current = await requestJson("GET", `/api/cases/${created.case_id}`);
     assert(current.officer_review?.triage_revision === current.triage_revision, "Officer review was not saved for the current revision.");
 
-    const releaseReply = page.getByRole("button", { name: "Release reply", exact: true });
+    const releaseReply = page.getByRole("button", { name: "Send reply to citizen", exact: true });
     await releaseReply.waitFor();
     await performApiAction(page, `/api/cases/${created.case_id}/reply`, () => releaseReply.click());
     await settleServerRefresh(page);

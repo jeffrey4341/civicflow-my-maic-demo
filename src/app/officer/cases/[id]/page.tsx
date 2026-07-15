@@ -45,7 +45,9 @@ function replyBlocker(c: CitizenCase, approval: ApprovalTask | null): string | n
 
 function startBlocker(c: CitizenCase, approval: ApprovalTask | null): string | null {
   if (c.reply_draft?.status !== "sent") return "Release the reviewed citizen reply before starting work.";
-  if (!hasCurrentReview(c) || c.officer_review?.resolution !== "proceed") return "A current proceed review is required before work can start.";
+  if (!hasCurrentReview(c) || !["proceed", "resubmit_approval"].includes(c.officer_review!.resolution)) {
+    return "A current proceed or approved-resubmission review is required before work can start.";
+  }
   if (c.citations.length === 0) return "Select at least one valid policy citation before starting work.";
   if (approval && approval.triage_revision === c.triage_revision && approval.status !== "approved") {
     return "Current supervisor approval is required before work can start.";
@@ -60,8 +62,8 @@ function closeBlocker(c: CitizenCase): string | null {
   if (c.category === "education_aid_welfare" && !c.officer_review?.welfare_outcome) {
     return "Record a human welfare outcome in the officer review before closure.";
   }
-  if (c.officer_review?.resolution === "proceed" && c.status !== "in_progress") {
-    return "Proceed cases must start council work before closure.";
+  if (c.officer_review?.resolution !== "close_no_action" && c.status !== "in_progress") {
+    return "Actionable cases must start council work before closure.";
   }
   return null;
 }
@@ -150,6 +152,16 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
                 <Fact label="Processing mode" value={c.ai_mode === "llm" ? "Model-assisted" : "Deterministic rules"} />
                 <Fact label="Service target" value={c.routing ? `${c.routing.sla_hours} hours` : "Officer to confirm"} />
                 <Fact label="Current review" value={currentReview ? `Saved by ${c.officer_review?.officer}` : "Not saved for this revision"} />
+                {c.category === "education_aid_welfare" ? (
+                  <Fact
+                    label="Human welfare outcome"
+                    value={c.officer_review?.welfare_outcome === "eligible"
+                      ? "Eligible after officer review"
+                      : c.officer_review?.welfare_outcome === "not_eligible"
+                        ? "Not eligible after officer review"
+                        : "Not recorded"}
+                  />
+                ) : null}
               </dl>
               {c.manual_review_reason ? <p className="mt-5 border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">{c.manual_review_reason}</p> : null}
               {c.missing_info.some((item) => item.required && !item.satisfied) ? (
@@ -168,6 +180,9 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
               key={`${c.triage_revision}-${c.officer_review?.reviewed_at ?? "new"}`}
               caseData={c}
               canResubmit={canResubmit}
+              closeNoActionBlocker={approval?.status === "pending"
+                ? "A supervisor must approve or reject the current high-risk review before an officer can close it without action."
+                : null}
             />
           </div>
         </DecisionSection>
