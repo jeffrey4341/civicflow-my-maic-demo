@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCase } from "@/lib/store";
+
 import { t } from "@/lib/i18n";
+import { getCase } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -9,45 +10,50 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
   const { id } = await params;
   const c = await getCase(id);
   if (!c) notFound();
-  const lang = c.citizen_language;
+  const language = c.citizen_language;
   const reply = c.reply_draft;
   const ready = reply?.status === "sent";
 
   return (
-    <div className="flex flex-col" lang={lang}>
-      <div className="bg-flag-gold/15 px-4 py-2 text-center text-[11px] font-medium text-amber-900">
-        {t(lang, "common.synthetic_banner")}
-      </div>
-      <section className="px-5 py-6">
-        <Link href={`/m/cases/${c.citizen_ref}`} className="text-xs text-slate-600">← {t(lang, "reply.back")}</Link>
-        <h1 className="mt-2 text-lg font-bold text-slate-900">{t(lang, "reply.title")}</h1>
+    <div lang={language}>
+      <aside className="border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
+        {t(language, "common.synthetic_banner")}
+      </aside>
+      <section className="mt-7">
+        <Link href={`/m/cases/${c.citizen_ref}`} className="inline-flex min-h-11 items-center text-sm font-medium text-civic-800 underline-offset-4 hover:underline">
+          ← {t(language, "reply.back")}
+        </Link>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{t(language, "reply.title")}</h1>
 
         {ready && reply ? (
           <>
-            <div className="mt-1 text-[11px] text-slate-600">
-              {t(lang, "reply.from")}: {c.department} – {c.unit}
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              {t(language, "reply.from")}: {c.department} — {c.unit}
               {reply.approved_by ? ` · ${reply.approved_by}` : ""}
-            </div>
-            <div className="mt-4 rounded-xl border border-civic-100 bg-civic-50 p-4 text-sm leading-relaxed text-slate-800">
+            </p>
+            <div className="mt-6 border-y border-civic-200 bg-civic-50 px-4 py-5 text-base leading-7 text-slate-900">
               {reply.body}
             </div>
-            {reply.citations.length > 0 && (
-              <div className="mt-4">
-                <p className="text-[11px] font-medium text-slate-500">{t(lang, "reply.citations")}</p>
-                <ul className="mt-1 space-y-1">
-                  {reply.citations.map((cit, i) => (
-                    <li key={i} className="text-[12px] text-slate-600">
-                      📄 {cit.doc_title} — <span className="text-slate-600">§ {cit.section}</span>
+            {reply.citations.length > 0 ? (
+              <div className="mt-7">
+                <h2 className="font-semibold text-slate-950">{t(language, "reply.citations")}</h2>
+                <ul className="mt-3 space-y-3">
+                  {reply.citations.map((citation) => (
+                    <li key={`${citation.source_doc}-${citation.section}`} className="border-l-2 border-slate-300 pl-3 text-sm leading-6 text-slate-700">
+                      <span className="font-medium text-slate-900">{citation.doc_title}</span>
+                      <span className="block">{citation.section}</span>
                     </li>
                   ))}
                 </ul>
               </div>
-            )}
-            <p className="mt-5 text-xs font-medium text-slate-600" role="note">{t(lang, "reply.disclaimer")}</p>
+            ) : null}
+            <p className="mt-7 border-t border-slate-200 pt-5 text-sm leading-6 text-slate-600" role="note">
+              {t(language, "reply.disclaimer")}
+            </p>
           </>
         ) : (
-          <p className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
-            {t(lang, "reply.not_ready")}
+          <p className="mt-6 border-l-4 border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+            {t(language, "reply.not_ready")}
           </p>
         )}
       </section>

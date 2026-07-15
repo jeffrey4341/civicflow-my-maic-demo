@@ -2,58 +2,66 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-civic-800 to-civic-600 text-white">
-      <div className="mx-auto max-w-4xl px-6 py-14">
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium">
-          <span className="text-flag-gold">●</span> MAIC Nexus Challenge T5 · Public Services &amp; Smart Cities
-        </div>
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">CivicFlow MY Mobile</h1>
-        <p className="mt-4 max-w-2xl text-lg text-civic-50">
-          A mobile-first, multilingual citizen-service AI casework platform for Malaysian
-          councils. Citizens report issues in Malay, English, Chinese or Tamil; the system
-          classifies, retrieves policy citations, routes to the right department, gates
-          high-risk cases for supervisor approval, and drafts a reply — with a full audit trail.
-        </p>
+    <main className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-5xl px-5 py-10 sm:px-8 sm:py-16">
+        <header className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-civic-700 text-sm font-bold text-white" aria-hidden>
+            CF
+          </span>
+          <div>
+            <p className="font-semibold text-slate-950">CivicFlow MY</p>
+            <p className="text-sm text-slate-600">Majlis Demo citizen services</p>
+          </div>
+        </header>
 
-        <div className="mt-6 rounded-lg border border-flag-gold/40 bg-flag-gold/10 px-4 py-3 text-sm text-flag-gold">
-          Public demo artifact. All cases, SOPs and citizen data are <strong>synthetic</strong>.
-          AI drafts; officers and supervisors decide. High-risk cases require human approval.
-          This is a citizen-service workflow layer, not a chatbot.
-        </div>
+        <section className="mt-12 max-w-3xl">
+          <p className="font-medium text-civic-700">Public-service casework demo</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
+            A clear path from citizen request to human decision.
+          </h1>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-700">
+            Submit or track a council service request in Bahasa Melayu, English, 中文, or தமிழ்.
+            Officers review every recommendation, and supervisors decide high-risk cases.
+          </p>
+        </section>
 
-        <div className="mt-10 grid gap-5 sm:grid-cols-2">
+        <aside className="mt-8 max-w-3xl border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
+          This public demo uses synthetic cases and policies only. Do not enter real personal details.
+          The system drafts and recommends; council staff make the decisions.
+        </aside>
+
+        <nav className="mt-10 max-w-3xl divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white" aria-label="Choose a workspace">
           <Link
             href="/m"
-            className="group rounded-2xl bg-white p-6 text-slate-900 shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+            aria-label="Citizen services — submit or track a request"
+            className="group flex min-h-32 items-center justify-between gap-5 p-5 outline-none transition-colors hover:bg-civic-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-civic-600 sm:p-6"
           >
-            <div className="text-2xl">📱</div>
-            <h2 className="mt-3 text-xl font-semibold text-civic-700">Citizen app</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Mobile-first PWA. Submit a service request in your language and track its status.
-            </p>
-            <span className="mt-4 inline-block text-sm font-medium text-civic-600 group-hover:underline">
-              Open /m →
+            <span>
+              <span className="block text-lg font-semibold text-slate-950">Citizen services</span>
+              <span className="mt-1 block max-w-xl text-sm leading-6 text-slate-600">
+                Submit a request, provide follow-up details, or check what happens next.
+              </span>
             </span>
+            <span className="text-xl text-civic-700" aria-hidden>→</span>
           </Link>
-
           <Link
             href="/officer"
-            className="group rounded-2xl bg-white p-6 text-slate-900 shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+            aria-label="Officer workspace — review and decide cases"
+            className="group flex min-h-32 items-center justify-between gap-5 p-5 outline-none transition-colors hover:bg-civic-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-civic-600 sm:p-6"
           >
-            <div className="text-2xl">🏛️</div>
-            <h2 className="mt-3 text-xl font-semibold text-civic-700">Officer console</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Case queue, AI triage, SOP citations, supervisor approvals and the audit timeline.
-            </p>
-            <span className="mt-4 inline-block text-sm font-medium text-civic-600 group-hover:underline">
-              Open /officer →
+            <span>
+              <span className="block text-lg font-semibold text-slate-950">Officer workspace</span>
+              <span className="mt-1 block max-w-xl text-sm leading-6 text-slate-600">
+                Review case facts, policy evidence, supervisor gates, replies, and audit history.
+              </span>
             </span>
+            <span className="text-xl text-civic-700" aria-hidden>→</span>
           </Link>
-        </div>
+        </nav>
 
-        <p className="mt-10 text-xs text-civic-100/80">
-          Reference: README.md · AI_DISCLOSURE.md · DATA_CARD.md · MODEL_CARD.md · docs/
-        </p>
+        <footer className="mt-10 text-sm text-slate-500">
+          MAIC Nexus Challenge T5 · Public Services &amp; Smart Cities
+        </footer>
       </div>
     </main>
   );

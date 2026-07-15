@@ -2,15 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LANGUAGES, type Language, type TriageResult } from "@/lib/types";
-import {
-  LANGUAGE_NAMES,
-  categoryLabel,
-  t,
-  urgencyLabel,
-} from "@/lib/i18n";
 
-type Step = "lang" | "describe" | "details";
+import { LANGUAGE_NAMES, categoryLabel, t } from "@/lib/i18n";
+import { LANGUAGES, type Language, type TriageResult } from "@/lib/types";
+
+type Mode = "new" | "track";
+type Step = "compose" | "review";
 
 interface Preview {
   result: TriageResult;
@@ -25,271 +22,388 @@ const EXAMPLES: { key: string; text: string }[] = [
   { key: "submit.example_aid", text: "Can I apply for education aid for my child?" },
 ];
 
-export default function CitizenWizard() {
+export default function CitizenHome() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>("lang");
-  const [language, setLanguage] = useState<Language>("ms");
+  const [mode, setMode] = useState<Mode>("new");
+  const [step, setStep] = useState<Step>("compose");
+  const [language, setLanguage] = useState<Language>("en");
   const [text, setText] = useState("");
-  const [location, setLocation] = useState("");
-  const [media, setMedia] = useState<string[]>([]);
+  const [trackingCode, setTrackingCode] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [languageConfirmed, setLanguageConfirmed] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function analyse() {
+  function selectMode(nextMode: Mode) {
+    setMode(nextMode);
+    setError(null);
+  }
+
+  async function analyse(selectedLanguage: Language = language) {
     if (!text.trim()) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/triage", {
+      const response = await fetch("/api/triage", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text, language, location_text: location }),
+        body: JSON.stringify({ text: text.trim(), language: selectedLanguage, answers }),
       });
-      if (!res.ok) throw new Error("Triage failed");
-      setPreview(await res.json());
-      setStep("details");
-    } catch (e) {
-      setError((e as Error).message);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? "We could not review this request.");
+      const nextPreview = body as Preview;
+      setPreview(nextPreview);
+      setLanguageConfirmed(nextPreview.result.detected_language === selectedLanguage);
+      setStep("review");
+    } catch (caught) {
+      setError((caught as Error).message);
     } finally {
       setLoading(false);
     }
   }
 
-  async function submit() {
+  async function switchToDetected() {
+    if (!preview) return;
+    const detected = preview.result.detected_language;
+    setLanguage(detected);
+    await analyse(detected);
+    setLanguageConfirmed(true);
+  }
+
+  async function submitRequest() {
+    if (!preview || !languageConfirmed) return;
     setLoading(true);
     setError(null);
+    const cleanAnswers = Object.fromEntries(
+      Object.entries(answers).map(([field, value]) => [field, value.trim()]).filter(([, value]) => value),
+    );
     try {
-      const extra = Object.values(answers).filter(Boolean).join(". ");
-      const combined = extra ? `${text}. ${extra}` : text;
-      const loc = answers["location"] || location;
-      const res = await fetch("/api/cases", {
+      const response = await fetch("/api/cases", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: combined, language, location_text: loc, media_refs: media }),
+        body: JSON.stringify({
+          text: text.trim(),
+          language,
+          location_text: cleanAnswers.location ?? "",
+          answers: cleanAnswers,
+        }),
       });
-      if (!res.ok) throw new Error("Submission failed");
-      const created = await res.json();
-      router.push(`/m/cases/${created.citizen_ref}`);
-    } catch (e) {
-      setError((e as Error).message);
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? "We could not submit this request.");
+      router.push(`/m/cases/${body.citizen_ref}`);
+    } catch (caught) {
+      setError((caught as Error).message);
       setLoading(false);
     }
   }
 
+  function trackCase(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const code = trackingCode.trim().toUpperCase();
+    if (!code) return;
+    router.push(`/m/cases/${encodeURIComponent(code)}`);
+  }
+
   return (
-    <div className="flex flex-col" lang={language}>
-      <div className="bg-flag-gold/15 px-4 py-2 text-center text-[11px] font-medium text-amber-900">
+    <div lang={language}>
+      <aside className="border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
         {t(language, "common.synthetic_banner")}
+      </aside>
+
+      <div className="mt-7">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-950">{t(language, "app.title")}</h1>
+        <p className="mt-2 text-base leading-7 text-slate-700">{t(language, "landing.subtitle")}</p>
       </div>
 
-      {step === "lang" && (
-        <section className="px-5 py-8">
-          <h1 className="text-xl font-bold text-slate-900">{t(language, "app.title")}</h1>
-          <p className="mt-1 text-sm text-slate-500">{t(language, "app.tagline")}</p>
-          <p className="mt-6 text-sm font-medium text-slate-700">{t(language, "landing.choose_language")}</p>
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            {LANGUAGES.map((lng) => (
-              <button
-                key={lng}
-                onClick={() => setLanguage(lng)}
-                className={`rounded-xl border p-4 text-left transition ${
-                  language === lng
-                    ? "border-civic-500 bg-civic-50 ring-2 ring-civic-200"
-                    : "border-slate-200 bg-white hover:border-civic-300"
-                }`}
-              >
-                <div className="text-xs font-semibold uppercase tracking-wide text-civic-700">{lng}</div>
-                <div className="mt-1 text-sm font-medium text-slate-800">{LANGUAGE_NAMES[lng]}</div>
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => setStep("describe")}
-            className="mt-8 w-full rounded-xl bg-civic-600 py-3 font-semibold text-white hover:bg-civic-700"
-          >
-            {t(language, "landing.continue")}
-          </button>
-          <p className="mt-4 text-center text-[11px] text-slate-600">{t(language, "common.powered")}</p>
-        </section>
-      )}
+      <div className="mt-7 grid grid-cols-2 border-b border-slate-200" role="tablist" aria-label="Citizen services">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "new"}
+          onClick={() => selectMode("new")}
+          className={`min-h-12 border-b-2 px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-civic-600 ${mode === "new" ? "border-civic-700 text-civic-800" : "border-transparent text-slate-600 hover:text-slate-900"}`}
+        >
+          {t(language, "nav.new_request")}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "track"}
+          onClick={() => selectMode("track")}
+          className={`min-h-12 border-b-2 px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-civic-600 ${mode === "track" ? "border-civic-700 text-civic-800" : "border-transparent text-slate-600 hover:text-slate-900"}`}
+        >
+          {t(language, "nav.track_case")}
+        </button>
+      </div>
 
-      {step === "describe" && (
-        <section className="px-5 py-6">
-          <button onClick={() => setStep("lang")} className="text-xs text-slate-600">← {t(language, "common.back")}</button>
-          <h2 className="mt-2 text-lg font-bold text-slate-900">{t(language, "submit.title")}</h2>
-          <label htmlFor="citizen-request" className="mt-4 block text-sm font-medium text-slate-700">{t(language, "submit.prompt_label")}</label>
-          <textarea
-            id="citizen-request"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={5}
-            placeholder={t(language, "submit.placeholder")}
-            className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-sm focus:border-civic-500 focus:outline-none focus:ring-2 focus:ring-civic-200"
-          />
-          <p className="mt-1 text-[11px] text-slate-600">{t(language, "submit.hint")}</p>
-
-          <p className="mt-5 text-xs font-medium text-slate-500">{t(language, "submit.examples_title")}</p>
-          <div className="mt-2 space-y-2">
-            {EXAMPLES.map((ex) => (
-              <button
-                key={ex.key}
-                onClick={() => setText(ex.text)}
-                className="block w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-left text-xs text-slate-600 hover:border-civic-300"
-              >
-                <span className="font-medium text-civic-700">{t(language, ex.key)}</span>
-                <span className="mt-0.5 block truncate text-slate-600">{ex.text}</span>
-              </button>
-            ))}
-          </div>
-
-          {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
-          <button
-            onClick={analyse}
-            disabled={!text.trim() || loading}
-            className="mt-6 w-full rounded-xl bg-civic-600 py-3 font-semibold text-white hover:bg-civic-700 disabled:opacity-40"
-          >
-            {loading ? "…" : t(language, "submit.analyse")}
-          </button>
-        </section>
-      )}
-
-      {step === "details" && preview && (
-        <DetailsStep
+      {mode === "track" ? (
+        <TrackCaseForm
           language={language}
-          preview={preview}
-          media={media}
-          setMedia={setMedia}
-          location={location}
-          setLocation={setLocation}
-          answers={answers}
-          setAnswers={setAnswers}
-          onBack={() => setStep("describe")}
-          onSubmit={submit}
+          trackingCode={trackingCode}
+          setTrackingCode={setTrackingCode}
+          onSubmit={trackCase}
+        />
+      ) : step === "compose" ? (
+        <ComposeRequest
+          language={language}
+          setLanguage={setLanguage}
+          text={text}
+          setText={setText}
           loading={loading}
           error={error}
+          onAnalyse={() => analyse()}
         />
-      )}
+      ) : preview ? (
+        <ReviewRequest
+          language={language}
+          preview={preview}
+          answers={answers}
+          setAnswers={setAnswers}
+          languageConfirmed={languageConfirmed}
+          loading={loading}
+          error={error}
+          onKeepLanguage={() => setLanguageConfirmed(true)}
+          onUseDetected={switchToDetected}
+          onBack={() => setStep("compose")}
+          onSubmit={submitRequest}
+        />
+      ) : null}
     </div>
   );
 }
 
-function DetailsStep(props: {
+function TrackCaseForm(props: {
   language: Language;
-  preview: Preview;
-  media: string[];
-  setMedia: (m: string[]) => void;
-  location: string;
-  setLocation: (s: string) => void;
-  answers: Record<string, string>;
-  setAnswers: (a: Record<string, string>) => void;
-  onBack: () => void;
-  onSubmit: () => void;
+  trackingCode: string;
+  setTrackingCode: (value: string) => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <form className="py-7" onSubmit={props.onSubmit}>
+      <h2 className="text-xl font-semibold text-slate-950">{t(props.language, "track.title")}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{t(props.language, "track.intro")}</p>
+      <label htmlFor="tracking-code" className="mt-6 block text-sm font-medium text-slate-800">
+        {t(props.language, "track.code_label")}
+      </label>
+      <input
+        id="tracking-code"
+        value={props.trackingCode}
+        onChange={(event) => props.setTrackingCode(event.target.value)}
+        placeholder="CF-ABC123"
+        autoCapitalize="characters"
+        autoComplete="off"
+        className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 px-3 font-mono text-base uppercase outline-none focus:border-civic-600 focus:ring-2 focus:ring-civic-200"
+      />
+      <button
+        type="submit"
+        disabled={!props.trackingCode.trim()}
+        className="mt-5 min-h-12 w-full rounded-lg bg-civic-700 px-4 font-semibold text-white outline-none hover:bg-civic-800 focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {t(props.language, "track.action")}
+      </button>
+    </form>
+  );
+}
+
+function ComposeRequest(props: {
+  language: Language;
+  setLanguage: (language: Language) => void;
+  text: string;
+  setText: (value: string) => void;
   loading: boolean;
   error: string | null;
+  onAnalyse: () => void;
 }) {
-  const { language, preview, media, setMedia, answers, setAnswers } = props;
-  const r = preview.result;
-  const required = r.missing_info.filter((m) => m.required && !m.satisfied);
-  const checklist = r.missing_info.filter((m) => !m.required && !m.satisfied);
+  return (
+    <form className="py-7" onSubmit={(event) => { event.preventDefault(); props.onAnalyse(); }}>
+      <fieldset>
+        <legend className="text-sm font-medium text-slate-800">{t(props.language, "landing.choose_language")}</legend>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {LANGUAGES.map((candidate) => (
+            <button
+              key={candidate}
+              type="button"
+              aria-pressed={props.language === candidate}
+              onClick={() => props.setLanguage(candidate)}
+              className={`min-h-12 rounded-lg border px-2 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2 ${props.language === candidate ? "border-civic-700 bg-civic-50 text-civic-900" : "border-slate-300 bg-white text-slate-700 hover:border-civic-400"}`}
+            >
+              {LANGUAGE_NAMES[candidate]}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <label htmlFor="citizen-request" className="mt-7 block text-sm font-medium text-slate-800">
+        {t(props.language, "submit.prompt_label")}
+      </label>
+      <textarea
+        id="citizen-request"
+        value={props.text}
+        onChange={(event) => props.setText(event.target.value)}
+        rows={6}
+        placeholder={t(props.language, "submit.placeholder")}
+        className="mt-2 w-full rounded-lg border border-slate-300 p-3 text-base leading-6 outline-none focus:border-civic-600 focus:ring-2 focus:ring-civic-200"
+      />
+      <p className="mt-2 text-sm leading-6 text-slate-600">{t(props.language, "submit.hint")}</p>
+
+      <div className="mt-5">
+        <p className="text-sm font-medium text-slate-700">{t(props.language, "submit.examples_title")}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {EXAMPLES.map((example) => (
+            <button
+              key={example.key}
+              type="button"
+              onClick={() => props.setText(example.text)}
+              className="min-h-11 rounded-md border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-700 outline-none hover:border-civic-500 hover:text-civic-800 focus-visible:ring-2 focus-visible:ring-civic-600"
+            >
+              {t(props.language, example.key)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <InlineError message={props.error} />
+      <button
+        type="submit"
+        disabled={!props.text.trim() || props.loading}
+        className="mt-7 min-h-12 w-full rounded-lg bg-civic-700 px-4 font-semibold text-white outline-none hover:bg-civic-800 focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {props.loading ? t(props.language, "common.working") : t(props.language, "submit.review")}
+      </button>
+    </form>
+  );
+}
+
+function ReviewRequest(props: {
+  language: Language;
+  preview: Preview;
+  answers: Record<string, string>;
+  setAnswers: (answers: Record<string, string>) => void;
+  languageConfirmed: boolean;
+  loading: boolean;
+  error: string | null;
+  onKeepLanguage: () => void;
+  onUseDetected: () => void;
+  onBack: () => void;
+  onSubmit: () => void;
+}) {
+  const result = props.preview.result;
+  const mismatch = result.detected_language !== props.language;
+  const required = result.missing_info.filter((item) => item.required && !item.satisfied);
+  const manualReview = props.preview.status === "manual_review";
+  const nextStep = manualReview
+    ? t(props.language, "review.manual_next")
+    : props.preview.needsInfo
+      ? t(props.language, "review.needs_next")
+      : props.preview.requires_supervisor
+        ? t(props.language, "review.supervisor_next")
+        : t(props.language, "review.routed_next");
 
   return (
-    <section className="px-5 py-6" lang={language}>
-      <button onClick={props.onBack} className="text-xs text-slate-600">← {t(language, "common.back")}</button>
+    <section className="py-7">
+      <button type="button" onClick={props.onBack} className="min-h-11 text-sm font-medium text-civic-800 underline-offset-4 hover:underline">
+        ← {t(props.language, "common.back")}
+      </button>
+      <h2 className="mt-3 text-xl font-semibold text-slate-950">{t(props.language, "review.title")}</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{t(props.language, "review.intro")}</p>
 
-      {/* AI triage summary */}
-      <div className="mt-3 rounded-xl border border-civic-100 bg-civic-50 p-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-civic-600">AI assistant</div>
-        <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-          <Info label={t(language, "created.detected_lang")} value={LANGUAGE_NAMES[r.detected_language]} />
-          <Info label={t(language, "created.category")} value={categoryLabel(r.category, language)} />
-          <Info label={t(language, "created.department")} value={`${r.department} – ${r.unit}`} />
-          <Info label={t(language, "created.urgency")} value={urgencyLabel(r.urgency, language)} />
-        </div>
-        {preview.requires_supervisor && (
-          <p className="mt-3 rounded-lg bg-orange-100 px-3 py-2 text-[12px] text-orange-800">
-            {t(language, "created.approval_note")}
+      {mismatch ? (
+        <div className="mt-6 border-l-4 border-amber-400 bg-amber-50 p-4">
+          <p className="font-semibold text-amber-950">
+            {t(props.language, "review.detected", { language: LANGUAGE_NAMES[result.detected_language] })}
           </p>
-        )}
-      </div>
-
-      {/* Photo / location mock */}
-      <div className="mt-5">
-        <p className="text-sm font-medium text-slate-700">{t(language, "media.title")}</p>
-        <p className="mt-0.5 text-[11px] text-slate-600">{t(language, "media.intro")}</p>
-        <div className="mt-2 flex gap-2">
-          <button
-            onClick={() => setMedia([...media, `photo:mock_${media.length + 1}.jpg`])}
-            className="flex-1 rounded-lg border border-slate-200 bg-white py-2 text-xs text-slate-600 hover:border-civic-300"
-          >
-            📷 {t(language, "media.add_photo")}
-          </button>
-          <button
-            onClick={() => props.setLocation(props.location || "Jalan Demo, Taman Demo")}
-            className="flex-1 rounded-lg border border-slate-200 bg-white py-2 text-xs text-slate-600 hover:border-civic-300"
-          >
-            📍 {t(language, "media.add_location")}
-          </button>
+          <p className="mt-1 text-sm leading-6 text-amber-900">{t(props.language, "review.language_choice")}</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={props.onKeepLanguage}
+              aria-pressed={props.languageConfirmed}
+              className="min-h-11 rounded-md border border-amber-500 bg-white px-3 text-sm font-semibold text-amber-950 outline-none focus-visible:ring-2 focus-visible:ring-amber-600"
+            >
+              {t(props.language, "review.keep_language", { language: LANGUAGE_NAMES[props.language] })}
+            </button>
+            <button
+              type="button"
+              onClick={props.onUseDetected}
+              className="min-h-11 rounded-md bg-amber-800 px-3 text-sm font-semibold text-white outline-none hover:bg-amber-900 focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-2"
+            >
+              {t(props.language, "review.use_language", { language: LANGUAGE_NAMES[result.detected_language] })}
+            </button>
+          </div>
         </div>
-        {media.length > 0 && (
-          <p className="mt-2 text-[11px] text-civic-600">✓ {media.length} × {t(language, "media.photo_added")}</p>
-        )}
-        <p className="mt-1 text-[10px] text-slate-600">{t(language, "media.note")}</p>
+      ) : null}
+
+      <div className="mt-6 border-y border-slate-200 py-5">
+        <h3 className="font-semibold text-slate-950">{t(props.language, "review.understanding")}</h3>
+        <dl className="mt-3 grid gap-4 sm:grid-cols-2">
+          <SummaryItem label={t(props.language, "created.category")} value={categoryLabel(result.category, props.language)} />
+          <SummaryItem label={t(props.language, "created.detected_lang")} value={LANGUAGE_NAMES[result.detected_language]} />
+          {!manualReview ? (
+            <SummaryItem label={t(props.language, "review.suggested_team")} value={`${result.department} — ${result.unit}`} />
+          ) : null}
+        </dl>
       </div>
 
-      {/* Clarification (required) */}
-      {required.length > 0 && (
-        <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm font-semibold text-amber-900">{t(language, "clarify.title")}</p>
-          <p className="mt-0.5 text-[11px] text-amber-700">{t(language, "clarify.intro")}</p>
-          <div className="mt-3 space-y-3">
-            {required.map((m) => (
-              <div key={m.field}>
-                <label htmlFor={`missing-${m.field}`} className="block text-xs font-medium text-slate-700">{m.question_localized}</label>
+      <div className="mt-6">
+        <h3 className="font-semibold text-slate-950">{t(props.language, "review.next_step")}</h3>
+        <p className="mt-2 text-sm leading-6 text-slate-700">{nextStep}</p>
+      </div>
+
+      {required.length > 0 ? (
+        <div className="mt-7 border-t border-slate-200 pt-6">
+          <h3 className="font-semibold text-slate-950">{t(props.language, "review.details_optional")}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{t(props.language, "review.details_help")}</p>
+          <div className="mt-4 space-y-4">
+            {required.map((item) => (
+              <div key={item.field}>
+                <label htmlFor={`missing-${item.field}`} className="block text-sm font-medium text-slate-800">
+                  {item.question_localized}
+                </label>
                 <input
-                  id={`missing-${m.field}`}
-                  value={answers[m.field] ?? ""}
-                  onChange={(e) => setAnswers({ ...answers, [m.field]: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm focus:border-civic-500 focus:outline-none"
+                  id={`missing-${item.field}`}
+                  value={props.answers[item.field] ?? ""}
+                  onChange={(event) => props.setAnswers({ ...props.answers, [item.field]: event.target.value })}
+                  className="mt-2 min-h-12 w-full rounded-lg border border-slate-300 px-3 text-base outline-none focus:border-civic-600 focus:ring-2 focus:ring-civic-200"
                 />
               </div>
             ))}
           </div>
-          <p className="mt-2 text-[10px] text-amber-600">{t(language, "clarify.optional")}</p>
         </div>
-      )}
+      ) : null}
 
-      {/* Optional checklist (welfare) */}
-      {checklist.length > 0 && (
-        <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-700">{t(language, "status.missing_title")}</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-[12px] text-slate-600">
-            {checklist.map((m) => (
-              <li key={m.field}>{m.question_localized}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {props.error && <p className="mt-4 text-sm text-red-600">{props.error}</p>}
+      <InlineError message={props.error} />
+      {!props.languageConfirmed ? (
+        <p className="mt-5 text-sm font-medium text-amber-900" role="status">
+          {t(props.language, "review.choose_language_first")}
+        </p>
+      ) : null}
       <button
+        type="button"
         onClick={props.onSubmit}
-        disabled={props.loading}
-        className="mt-6 w-full rounded-xl bg-civic-600 py-3 font-semibold text-white hover:bg-civic-700 disabled:opacity-40"
+        disabled={props.loading || !props.languageConfirmed}
+        className="mt-6 min-h-12 w-full rounded-lg bg-civic-700 px-4 font-semibold text-white outline-none hover:bg-civic-800 focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {props.loading ? "…" : t(language, "clarify.submit")}
+        {props.loading ? t(props.language, "common.working") : t(props.language, "review.submit")}
       </button>
-      <p className="mt-3 text-center text-xs text-slate-600">{t(language, "common.ai_disclaimer")}</p>
+      <p className="mt-3 text-sm leading-6 text-slate-600">{t(props.language, "common.ai_disclaimer")}</p>
     </section>
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function SummaryItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wide text-slate-600">{label}</div>
-      <div className="font-medium text-slate-800">{value}</div>
+      <dt className="text-sm text-slate-600">{label}</dt>
+      <dd className="mt-1 font-medium text-slate-900">{value}</dd>
     </div>
   );
+}
+
+function InlineError({ message }: { message: string | null }) {
+  return message ? (
+    <p className="mt-5 border-l-4 border-red-500 bg-red-50 px-3 py-2 text-sm text-red-900" role="alert" aria-live="polite">
+      {message}
+    </p>
+  ) : null;
 }

@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "seed:reset": "node scripts/seed-reset.mjs",
     "demo:video": "node scripts/demo/render_civicflow_video.mjs",
+    "smoke:citizen": "node scripts/smoke/citizen_ui_smoke.mjs",
     "smoke:e2e": "node scripts/smoke/maic_e2e_smoke.mjs"
   },
   "dependencies": {
