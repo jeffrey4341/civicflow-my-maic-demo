@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST as decideApprovalRoute } from "@/app/api/approvals/[id]/route";
 import { POST as reviewCaseRoute } from "@/app/api/cases/[id]/review/route";
@@ -303,6 +303,20 @@ describe("officer review contract", () => {
       triage_revision: 2,
       status: "pending",
     });
+    const reviewApprovalEvents = (await listAudit(c.case_id)).filter(
+      (event) => event.payload.triage_revision === 2 && event.event_type.startsWith("approval."),
+    );
+    expect(reviewApprovalEvents).toHaveLength(2);
+    expect(reviewApprovalEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        event_type: "approval.superseded",
+        payload: expect.objectContaining({ approval_id: oldApprovalId, triage_revision: 2 }),
+      }),
+      expect.objectContaining({
+        event_type: "approval.created",
+        payload: expect.objectContaining({ approval_id: body.approval_task_id, triage_revision: 2 }),
+      }),
+    ]));
 
     const blockedReply = await postJson(
       releaseReplyRoute,
@@ -349,30 +363,65 @@ describe("officer review contract", () => {
   });
 
   it("creates a supervisor gate when an officer corrects a case into a gated category", async () => {
-    const c = await submitStandardCase();
-    c.urgency = "flood_risk";
-    expect(c.approval_task_id).toBeNull();
+    const savedKey = process.env.ANTHROPIC_API_KEY;
+    const savedForce = process.env.CIVICFLOW_FORCE_DETERMINISTIC;
+    const originalFetch = global.fetch;
+    process.env.ANTHROPIC_API_KEY = "sk-test";
+    delete process.env.CIVICFLOW_FORCE_DETERMINISTIC;
+    global.fetch = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              detected_language: "ms",
+              category: "roads_potholes",
+              urgency: "flood_risk",
+              translated_text_en: "Flood water is rising quickly near a blocked drain.",
+            }),
+          }],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    ) as typeof fetch;
 
-    const reviewed = await postJson(
-      reviewCaseRoute,
-      "http://localhost/review",
-      c.case_id,
-      reviewBody(c, {
-        category: "drainage",
-        routing: { department: "Engineering", unit: "Drainage Unit" },
-      }),
-    );
-    expect(reviewed.status).toBe(200);
-    const body = await reviewed.json();
-    expect(body).toMatchObject({
-      triage_revision: 2,
-      status: "awaiting_supervisor",
-      routing: { requires_supervisor: true },
-    });
-    expect(await getApproval(body.approval_task_id)).toMatchObject({
-      triage_revision: 2,
-      status: "pending",
-    });
+    try {
+      const c = await submitFloodCase();
+      expect(c).toMatchObject({
+        category: "roads_potholes",
+        urgency: "flood_risk",
+        approval_task_id: null,
+        routing: { requires_supervisor: false },
+      });
+
+      const reviewed = await postJson(
+        reviewCaseRoute,
+        "http://localhost/review",
+        c.case_id,
+        reviewBody(c, {
+          category: "drainage",
+          routing: { department: "Engineering", unit: "Drainage Unit" },
+        }),
+      );
+      expect(reviewed.status).toBe(200);
+      const body = await reviewed.json();
+      expect(body).toMatchObject({
+        triage_revision: 2,
+        status: "awaiting_supervisor",
+        routing: { requires_supervisor: true },
+      });
+      expect(await getApproval(body.approval_task_id)).toMatchObject({
+        triage_revision: 2,
+        status: "pending",
+      });
+    } finally {
+      if (savedKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+      else process.env.ANTHROPIC_API_KEY = savedKey;
+      if (savedForce === undefined) delete process.env.CIVICFLOW_FORCE_DETERMINISTIC;
+      else process.env.CIVICFLOW_FORCE_DETERMINISTIC = savedForce;
+      global.fetch = originalFetch;
+      vi.restoreAllMocks();
+    }
   });
 
   it("supports rejected close-no-action and revised resubmission without permitting work", async () => {
