@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     : {};
 
   try {
-    assertSyntheticDataOnly(text, ...Object.values(answers));
+    assertSyntheticDataOnly(text, location_text, ...Object.values(answers));
   } catch (error) {
     if ((error as { code?: string }).code === SYNTHETIC_DATA_ONLY_CODE) {
       return NextResponse.json(

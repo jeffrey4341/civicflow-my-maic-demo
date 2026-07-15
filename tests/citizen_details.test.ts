@@ -1,15 +1,20 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST as previewTriage } from "@/app/api/triage/route";
 import { POST as createCase } from "@/app/api/cases/route";
 import * as caseRoute from "@/app/api/cases/[id]/route";
-import { getCase, listApprovals, listCases, resetStore, submitCase } from "@/lib/store";
+import { getCase, listApprovals, listAudit, listCases, resetStore, submitCase } from "@/lib/store";
+import * as util from "@/lib/util";
 
 const LICENCE_TEXT = "我要申请小食档执照，需要什么文件？";
 
 describe("citizen details and triage revisions", () => {
   beforeEach(async () => {
     await resetStore();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("uses keyed answers without rewriting the original citizen text", async () => {
@@ -70,6 +75,19 @@ describe("citizen details and triage revisions", () => {
     expect(preview.status).toBe(422);
     expect(await preview.json()).toMatchObject({ code: "synthetic_data_only" });
 
+    const previewLocation = await previewTriage(
+      new Request("http://localhost/api/triage", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          text: "A blocked drain needs attention",
+          language: "en",
+          location_text: "person@example.com",
+        }),
+      }),
+    );
+    expect(previewLocation.status).toBe(422);
+
     const before = (await listCases()).length;
     const create = await createCase(
       new Request("http://localhost/api/cases", {
@@ -79,6 +97,21 @@ describe("citizen details and triage revisions", () => {
       }),
     );
     expect(create.status).toBe(422);
+    expect((await listCases()).length).toBe(before);
+
+    const createMedia = await createCase(
+      new Request("http://localhost/api/cases", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          text: "A blocked drain needs attention",
+          language: "en",
+          location_text: "Synthetic lane",
+          media_refs: ["photo:person@example.com.jpg"],
+        }),
+      }),
+    );
+    expect(createMedia.status).toBe(422);
     expect((await listCases()).length).toBe(before);
 
     const needsInfo = await submitCase({ text: LICENCE_TEXT, language: "zh" });
@@ -102,6 +135,51 @@ describe("citizen details and triage revisions", () => {
     expect((await getCase(needsInfo.case_id))?.triage_revision).toBe(1);
   });
 
+  it("keeps a structured answer as the canonical case location through the create route", async () => {
+    const response = await createCase(
+      new Request("http://localhost/api/cases", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          text: "I need a business licence for a hawker stall",
+          language: "en",
+          answers: {
+            location: "Synthetic Market A",
+            business_type: "Synthetic food stall",
+            operating_hours: "09:00 to 17:00",
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect((await response.json()).location_text).toBe("Synthetic Market A");
+  });
+
+  it("allows only one concurrent follow-up for the same triage revision", async () => {
+    const created = await submitCase({ text: LICENCE_TEXT, language: "zh" });
+    const body = JSON.stringify({
+      triage_revision: created.triage_revision,
+      answers: {
+        location: "Synthetic Market A",
+        business_type: "Synthetic food stall",
+        operating_hours: "09:00 to 17:00",
+      },
+    });
+    const patch = () => caseRoute.PATCH!(
+      new Request(`http://localhost/api/cases/${created.citizen_ref}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body,
+      }),
+      { params: Promise.resolve({ id: created.citizen_ref }) },
+    );
+
+    const responses = await Promise.all([patch(), patch()]);
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
+    expect((await getCase(created.case_id))?.triage_revision).toBe(2);
+  });
+
   it("keeps the confirmed citizen locale when detected language differs", async () => {
     const created = await submitCase({ text: LICENCE_TEXT, language: "ms" });
 
@@ -122,6 +200,11 @@ describe("citizen details and triage revisions", () => {
     expect(created.status).toBe("needs_info");
     expect(created.approval_task_id).toBeNull();
     expect((await listApprovals()).some((task) => task.case_id === created.case_id)).toBe(false);
+    expect((await listAudit(created.case_id)).some((event) => event.event_type === "approval.requested"))
+      .toBe(false);
+
+    let clock = Date.parse("2099-01-01T00:00:00.000Z");
+    vi.spyOn(util, "nowIso").mockImplementation(() => new Date(clock++).toISOString());
 
     expect(typeof caseRoute.PATCH).toBe("function");
     const response = await caseRoute.PATCH!(
@@ -138,5 +221,12 @@ describe("citizen details and triage revisions", () => {
     expect(updated.status).toBe("awaiting_supervisor");
     expect(updated.triage_revision).toBe(2);
     expect(updated.approval_task_id).toBeTruthy();
+
+    const audit = await listAudit(created.case_id);
+    const detailsIndex = audit.findIndex((event) => event.event_type === "citizen.details_submitted");
+    const retriageIndex = audit.findLastIndex((event) => event.event_type === "ai.language_detected");
+    expect(detailsIndex).toBeGreaterThan(-1);
+    expect(detailsIndex).toBeLessThan(retriageIndex);
+    expect(audit.filter((event) => event.event_type === "approval.requested")).toHaveLength(1);
   });
 });

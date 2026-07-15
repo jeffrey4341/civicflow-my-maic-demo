@@ -172,7 +172,8 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
   // 7. Approval gate
   const gate = evaluateApprovalGate({ category, urgency, pii_risk, category_confidence });
   const manual_review_reason = manualReviewReasonFor(citations, category_confidence);
-  if (gate.requires_supervisor) {
+  const status = computeStatus(needsInfo, gate, manual_review_reason);
+  if (status === "awaiting_supervisor") {
     audit.push(
       makeAuditEvent({
         case_id,
@@ -239,5 +240,5 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
     ai_mode,
   };
 
-  return { result, gate, status: computeStatus(needsInfo, gate, manual_review_reason), needsInfo, audit };
+  return { result, gate, status, needsInfo, audit };
 }

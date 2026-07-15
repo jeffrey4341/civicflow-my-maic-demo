@@ -364,15 +364,17 @@ export async function submitCase(input: SubmitInput): Promise<CitizenCase> {
       .map(([field, value]) => [field, String(value).trim()])
       .filter(([, value]) => value),
   ) as Record<string, string>;
-  assertSyntheticDataOnly(input.text, ...Object.values(answers));
+  const locationText = (input.location_text?.trim() || answers.location || "").trim();
+  const mediaRefs = (input.media_refs ?? []).map((value) => String(value).trim()).filter(Boolean);
+  assertSyntheticDataOnly(input.text, locationText, ...mediaRefs, ...Object.values(answers));
   const built = await buildCase({
     case_id: newId("case"),
     citizen_ref: citizenRef(),
     source_channel: input.source_channel ?? "mobile_pwa",
     citizen_language: input.language,
     original_text: input.text.trim(),
-    location_text: (input.location_text ?? answers.location ?? "").trim(),
-    media_refs: input.media_refs ?? [],
+    location_text: locationText,
+    media_refs: mediaRefs,
     answers,
     created_at: nowIso(),
   });
@@ -438,6 +440,13 @@ export async function updateCitizenDetails(args: {
   const mergedAnswers = { ...record.citizen_answers, ...answers };
   const nextRevision = record.triage_revision + 1;
   const fromStatus = record.status;
+  const detailsEvent = makeAuditEvent({
+    case_id: record.case_id,
+    actor: "citizen",
+    event_type: "citizen.details_submitted",
+    summary: "Citizen supplied requested case details.",
+    payload: { fields: Object.keys(answers), triage_revision: nextRevision },
+  });
   const triage = await runTriage({
     case_id: record.case_id,
     citizen_ref: record.citizen_ref,
@@ -446,6 +455,7 @@ export async function updateCitizenDetails(args: {
     location_text: mergedAnswers.location ?? record.location_text,
     answers: mergedAnswers,
   });
+  if (record.triage_revision !== args.triage_revision) throw new Error("stale_triage_revision");
   const result = triage.result;
 
   let approval: ApprovalTask | null = null;
@@ -484,16 +494,7 @@ export async function updateCitizenDetails(args: {
     reply_draft: result.reply_draft,
   });
 
-  state.audit.push(
-    makeAuditEvent({
-      case_id: record.case_id,
-      actor: "citizen",
-      event_type: "citizen.details_submitted",
-      summary: "Citizen supplied requested case details.",
-      payload: { fields: Object.keys(answers), triage_revision: nextRevision },
-    }),
-    ...triage.audit,
-  );
+  state.audit.push(detailsEvent, ...triage.audit);
   if (approval) {
     state.audit.push(
       makeAuditEvent({

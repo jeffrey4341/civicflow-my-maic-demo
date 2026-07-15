@@ -25,7 +25,7 @@ export async function POST(req: Request) {
     const created = await submitCase({
       text,
       language,
-      location_text: String(body.location_text ?? ""),
+      location_text: body.location_text == null ? undefined : String(body.location_text),
       media_refs,
       answers,
       source_channel: channel,
