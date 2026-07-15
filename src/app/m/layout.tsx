@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function CitizenLayout({ children }: { children: React.ReactNode }) {
@@ -6,9 +7,7 @@ export default function CitizenLayout({ children }: { children: React.ReactNode 
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex min-h-16 max-w-2xl items-center px-4 sm:px-6">
           <Link href="/m" className="flex items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-civic-700 text-xs font-bold text-white" aria-hidden>
-              CF
-            </span>
+            <Image src="/civicflow-mark.svg" alt="" width={36} height={36} priority />
             <span>
               <span className="block font-semibold leading-5 text-slate-950">CivicFlow MY</span>
               <span className="block text-xs leading-4 text-slate-600">Majlis Demo citizen services</span>

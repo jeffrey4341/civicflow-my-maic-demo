@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export default function HomePage() {
@@ -5,9 +6,7 @@ export default function HomePage() {
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-5xl px-5 py-10 sm:px-8 sm:py-16">
         <header className="flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-civic-700 text-sm font-bold text-white" aria-hidden>
-            CF
-          </span>
+          <Image src="/civicflow-mark.svg" alt="" width={40} height={40} priority />
           <div>
             <p className="font-semibold text-slate-950">CivicFlow MY</p>
             <p className="text-sm text-slate-600">Majlis Demo citizen services</p>

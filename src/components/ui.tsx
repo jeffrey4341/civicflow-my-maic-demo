@@ -1,3 +1,4 @@
+import { statusLabel, urgencyLabel } from "@/lib/i18n";
 import type {
   AuditActor,
   AuditEvent,
@@ -7,39 +8,34 @@ import type {
   PolicyCitation,
   Urgency,
 } from "@/lib/types";
-import { statusLabel, urgencyLabel } from "@/lib/i18n";
 
 const STATUS_STYLE: Record<CaseStatus, string> = {
   draft: "bg-slate-100 text-slate-700",
-  needs_info: "bg-amber-100 text-amber-800",
-  submitted: "bg-sky-100 text-sky-800",
+  needs_info: "bg-amber-100 text-amber-900",
+  submitted: "bg-sky-100 text-sky-900",
   manual_review: "bg-red-100 text-red-800",
-  routed: "bg-civic-100 text-civic-800",
-  awaiting_supervisor: "bg-orange-100 text-orange-800",
-  in_progress: "bg-indigo-100 text-indigo-800",
-  closed: "bg-emerald-100 text-emerald-800",
+  routed: "bg-civic-100 text-civic-900",
+  awaiting_supervisor: "bg-orange-100 text-orange-900",
+  in_progress: "bg-indigo-100 text-indigo-900",
+  closed: "bg-emerald-100 text-emerald-900",
 };
 
 const URGENCY_STYLE: Record<Urgency, string> = {
-  low: "bg-slate-100 text-slate-600",
+  low: "bg-slate-100 text-slate-700",
   normal: "bg-slate-100 text-slate-700",
-  high: "bg-amber-100 text-amber-800",
-  urgent: "bg-orange-100 text-orange-800",
+  high: "bg-amber-100 text-amber-900",
+  urgent: "bg-orange-100 text-orange-900",
   flood_risk: "bg-red-100 text-red-800",
 };
 
 const PII_STYLE: Record<PiiRisk, string> = {
-  low: "bg-slate-100 text-slate-600",
-  medium: "bg-amber-100 text-amber-800",
+  low: "bg-slate-100 text-slate-700",
+  medium: "bg-amber-100 text-amber-900",
   high: "bg-red-100 text-red-800",
 };
 
 export function Badge({ className = "", children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}>
-      {children}
-    </span>
-  );
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${className}`}>{children}</span>;
 }
 
 export function StatusBadge({ status, locale = "en" }: { status: CaseStatus; locale?: Language }) {
@@ -51,19 +47,17 @@ export function UrgencyBadge({ urgency, locale = "en" }: { urgency: Urgency; loc
 }
 
 export function PiiBadge({ risk }: { risk: PiiRisk }) {
-  return <Badge className={PII_STYLE[risk]}>PII: {risk}</Badge>;
+  return <Badge className={PII_STYLE[risk]}>PII review: {risk}</Badge>;
 }
 
 export function ConfidenceBar({ value, label }: { value: number; label?: string }) {
   const pct = Math.round(value * 100);
   return (
     <div>
-      {label ? <div className="mb-1 text-xs text-slate-500">{label}</div> : null}
+      {label ? <label htmlFor={`confidence-${label.replaceAll(" ", "-")}`} className="mb-1 block text-xs text-slate-600">{label}</label> : null}
       <div className="flex items-center gap-2">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
-          <div className="h-full rounded-full bg-civic-500" style={{ width: `${pct}%` }} />
-        </div>
-        <span className="w-9 text-right text-xs tabular-nums text-slate-600">{pct}%</span>
+        <progress id={label ? `confidence-${label.replaceAll(" ", "-")}` : undefined} max={100} value={pct} aria-label={label ?? "Confidence"} className="h-2 w-full accent-civic-700" />
+        <span className="w-10 text-right text-xs tabular-nums text-slate-600">{pct}%</span>
       </div>
     </div>
   );
@@ -71,46 +65,47 @@ export function ConfidenceBar({ value, label }: { value: number; label?: string 
 
 export function CitationCard({ citation }: { citation: PolicyCitation }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-semibold text-civic-700">{citation.doc_title}</div>
-        <Badge className="bg-civic-50 text-civic-700">{Math.round(citation.confidence * 100)}%</Badge>
+    <article className="border-l-2 border-slate-300 pl-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h3 className="text-sm font-semibold text-civic-800">{citation.doc_title}</h3>
+        <Badge className="bg-civic-50 text-civic-800">{Math.round(citation.confidence * 100)}% match</Badge>
       </div>
-      <div className="mt-0.5 text-xs font-medium text-slate-500">§ {citation.section}</div>
-      <p className="mt-2 text-sm text-slate-700">“{citation.snippet}”</p>
-      <div className="mt-2 text-[11px] text-slate-600">source: {citation.source_doc}</div>
-    </div>
+      <p className="mt-1 text-xs font-medium text-slate-600">§ {citation.section}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-700">{citation.snippet}</p>
+      <p className="mt-2 font-mono text-xs text-slate-500">{citation.source_doc}</p>
+    </article>
   );
 }
 
 const ACTOR_STYLE: Record<AuditActor, string> = {
-  citizen: "bg-sky-100 text-sky-800",
-  ai_agent: "bg-civic-100 text-civic-800",
+  citizen: "bg-sky-100 text-sky-900",
+  ai_agent: "bg-civic-100 text-civic-900",
   system: "bg-slate-100 text-slate-700",
-  officer: "bg-indigo-100 text-indigo-800",
-  supervisor: "bg-orange-100 text-orange-800",
+  officer: "bg-indigo-100 text-indigo-900",
+  supervisor: "bg-orange-100 text-orange-900",
 };
 
 const ACTOR_LABEL: Record<AuditActor, string> = {
   citizen: "Citizen",
-  ai_agent: "AI Agent",
+  ai_agent: "Automated triage",
   system: "System",
   officer: "Officer",
   supervisor: "Supervisor",
 };
 
 export function ActorBadge({ actor, label }: { actor: AuditActor; label?: string }) {
+  const showIdentity = (actor === "officer" || actor === "supervisor") && label && label !== ACTOR_LABEL[actor];
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${ACTOR_STYLE[actor]}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${ACTOR_STYLE[actor]}`}>
       <span>{ACTOR_LABEL[actor]}</span>
-      {label ? <span className="font-normal">· {label}</span> : null}
+      {showIdentity ? <span className="font-normal">· {label}</span> : null}
     </span>
   );
 }
 
 function formatTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleString("en-GB", {
+    return new Date(iso).toLocaleString("en-MY", {
       day: "2-digit",
       month: "short",
       hour: "2-digit",
@@ -122,30 +117,31 @@ function formatTime(iso: string): string {
 }
 
 export function AuditTimeline({ events }: { events: AuditEvent[] }) {
-  if (events.length === 0) {
-    return <p className="text-sm text-slate-500">No audit events yet.</p>;
-  }
+  if (events.length === 0) return <p className="text-sm text-slate-600">No audit events yet.</p>;
   return (
-    <ol className="relative ml-3 border-l border-slate-200">
-      {events.map((e) => (
-        <li key={e.event_id} className="relative mb-4 pl-5">
-          <span className="absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-white bg-slate-500" aria-hidden />
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[11px] text-slate-600">{e.event_type}</span>
-            <ActorBadge actor={e.actor} label={e.actor_label} />
-            <span className="text-[11px] text-slate-600">· {formatTime(e.created_at)}</span>
-          </div>
-          <p className="mt-0.5 text-sm text-slate-700">{e.summary}</p>
-        </li>
-      ))}
+    <ol className="divide-y divide-slate-200 border-y border-slate-200">
+      {events.map((event) => {
+        const revision = typeof event.payload.triage_revision === "number" ? event.payload.triage_revision : null;
+        return (
+          <li key={event.event_id} className="grid gap-2 py-4 sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-5">
+            <div>
+              <time dateTime={event.created_at} className="text-xs text-slate-500">{formatTime(event.created_at)}</time>
+              {revision !== null ? <span className="mt-1 block text-xs text-slate-500">Revision {revision}</span> : null}
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <ActorBadge actor={event.actor} label={event.actor_label} />
+                <span className="font-mono text-xs text-slate-500">{event.event_type}</span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-700">{event.summary}</p>
+            </div>
+          </li>
+        );
+      })}
     </ol>
   );
 }
 
 export function SafetyBanner({ text }: { text: string }) {
-  return (
-    <div className="bg-flag-gold/15 px-4 py-2 text-center text-[11px] font-medium text-amber-900">
-      {text}
-    </div>
-  );
+  return <aside className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium text-amber-950" role="note">{text}</aside>;
 }

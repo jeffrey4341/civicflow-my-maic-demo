@@ -11,12 +11,12 @@ export function ResetButton() {
     if (!confirm("Reset the demo to seed data? This clears any cases you submitted.")) return;
     setBusy(true);
     try {
-      const res = await fetch("/api/reset", { method: "POST" });
-      if (!res.ok) throw new Error(`Reset failed (HTTP ${res.status})`);
+      const response = await fetch("/api/reset", { method: "POST" });
+      if (!response.ok) throw new Error(`Reset failed (HTTP ${response.status})`);
       router.push("/officer");
       router.refresh();
-    } catch (err) {
-      alert((err as Error).message);
+    } catch (caught) {
+      alert((caught as Error).message);
     } finally {
       setBusy(false);
     }
@@ -24,11 +24,12 @@ export function ResetButton() {
 
   return (
     <button
+      type="button"
       onClick={reset}
       disabled={busy}
-      className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+      className="min-h-11 rounded-lg border border-slate-300 px-3 text-xs font-medium text-slate-600 outline-none hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
     >
-      {busy ? "Resetting…" : "↺ Reset demo"}
+      {busy ? "Resetting…" : "Reset demo"}
     </button>
   );
 }

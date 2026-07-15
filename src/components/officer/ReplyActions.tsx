@@ -3,7 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function ReplyActions({ caseId, sent }: { caseId: string; sent: boolean }) {
+export function ReplyActions({
+  caseId,
+  triageRevision,
+  sent,
+  blocker,
+}: {
+  caseId: string;
+  triageRevision: number;
+  sent: boolean;
+  blocker?: string | null;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -12,37 +22,37 @@ export function ReplyActions({ caseId, sent }: { caseId: string; sent: boolean }
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/cases/${caseId}/reply`, {
+      const response = await fetch(`/api/cases/${caseId}/reply`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ officer: "Officer Tan (demo)" }),
+        body: JSON.stringify({ triage_revision: triageRevision, officer: "Officer Tan (demo)" }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "Failed to release reply");
-      }
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? "Reply release failed.");
       router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
+    } catch (caught) {
+      setError((caught as Error).message);
     } finally {
       setBusy(false);
     }
   }
 
   if (sent) {
-    return <span className="text-xs font-medium text-emerald-600">✓ Reply released to citizen</span>;
+    return <p className="text-sm font-medium text-emerald-800">Reply released to the citizen.</p>;
   }
 
   return (
     <div>
       <button
+        type="button"
         onClick={release}
-        disabled={busy}
-        className="rounded-lg bg-civic-600 px-4 py-2 text-sm font-semibold text-white hover:bg-civic-700 disabled:opacity-40"
+        disabled={busy || Boolean(blocker)}
+        className="min-h-12 rounded-lg bg-civic-800 px-5 text-sm font-semibold text-white outline-none hover:bg-civic-900 focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {busy ? "…" : "Review & release reply"}
+        {busy ? "Releasing…" : "Release reply"}
       </button>
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {blocker ? <p className="mt-3 text-sm leading-6 text-amber-800">{blocker}</p> : null}
+      {error ? <p role="alert" className="mt-3 text-sm text-red-700">{error}</p> : null}
     </div>
   );
 }

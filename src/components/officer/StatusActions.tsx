@@ -2,78 +2,96 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
 import type { CaseStatus } from "@/lib/types";
 
 export function StatusActions({
   caseId,
+  triageRevision,
   status,
-  blocker,
-  officerReviewOnly = false,
+  startBlocker,
+  closeBlocker,
 }: {
   caseId: string;
+  triageRevision: number;
   status: CaseStatus;
-  blocker?: string | null;
-  officerReviewOnly?: boolean;
+  startBlocker?: string | null;
+  closeBlocker?: string | null;
 }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const [busyAction, setBusyAction] = useState<"start" | "close" | null>(null);
+  const [closureNote, setClosureNote] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  async function setStatus(next: CaseStatus) {
-    setBusy(true);
+  async function setCaseStatus(next: "in_progress" | "closed") {
+    setBusyAction(next === "in_progress" ? "start" : "close");
     setError(null);
     try {
-      const res = await fetch(`/api/cases/${caseId}/status`, {
+      const response = await fetch(`/api/cases/${caseId}/status`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status: next, officer: "Officer Tan (demo)" }),
+        body: JSON.stringify({
+          triage_revision: triageRevision,
+          status: next,
+          officer: "Officer Tan (demo)",
+          note: next === "closed" ? closureNote.trim() : undefined,
+        }),
       });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "Failed to update status");
-      }
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error ?? "Case status could not be updated.");
       router.refresh();
-    } catch (err) {
-      setError((err as Error).message);
+    } catch (caught) {
+      setError((caught as Error).message);
     } finally {
-      setBusy(false);
+      setBusyAction(null);
     }
   }
 
-  if (blocker) {
-    return (
-      <div className="max-w-sm rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-        {blocker}
-      </div>
-    );
+  if (status === "closed") {
+    return <p className="text-sm leading-6 text-slate-700">This case is closed and cannot be changed.</p>;
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {status !== "in_progress" && status !== "closed" && (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <div>
+        <h3 className="font-semibold text-slate-950">Begin council work</h3>
+        <p className="mt-1 text-sm leading-6 text-slate-600">Starting work is a separate officer action. Reviews, approvals, and reply release never start it automatically.</p>
         <button
-          onClick={() => setStatus("in_progress")}
-          disabled={busy}
-          className="rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 disabled:opacity-40"
+          type="button"
+          onClick={() => setCaseStatus("in_progress")}
+          disabled={busyAction !== null || status === "in_progress" || Boolean(startBlocker)}
+          className="mt-4 min-h-12 rounded-lg border border-civic-700 bg-white px-5 text-sm font-semibold text-civic-800 outline-none hover:bg-civic-50 focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {officerReviewOnly ? "Start officer review" : "Start work (in progress)"}
+          {busyAction === "start" ? "Starting…" : status === "in_progress" ? "Work started" : "Start work"}
         </button>
-      )}
-      {status !== "closed" && !officerReviewOnly && (
+        {startBlocker ? <p className="mt-3 text-sm leading-6 text-amber-800">{startBlocker}</p> : null}
+      </div>
+
+      <div className="border-t border-slate-200 pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+        <h3 className="font-semibold text-slate-950">Close the case</h3>
+        <p className="mt-1 text-sm leading-6 text-slate-600">Closure requires a released citizen reply and a durable officer note.</p>
+        <label htmlFor="closure-note" className="mt-4 block text-sm font-medium text-slate-800">Closure note</label>
+        <textarea
+          id="closure-note"
+          value={closureNote}
+          onChange={(event) => setClosureNote(event.target.value)}
+          rows={3}
+          required
+          placeholder="Record what was completed and why the case can close"
+          className="form-control mt-2 py-3"
+        />
         <button
-          onClick={() => setStatus("closed")}
-          disabled={busy}
-          className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 disabled:opacity-40"
+          type="button"
+          onClick={() => setCaseStatus("closed")}
+          disabled={busyAction !== null || Boolean(closeBlocker) || !closureNote.trim()}
+          className="mt-4 min-h-12 rounded-lg bg-slate-950 px-5 text-sm font-semibold text-white outline-none hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-slate-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Close case
+          {busyAction === "close" ? "Closing…" : "Close case"}
         </button>
-      )}
-      {officerReviewOnly && (
-        <span className="text-xs text-slate-500">
-          Eligibility is reviewed by an officer; generic closure is disabled.
-        </span>
-      )}
-      {error && <span className="text-xs text-red-600">{error}</span>}
+        {closeBlocker ? <p className="mt-3 text-sm leading-6 text-amber-800">{closeBlocker}</p> : null}
+      </div>
+
+      {error ? <p role="alert" className="text-sm text-red-700 lg:col-span-2">{error}</p> : null}
     </div>
   );
 }

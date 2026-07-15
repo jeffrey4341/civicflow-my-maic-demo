@@ -1,22 +1,70 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getApproval, getCase, listAudit } from "@/lib/store";
-import { LANGUAGE_NAMES, categoryLabel } from "@/lib/i18n";
-import { statusActionBlocker } from "@/lib/lifecycle";
-import {
-  AuditTimeline,
-  Badge,
-  CitationCard,
-  ConfidenceBar,
-  PiiBadge,
-  StatusBadge,
-  UrgencyBadge,
-} from "@/components/ui";
+
 import { ApprovalActions } from "@/components/officer/ApprovalActions";
+import { OfficerReviewForm } from "@/components/officer/OfficerReviewForm";
 import { ReplyActions } from "@/components/officer/ReplyActions";
 import { StatusActions } from "@/components/officer/StatusActions";
+import { AuditTimeline, Badge, StatusBadge, UrgencyBadge } from "@/components/ui";
+import { LANGUAGE_NAMES, categoryLabel } from "@/lib/i18n";
+import { getApproval, getCase, listAudit } from "@/lib/store";
+import type { ApprovalTask, CitizenCase } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+function hasCurrentReview(c: CitizenCase): boolean {
+  return Boolean(c.officer_review && c.officer_review.triage_revision === c.triage_revision);
+}
+
+function nextRequiredAction(c: CitizenCase, approval: ApprovalTask | null): { title: string; detail: string } {
+  if (c.status === "closed") return { title: "No further action", detail: "This case is closed and its audit record is read-only." };
+  if (c.status === "needs_info") return { title: "Wait for citizen details", detail: "Required information is missing. The citizen can add it with the tracking code before review continues." };
+  if (!hasCurrentReview(c)) return { title: "Complete officer review", detail: "Confirm the case facts, policy evidence, routing, and citizen reply for this revision." };
+  if (approval?.status === "pending") return { title: "Supervisor decision required", detail: "The current reviewed revision is high risk and cannot proceed until a supervisor decides." };
+  if (approval?.status === "rejected") return { title: "Resolve rejected decision", detail: "Close without operational action, or make substantive changes and resubmit for supervisor approval." };
+  if (c.reply_draft?.status !== "sent") return { title: "Release the reviewed reply", detail: "The reply is approved for this revision but remains a draft until an officer releases it." };
+  if (c.status === "routed") return { title: "Start council work", detail: "The reviewed case is routed and the citizen reply is released. Record the explicit start of work." };
+  if (c.status === "in_progress") return { title: "Complete and close", detail: "When council work is complete, record a closure note and close the case." };
+  if (c.officer_review?.resolution === "close_no_action") return { title: "Close with a recorded note", detail: "The reviewed reply has been released. Record why no operational action is required." };
+  return { title: "Review current case state", detail: "Check the reviewed facts and audit trail before the next action." };
+}
+
+function replyBlocker(c: CitizenCase, approval: ApprovalTask | null): string | null {
+  if (!hasCurrentReview(c)) return "Save an officer review for the current revision first.";
+  if (!c.reply_draft || c.reply_draft.status === "draft" || c.reply_draft.approved_revision !== c.triage_revision) {
+    return "Approve the current reply by saving the officer review first.";
+  }
+  if (c.missing_info.some((item) => item.required && !item.satisfied) && c.officer_review?.resolution !== "close_no_action") {
+    return "Required citizen information is still missing.";
+  }
+  if (approval && approval.triage_revision === c.triage_revision && approval.status !== "approved") {
+    return "The current supervisor decision must be approved before the reply can be released.";
+  }
+  return null;
+}
+
+function startBlocker(c: CitizenCase, approval: ApprovalTask | null): string | null {
+  if (c.reply_draft?.status !== "sent") return "Release the reviewed citizen reply before starting work.";
+  if (!hasCurrentReview(c) || c.officer_review?.resolution !== "proceed") return "A current proceed review is required before work can start.";
+  if (c.citations.length === 0) return "Select at least one valid policy citation before starting work.";
+  if (approval && approval.triage_revision === c.triage_revision && approval.status !== "approved") {
+    return "Current supervisor approval is required before work can start.";
+  }
+  if (c.status !== "routed" && c.status !== "in_progress") return "The case must be routed before work can start.";
+  return null;
+}
+
+function closeBlocker(c: CitizenCase): string | null {
+  if (!hasCurrentReview(c)) return "A current officer review is required before closure.";
+  if (c.reply_draft?.status !== "sent") return "Release the citizen reply before closure.";
+  if (c.category === "education_aid_welfare" && !c.officer_review?.welfare_outcome) {
+    return "Record a human welfare outcome in the officer review before closure.";
+  }
+  if (c.officer_review?.resolution === "proceed" && c.status !== "in_progress") {
+    return "Proceed cases must start council work before closure.";
+  }
+  return null;
+}
 
 export default async function OfficerCaseDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -26,200 +74,218 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
     c.approval_task_id ? getApproval(c.approval_task_id) : Promise.resolve(null),
     listAudit(c.case_id),
   ]);
+  const nextAction = nextRequiredAction(c, approval);
+  const currentReview = hasCurrentReview(c);
+  const canResubmit = approval?.status === "rejected";
   const reply = c.reply_draft;
-  const actionBlocker = statusActionBlocker(c, approval);
 
   return (
     <div>
-      <Link href="/officer" className="text-xs text-slate-600 hover:underline">← Back to queue</Link>
+      <Link href="/officer" className="inline-flex min-h-11 items-center text-sm font-medium text-civic-800 underline-offset-4 hover:underline">
+        ← Back to case queue
+      </Link>
 
-      {/* Header */}
-      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="font-mono text-xl font-bold text-civic-700">{c.citizen_ref}</h1>
+      <header className="mt-3 border-b border-slate-200 pb-7">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="font-mono text-sm font-semibold text-civic-800">{c.citizen_ref}</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Review and decide</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Revision {c.triage_revision} · {LANGUAGE_NAMES[c.citizen_language]} · submitted {new Date(c.created_at).toLocaleString("en-MY", { dateStyle: "medium", timeStyle: "short" })}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={c.status} />
             <UrgencyBadge urgency={c.urgency} />
-            {c.pii_risk !== "low" && <PiiBadge risk={c.pii_risk} />}
+            {c.pii_risk !== "low" ? <Badge className="bg-red-100 text-red-800">PII review: {c.pii_risk}</Badge> : null}
           </div>
-          <p className="mt-1 text-xs text-slate-600">
-            {c.case_id} · {LANGUAGE_NAMES[c.detected_language]} · via {c.source_channel} · {new Date(c.created_at).toLocaleString("en-GB")}
+        </div>
+      </header>
+
+      <div className="space-y-8 pt-8">
+        <DecisionSection id="next-required-action" title="Next required action">
+          <div className="border-l-4 border-civic-700 bg-civic-50 px-5 py-4">
+            <p className="text-lg font-semibold text-civic-950">{nextAction.title}</p>
+            <p className="mt-1 text-sm leading-6 text-civic-950">{nextAction.detail}</p>
+          </div>
+        </DecisionSection>
+
+        <DecisionSection id="officer-review" title="Officer review">
+          <p className="max-w-3xl text-sm leading-6 text-slate-600">
+            The automated triage is a starting point. An officer confirms the facts, evidence, routing, and reply before anything is released or work begins.
           </p>
-        </div>
-        <StatusActions
-          caseId={c.case_id}
-          status={c.status}
-          blocker={actionBlocker}
-          officerReviewOnly={c.officer_review_only}
-        />
-      </div>
 
-      <div className="mt-5 grid gap-5 lg:grid-cols-3">
-        {/* Main column */}
-        <div className="space-y-5 lg:col-span-2">
-          {/* Citizen request */}
-          <Panel title="Citizen request">
-            <p className="text-sm text-slate-800">{c.original_text}</p>
-            <p className="mt-2 text-sm italic text-slate-500">EN: {c.translated_text_en}</p>
-            <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
-              <span>📍 {c.location_text || "—"}</span>
-              <span>📎 {c.media_refs.length > 0 ? c.media_refs.join(", ") : "no attachments"}</span>
-            </div>
-          </Panel>
-
-          {/* AI triage */}
-          <Panel title="AI triage" badge={<AiModeBadge mode={c.ai_mode} />}>
-            {c.manual_review_reason && (
-              <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                <p className="text-sm font-semibold text-amber-900">Manual review required</p>
-                <p className="mt-1 text-xs text-amber-800">{c.manual_review_reason}</p>
-              </div>
-            )}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Category" value={categoryLabel(c.category)} />
-              <Field
-                label={c.status === "manual_review" ? "Manual triage queue" : "Department / Unit"}
-                value={c.status === "manual_review" ? `${c.department} / ${c.unit} (manual triage)` : `${c.department} / ${c.unit}`}
-              />
-              <div className="sm:col-span-2">
-                <ConfidenceBar value={c.category_confidence} label="Classification confidence" />
-              </div>
-              {c.routing && (
-                <div className="sm:col-span-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
-                  <span className="font-medium text-slate-700">Routing ({c.routing.rule_id}):</span> {c.routing.rationale}
-                  <span className="ml-1 text-slate-600">SLA target: {c.routing.sla_hours}h.</span>
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.6fr)]">
+            <div>
+              <h3 className="font-semibold text-slate-950">Citizen request</h3>
+              <blockquote className="mt-3 border-l-2 border-slate-300 pl-4 text-base leading-7 text-slate-900">{c.original_text}</blockquote>
+              {c.translated_text_en !== c.original_text ? <p className="mt-3 text-sm leading-6 text-slate-600">English reference: {c.translated_text_en}</p> : null}
+              <dl className="mt-5 grid gap-4 sm:grid-cols-2">
+                <Fact label="Selected language" value={LANGUAGE_NAMES[c.citizen_language]} />
+                <Fact label="Detected language" value={LANGUAGE_NAMES[c.detected_language]} />
+                <Fact label="Category" value={categoryLabel(c.category)} />
+                <Fact label="Suggested team" value={`${c.department} / ${c.unit}`} />
+                <Fact label="Location" value={c.location_text || "Not supplied"} />
+                <Fact label="Attachments" value={c.media_refs.length > 0 ? c.media_refs.join(", ") : "None"} />
+              </dl>
+              {Object.keys(c.citizen_answers).length > 0 ? (
+                <div className="mt-6">
+                  <h3 className="font-semibold text-slate-950">Citizen follow-up details</h3>
+                  <dl className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
+                    {Object.entries(c.citizen_answers).map(([field, value]) => (
+                      <div key={field} className="grid gap-1 py-3 sm:grid-cols-[180px_1fr]">
+                        <dt className="text-sm font-medium capitalize text-slate-600">{field.replaceAll("_", " ")}</dt>
+                        <dd className="text-sm text-slate-900">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
-              )}
+              ) : null}
             </div>
-            {c.missing_info.length > 0 && (
-              <div className="mt-3">
-                <p className="text-xs font-medium text-slate-500">Missing-info detection</p>
-                <ul className="mt-1 space-y-1">
-                  {c.missing_info.map((m) => (
-                    <li key={m.field} className="text-xs text-slate-600">
-                      {m.satisfied ? "✓" : m.required ? "✗ (required)" : "○ (optional)"} {m.label}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </Panel>
 
-          {/* SOP citations */}
-          <Panel title="SOP / policy citations">
-            {c.citations.length > 0 ? (
-              <div className="space-y-3">
-                {c.citations.map((cit, i) => <CitationCard key={i} citation={cit} />)}
-              </div>
-            ) : (
-              <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                No citation above threshold — flagged for manual officer review (fallback).
-              </p>
-            )}
-          </Panel>
-
-          {/* Reply draft */}
-          <Panel
-            title="Citizen reply (AI draft)"
-            badge={reply ? <Badge className="bg-slate-100 text-slate-600">{reply.status}</Badge> : undefined}
-          >
-            {reply ? (
-              <>
-                <div className="rounded-lg border border-civic-100 bg-civic-50 p-3 text-sm text-slate-800">{reply.body}</div>
-                <details className="mt-2 text-xs text-slate-500">
-                  <summary className="cursor-pointer">English reference</summary>
-                  <p className="mt-1 text-slate-600">{reply.body_en}</p>
-                </details>
-                <div className="mt-3">
-                  <ReplyActions caseId={c.case_id} sent={reply.status === "sent"} />
+            <aside className="border-t border-slate-200 pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+              <h3 className="font-semibold text-slate-950">Triage snapshot</h3>
+              <dl className="mt-3 space-y-4">
+                <Fact label="Classification confidence" value={`${Math.round(c.category_confidence * 100)}%`} />
+                <Fact label="Processing mode" value={c.ai_mode === "llm" ? "Model-assisted" : "Deterministic rules"} />
+                <Fact label="Service target" value={c.routing ? `${c.routing.sla_hours} hours` : "Officer to confirm"} />
+                <Fact label="Current review" value={currentReview ? `Saved by ${c.officer_review?.officer}` : "Not saved for this revision"} />
+              </dl>
+              {c.manual_review_reason ? <p className="mt-5 border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">{c.manual_review_reason}</p> : null}
+              {c.missing_info.some((item) => item.required && !item.satisfied) ? (
+                <div className="mt-5">
+                  <h3 className="text-sm font-semibold text-slate-950">Still required</h3>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-slate-700">
+                    {c.missing_info.filter((item) => item.required && !item.satisfied).map((item) => <li key={item.field}>{item.label}</li>)}
+                  </ul>
                 </div>
-              </>
-            ) : (
-              <p className="text-sm text-slate-500">No reply drafted.</p>
-            )}
-          </Panel>
-        </div>
+              ) : null}
+            </aside>
+          </div>
 
-        {/* Sidebar */}
-        <div className="space-y-5">
-          {/* Approval */}
-          <Panel title="Supervisor approval">
-            {approval ? (
+          <div className="mt-8 border-t border-slate-300 pt-7">
+            <OfficerReviewForm
+              key={`${c.triage_revision}-${c.officer_review?.reviewed_at ?? "new"}`}
+              caseData={c}
+              canResubmit={canResubmit}
+            />
+          </div>
+        </DecisionSection>
+
+        <DecisionSection id="supervisor-decision" title="Supervisor decision">
+          {approval ? (
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.7fr)]">
               <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-slate-600">{approval.title}</span>
-                  <Badge
-                    className={
-                      approval.status === "pending"
-                        ? "bg-orange-100 text-orange-800"
-                        : approval.status === "approved"
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-red-100 text-red-800"
-                    }
-                  >
-                    {approval.status}
-                  </Badge>
+                <div className="flex flex-wrap items-center gap-3">
+                  <ApprovalBadge status={approval.status} />
+                  <span className="text-sm text-slate-600">Revision {approval.triage_revision}</span>
                 </div>
-                <p className="mt-2 text-xs text-slate-500">{approval.reason}</p>
-                <ul className="mt-2 space-y-1">
-                  {approval.risk_factors.map((rf, i) => (
-                    <li key={i} className="text-[12px] text-slate-600">⚠️ {rf}</li>
-                  ))}
-                </ul>
+                <h3 className="mt-4 text-lg font-semibold text-slate-950">{approval.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{approval.reason}</p>
+                {approval.risk_factors.length > 0 ? (
+                  <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+                    {approval.risk_factors.map((factor) => <li key={factor}>{factor}</li>)}
+                  </ul>
+                ) : null}
+                {approval.decision_by ? (
+                  <p className="mt-4 text-sm leading-6 text-slate-700">
+                    Decision by <span className="font-medium">{approval.decision_by}</span>{approval.decision_note ? ` — ${approval.decision_note}` : ""}
+                  </p>
+                ) : null}
+              </div>
+              <div>
                 {approval.status === "pending" ? (
-                  <div className="mt-3">
-                    <ApprovalActions approvalId={approval.approval_id} />
-                  </div>
+                  <ApprovalActions
+                    approvalId={approval.approval_id}
+                    triageRevision={c.triage_revision}
+                    disabledReason={!currentReview ? "Complete the officer review for this revision before the supervisor decides." : null}
+                  />
                 ) : (
-                  <p className="mt-3 rounded-lg bg-slate-50 p-2 text-[12px] text-slate-600">
-                    {approval.status === "approved" ? "Approved" : "Rejected"} by {approval.decision_by}
-                    {approval.decision_note ? ` — “${approval.decision_note}”` : ""}
+                  <p className="border-l-4 border-slate-300 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
+                    {approval.status === "superseded" ? "This task is historical and cannot be acted on." : "This supervisor decision is complete."}
                   </p>
                 )}
               </div>
-            ) : (
-              <p className="text-sm text-slate-500">
-                No supervisor approval required.
-                {c.category === "education_aid_welfare" ? " Eligibility is decided by an officer (no auto-approval)." : ""}
-              </p>
-            )}
-          </Panel>
+            </div>
+          ) : (
+            <p className="text-sm leading-6 text-slate-700">
+              {currentReview ? "No supervisor decision is required for the current reviewed facts." : "A supervisor task is created only after the officer review confirms that the current facts require one."}
+            </p>
+          )}
+        </DecisionSection>
 
-          {/* Audit */}
-          <Panel title="Audit evidence timeline">
-            <AuditTimeline events={audit} />
-          </Panel>
-        </div>
+        <DecisionSection id="citizen-reply" title="Citizen reply">
+          {reply ? (
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(240px,0.6fr)]">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge className={reply.status === "sent" ? "bg-emerald-100 text-emerald-800" : reply.status === "approved" ? "bg-civic-100 text-civic-800" : "bg-slate-100 text-slate-700"}>
+                    {reply.status === "sent" ? "Released" : reply.status === "approved" ? "Officer approved" : "Draft"}
+                  </Badge>
+                  <span className="text-sm text-slate-600">{LANGUAGE_NAMES[reply.language]}</span>
+                </div>
+                <div className="mt-4 border-y border-civic-200 bg-civic-50 px-4 py-5 text-sm leading-7 text-slate-900">{reply.body}</div>
+                <details className="mt-4 text-sm text-slate-600">
+                  <summary className="cursor-pointer font-medium text-slate-800">English reference</summary>
+                  <p className="mt-2 leading-6">{reply.body_en}</p>
+                </details>
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-950">Release control</h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600">Saving a review approves the draft. Releasing it is a separate human action.</p>
+                <div className="mt-4">
+                  <ReplyActions caseId={c.case_id} triageRevision={c.triage_revision} sent={reply.status === "sent"} blocker={replyBlocker(c, approval)} />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-700">No citizen reply draft is available.</p>
+          )}
+        </DecisionSection>
+
+        <DecisionSection id="start-or-close" title="Start or close">
+          <StatusActions
+            caseId={c.case_id}
+            triageRevision={c.triage_revision}
+            status={c.status}
+            startBlocker={startBlocker(c, approval)}
+            closeBlocker={closeBlocker(c)}
+          />
+        </DecisionSection>
+
+        <DecisionSection id="audit-trail" title="Audit trail">
+          <p className="mb-5 text-sm leading-6 text-slate-600">Append-only evidence for every automated step and human action on this case.</p>
+          <AuditTimeline events={audit.slice().reverse()} />
+        </DecisionSection>
       </div>
     </div>
   );
 }
 
-function Panel({ title, badge, children }: { title: string; badge?: React.ReactNode; children: React.ReactNode }) {
+function DecisionSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h2>
-        {badge}
-      </div>
+    <section aria-labelledby={`${id}-heading`} className="border-b border-slate-200 bg-white pb-8">
+      <h2 id={`${id}-heading`} className="mb-5 text-xl font-semibold tracking-tight text-slate-950">{title}</h2>
       {children}
     </section>
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[11px] uppercase tracking-wide text-slate-600">{label}</div>
-      <div className="text-sm font-medium text-slate-800">{value}</div>
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="mt-1 text-sm font-medium leading-6 text-slate-900">{value}</dd>
     </div>
   );
 }
 
-function AiModeBadge({ mode }: { mode: string }) {
-  return mode === "llm" ? (
-    <Badge className="bg-indigo-100 text-indigo-700">LLM-assisted</Badge>
-  ) : (
-    <Badge className="bg-slate-100 text-slate-600">Deterministic engine</Badge>
-  );
+function ApprovalBadge({ status }: { status: ApprovalTask["status"] }) {
+  const style = {
+    pending: "bg-amber-100 text-amber-900",
+    approved: "bg-emerald-100 text-emerald-800",
+    rejected: "bg-red-100 text-red-800",
+    superseded: "bg-slate-200 text-slate-700",
+  }[status];
+  return <Badge className={style}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>;
 }
