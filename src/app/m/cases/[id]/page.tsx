@@ -137,7 +137,13 @@ export default async function CitizenCasePage({
           {showAssignment ? (
             <SummaryItem
               label={t(language, "status.assigned_to")}
-              value={<span lang={language === "en" ? undefined : "en"}>{c.department} — {c.unit}</span>}
+              value={(
+                <>
+                  <span data-language-part="department" lang="en">{c.department}</span>
+                  <span aria-hidden="true"> — </span>
+                  <span data-language-part="unit" lang="en">{c.unit}</span>
+                </>
+              )}
             />
           ) : null}
         </dl>

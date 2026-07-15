@@ -4,11 +4,30 @@ import { chromium } from "playwright";
 const port = Number(process.env.CIVICFLOW_CITIZEN_SMOKE_PORT || 3013);
 const baseUrl = process.env.CIVICFLOW_CITIZEN_BASE_URL || `http://127.0.0.1:${port}`;
 const startServer = !process.env.CIVICFLOW_CITIZEN_BASE_URL;
+const languageNames = { en: "English", ms: "Bahasa Melayu", zh: "中文", ta: "தமிழ்" };
 const localizedErrors = {
-  en: "We could not review this request. Please try again.",
-  ms: "Kami tidak dapat menyemak permintaan ini. Sila cuba lagi.",
-  zh: "我们无法检查此请求。请重试。",
-  ta: "இந்த கோரிக்கையைச் சரிபார்க்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+  en: {
+    review: "We could not review this request. Please try again.",
+    synthetic: "Use synthetic example details only. Do not enter real personal data.",
+  },
+  ms: {
+    review: "Kami tidak dapat menyemak permintaan ini. Sila cuba lagi.",
+    synthetic: "Gunakan butiran contoh sintetik sahaja. Jangan masukkan data peribadi sebenar.",
+  },
+  zh: {
+    review: "我们无法检查此请求。请重试。",
+    synthetic: "请仅使用合成示例资料。请勿输入真实个人资料。",
+  },
+  ta: {
+    review: "இந்த கோரிக்கையைச் சரிபார்க்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+    synthetic: "செயற்கையான எடுத்துக்காட்டு விவரங்களை மட்டும் பயன்படுத்தவும். உண்மையான தனிப்பட்ட தரவை உள்ளிட வேண்டாம்.",
+  },
+};
+const localizedBusinessRequests = {
+  en: "I need a business licence for a synthetic food stall.",
+  ms: "Saya mahu memohon lesen gerai makanan sintetik.",
+  zh: "我要申请合成示例小食档执照，需要什么文件？",
+  ta: "செயற்கை உணவுக் கடைக்கு வணிக உரிமம் தேவை.",
 };
 const notFoundCopy = {
   en: { title: "Case not found", action: "Back to case tracking" },
@@ -55,15 +74,33 @@ async function main() {
   try {
     await waitForServer();
     await fetch(`${baseUrl}/api/reset`, { method: "POST" });
+    const localizedTrackingHtml = await (await fetch(`${baseUrl}/m?view=track&lang=zh`)).text();
+    const newPanelTag = localizedTrackingHtml.match(/<div[^>]*id="citizen-panel-new"[^>]*>/)?.[0] ?? "";
+    const trackPanelTag = localizedTrackingHtml.match(/<div[^>]*id="citizen-panel-track"[^>]*>/)?.[0] ?? "";
+    assert(!localizedTrackingHtml.includes("<!--$?-->") && !localizedTrackingHtml.includes('<template id="B:0"'), "Citizen server HTML leaves the primary content behind a streamed Suspense fallback");
+    assert(localizedTrackingHtml.includes("查询个案"), "Citizen server HTML omits localized content before hydration");
+    assert(/\shidden(?:="")?/.test(newPanelTag) && !/\shidden(?:="")?/.test(trackPanelTag), "Citizen server HTML does not preserve ?view=track before hydration");
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     const failures = [];
-    let expectTriageFailure = false;
+    const consoleMessages = [];
+    let expectedApiFailure = null;
     let expectNotFound = false;
     page.on("pageerror", (error) => failures.push(`pageerror: ${error.message}`));
     page.on("console", (message) => {
-      if (["error", "warning"].includes(message.type()) && !expectTriageFailure && !expectNotFound) {
-        failures.push(`console ${message.type()}: ${message.text()}`);
+      if (["error", "warning"].includes(message.type())) {
+        const text = message.text();
+        const exactExpectedApiMessage = expectedApiFailure
+          ? `Failed to load resource: the server responded with a status of ${expectedApiFailure.status} (${expectedApiFailure.statusText})`
+          : null;
+        consoleMessages.push({
+          type: message.type(),
+          text,
+          expected: message.type() === "error" && (
+            (exactExpectedApiMessage !== null && text === exactExpectedApiMessage)
+            || (expectNotFound && text === "Failed to load resource: the server responded with a status of 404 (Not Found)")
+          ),
+        });
       }
     });
     page.on("requestfailed", (request) => {
@@ -83,13 +120,32 @@ async function main() {
       const url = new URL(response.url());
       const expectedInvalidPage = response.status() === 404
         && (url.pathname === "/not-a-real-page" || url.pathname.startsWith("/m/cases/CF-NOTREAL"));
-      const expectedApiFailure = expectTriageFailure
-        && response.status() === 500
-        && url.pathname === "/api/triage";
-      if (response.url().startsWith(baseUrl) && response.status() >= 400 && !expectedInvalidPage && !expectedApiFailure) {
+      const exactExpectedApiFailure = expectedApiFailure
+        && response.request().method() === expectedApiFailure.method
+        && response.status() === expectedApiFailure.status
+        && url.pathname === expectedApiFailure.pathname;
+      if (response.url().startsWith(baseUrl) && response.status() >= 400 && !expectedInvalidPage && !exactExpectedApiFailure) {
         failures.push(`HTTP ${response.status()}: ${response.url()}`);
       }
     });
+
+    async function withExpectedApiFailure({ method, pathname, status, statusText, body }, action) {
+      const pattern = `**${pathname}`;
+      const handler = (route) => route.fulfill({
+        status,
+        contentType: "application/json",
+        body: JSON.stringify(body),
+      });
+      await page.route(pattern, handler);
+      expectedApiFailure = { method, pathname, status, statusText };
+      try {
+        await action();
+        await page.waitForTimeout(25);
+      } finally {
+        expectedApiFailure = null;
+        await page.unroute(pattern, handler);
+      }
+    }
 
     await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
     await page.getByRole("link", { name: /citizen services/i }).waitFor();
@@ -127,21 +183,80 @@ async function main() {
     assert((await page.locator('a[href^="/officer"]').count()) === 0, "citizen route leaks an officer link");
     assert((await page.getByText(/mock photo|attach mock/i).count()) === 0, "citizen route exposes fake media controls");
 
-    expectTriageFailure = true;
-    await page.route("**/api/triage", (route) => route.fulfill({
+    await withExpectedApiFailure({
+      method: "POST",
+      pathname: "/api/triage",
       status: 500,
-      contentType: "application/json",
-      body: JSON.stringify({ error: "Raw English API failure" }),
-    }));
-    for (const [locale, languageName] of Object.entries({ en: "English", ms: "Bahasa Melayu", zh: "中文", ta: "தமிழ்" })) {
-      await page.getByRole("button", { name: languageName, exact: true }).click();
-      await page.locator("#citizen-request").fill("Synthetic request used to verify localized errors.");
+      statusText: "Internal Server Error",
+      body: { error: "Raw English API failure" },
+    }, async () => {
+      for (const [locale, languageName] of Object.entries(languageNames)) {
+        await page.getByRole("button", { name: languageName, exact: true }).click();
+        await page.locator("#citizen-request").fill("Synthetic request used to verify localized errors.");
+        await page.locator('#citizen-panel-new form button[type="submit"]').click();
+        await page.getByRole("alert").filter({ hasText: localizedErrors[locale].review }).waitFor();
+        assert(await page.getByText("Raw English API failure", { exact: true }).count() === 0, `${locale} citizen UI exposed a raw triage API error`);
+      }
+    });
+
+    for (const locale of Object.keys(languageNames)) {
+      await page.goto(`${baseUrl}/m?lang=${locale}`, { waitUntil: "networkidle" });
+      await page.locator("#citizen-request").fill(localizedBusinessRequests[locale]);
       await page.locator('#citizen-panel-new form button[type="submit"]').click();
-      await page.getByRole("alert").filter({ hasText: localizedErrors[locale] }).waitFor();
-      assert(await page.getByText("Raw English API failure", { exact: true }).count() === 0, `${locale} citizen UI exposed a raw API error`);
+      await page.locator('#citizen-panel-new h2[tabindex="-1"]').waitFor();
+      const submitButton = page.locator('#citizen-panel-new section > button[type="button"]').last();
+      if (await submitButton.isDisabled()) {
+        const keepSelectedLanguage = page.locator('#citizen-panel-new section button[aria-pressed]').first();
+        assert(await keepSelectedLanguage.count() === 1, `${locale} review could not confirm the selected language`);
+        await keepSelectedLanguage.click();
+      }
+      await withExpectedApiFailure({
+        method: "POST",
+        pathname: "/api/cases",
+        status: 422,
+        statusText: "Unprocessable Entity",
+        body: { code: "synthetic_data_only", error: "Use synthetic example details only." },
+      }, async () => {
+        await submitButton.click();
+        const alert = page.getByRole("alert").filter({ hasText: localizedErrors[locale].synthetic });
+        await alert.waitFor();
+        assert(await alert.innerText() === localizedErrors[locale].synthetic, `${locale} submit failure was not the exact localized synthetic-data message`);
+        assert(await page.getByText("Use synthetic example details only.", { exact: true }).count() === 0, `${locale} submit exposed the raw English API message`);
+      });
     }
-    await page.unroute("**/api/triage");
-    expectTriageFailure = false;
+
+    for (const locale of Object.keys(languageNames)) {
+      const fixtureResponse = await page.request.post(`${baseUrl}/api/cases`, {
+        data: { text: localizedBusinessRequests[locale], language: locale, answers: {} },
+      });
+      assert(fixtureResponse.status() === 201, `${locale} follow-up fixture creation returned ${fixtureResponse.status()}`);
+      const fixture = await fixtureResponse.json();
+      assert(fixture.status === "needs_info" && fixture.missing_info.some((item) => item.required && !item.satisfied), `${locale} follow-up fixture is not awaiting required details`);
+      await page.goto(`${baseUrl}/m/cases/${fixture.citizen_ref}`, { waitUntil: "networkidle" });
+      assert(await page.locator(`main [lang="${locale}"]`).count() === 1, `${locale} follow-up page does not declare its language`);
+      const inputs = page.locator('form input[id^="follow-up-"]');
+      const inputCount = await inputs.count();
+      assert(inputCount > 0, `${locale} follow-up fixture rendered no required fields`);
+      for (let index = 0; index < inputCount; index += 1) {
+        await inputs.nth(index).fill(`Synthetic detail ${index + 1}`);
+      }
+      const pathname = `/api/cases/${fixture.citizen_ref}`;
+      await withExpectedApiFailure({
+        method: "PATCH",
+        pathname,
+        status: 422,
+        statusText: "Unprocessable Entity",
+        body: { code: "synthetic_data_only", error: "Use synthetic example details only." },
+      }, async () => {
+        await page.locator('form button[type="submit"]').click();
+        const alert = page.getByRole("alert").filter({ hasText: localizedErrors[locale].synthetic });
+        await alert.waitFor();
+        assert(await alert.innerText() === localizedErrors[locale].synthetic, `${locale} follow-up failure was not the exact localized synthetic-data message`);
+        assert(await page.getByText("Use synthetic example details only.", { exact: true }).count() === 0, `${locale} follow-up exposed the raw English API message`);
+      });
+    }
+
+    await page.goto(`${baseUrl}/m`, { waitUntil: "networkidle" });
     await page.getByRole("button", { name: "English", exact: true }).click();
 
     await page.setViewportSize({ width: 320, height: 700 });
@@ -197,10 +312,62 @@ async function main() {
     const trackingOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert(trackingOverflow <= 1, `320px tracked case overflows horizontally by ${trackingOverflow}px`);
 
-    await page.goto(`${baseUrl}/m/cases/CF-LMP001`, { waitUntil: "networkidle" });
-    assert(await page.locator('dd [lang="en"]').count() > 0, "Official department and unit names are not marked as English in Tamil status content");
-    await page.goto(`${baseUrl}/m/cases/CF-LMP001/reply`, { waitUntil: "networkidle" });
-    assert(await page.locator('[lang="en"]').filter({ hasText: /Street Lighting|Officer Aishah|Streetlight/ }).count() > 0, "Official reply names are not marked as English in Tamil content");
+    const languagePartsResponse = await page.request.post(`${baseUrl}/api/cases`, {
+      data: {
+        text: localizedBusinessRequests.zh,
+        language: "zh",
+        location_text: "Synthetic Market A",
+        answers: {
+          location: "Synthetic Market A",
+          business_type: "Synthetic food stall",
+          operating_hours: "09:00 to 17:00",
+        },
+      },
+    });
+    assert(languagePartsResponse.status() === 201, `Language-parts fixture creation returned ${languagePartsResponse.status()}`);
+    const languagePartsCase = await languagePartsResponse.json();
+    assert(languagePartsCase.status === "routed" && languagePartsCase.citations.length > 0 && languagePartsCase.reply_draft, "Language-parts fixture is not a cited routed case with a reply draft");
+    const reviewResponse = await page.request.post(`${baseUrl}/api/cases/${languagePartsCase.case_id}/review`, {
+      data: {
+        triage_revision: languagePartsCase.triage_revision,
+        officer: "Officer Aishah (demo)",
+        note: "Reviewed against synthetic policy evidence.",
+        citizen_language: "zh",
+        category: languagePartsCase.category,
+        routing: { department: languagePartsCase.department, unit: languagePartsCase.unit },
+        citation_keys: languagePartsCase.citations.map(({ source_doc, section }) => ({ source_doc, section })),
+        reply_body: languagePartsCase.reply_draft.body,
+        reply_body_en: languagePartsCase.reply_draft.body_en,
+        resolution: "proceed",
+      },
+    });
+    assert(reviewResponse.status() === 200, `Language-parts officer review returned ${reviewResponse.status()}`);
+    const reviewedLanguagePartsCase = await reviewResponse.json();
+    const releaseResponse = await page.request.post(`${baseUrl}/api/cases/${languagePartsCase.case_id}/reply`, {
+      data: { triage_revision: reviewedLanguagePartsCase.triage_revision, officer: "Officer Aishah (demo)" },
+    });
+    assert(releaseResponse.status() === 200, `Language-parts reply release returned ${releaseResponse.status()}`);
+
+    await page.goto(`${baseUrl}/m/cases/${languagePartsCase.citizen_ref}`, { waitUntil: "networkidle" });
+    const statusDepartment = page.locator('[data-language-part="department"]');
+    const statusUnit = page.locator('[data-language-part="unit"]');
+    assert(await statusDepartment.count() === 1 && await statusDepartment.innerText() === "Licensing" && await statusDepartment.getAttribute("lang") === "en", "Chinese status does not mark the department as an English language part");
+    assert(await statusUnit.count() === 1 && await statusUnit.innerText() === "Licensing Unit" && await statusUnit.getAttribute("lang") === "en", "Chinese status does not mark the unit as an English language part");
+    await page.goto(`${baseUrl}/m/cases/${languagePartsCase.citizen_ref}/reply`, { waitUntil: "networkidle" });
+    const replyDepartment = page.locator('[data-language-part="department"]');
+    const replyUnit = page.locator('[data-language-part="unit"]');
+    const replyApprover = page.locator('[data-language-part="approver"]');
+    assert(await replyDepartment.count() === 1 && await replyDepartment.innerText() === "Licensing" && await replyDepartment.getAttribute("lang") === "en", "Chinese reply does not mark the department as an English language part");
+    assert(await replyUnit.count() === 1 && await replyUnit.innerText() === "Licensing Unit" && await replyUnit.getAttribute("lang") === "en", "Chinese reply does not mark the unit as an English language part");
+    assert(await replyApprover.count() === 1 && await replyApprover.innerText() === "Officer Aishah (demo)" && await replyApprover.getAttribute("lang") === "en", "Chinese reply does not mark the approver as an English language part");
+    const policyTitles = page.locator('[data-language-part="policy-title"]');
+    const policySections = page.locator('[data-language-part="policy-section"]');
+    const citationCount = await policyTitles.count();
+    assert(citationCount > 0 && await policySections.count() === citationCount, "Chinese reply does not expose matching policy title and section language parts");
+    for (let index = 0; index < citationCount; index += 1) {
+      assert(await policyTitles.nth(index).getAttribute("lang") === "en" && (await policyTitles.nth(index).innerText()).trim().length > 0, `Policy title ${index + 1} is not a non-empty English language part`);
+      assert(await policySections.nth(index).getAttribute("lang") === "en" && (await policySections.nth(index).innerText()).trim().length > 0, `Policy section ${index + 1} is not a non-empty English language part`);
+    }
 
     expectNotFound = true;
     for (const [locale, copy] of Object.entries(notFoundCopy)) {
@@ -236,6 +403,9 @@ async function main() {
       }), "Global not-found action has no visible focus indicator");
     }
     expectNotFound = false;
+    failures.push(...consoleMessages
+      .filter((message) => !message.expected)
+      .map((message) => `console ${message.type}: ${message.text}`));
     assert(failures.length === 0, failures.join("\n"));
     console.log("Citizen UI smoke passed");
   } finally {

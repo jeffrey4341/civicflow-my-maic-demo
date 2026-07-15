@@ -34,8 +34,14 @@ export function CitizenFollowUpForm({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ triage_revision: triageRevision, answers }),
       });
-      await response.json().catch(() => null);
-      if (!response.ok) throw new Error();
+      const body = await response.json().catch(() => null);
+      if (!response.ok) {
+        const code = body && typeof body === "object" && "code" in body
+          ? (body as { code?: unknown }).code
+          : undefined;
+        setError(t(language, code === "synthetic_data_only" ? "error.synthetic_data_only" : "error.follow_up"));
+        return;
+      }
       router.replace(`/m/cases/${encodeURIComponent(citizenRef)}?updated=1#case-update-status`);
     } catch {
       setError(t(language, "error.follow_up"));

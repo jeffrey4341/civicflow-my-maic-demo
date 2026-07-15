@@ -289,6 +289,14 @@ async function main() {
       const style = getComputedStyle(element);
       return style.outlineStyle !== "none" || style.boxShadow !== "none";
     }), "Focused audit table region has no visible focus indicator");
+    const auditCanScroll = await auditRegion.evaluate((element) => {
+      element.scrollLeft = 0;
+      return element.scrollWidth > element.clientWidth;
+    });
+    assert(auditCanScroll, "Audit table region does not expose its overflow content");
+    await auditRegion.press("ArrowRight");
+    await page.waitForTimeout(100);
+    assert(await auditRegion.evaluate((element) => element.scrollLeft > 0), "ArrowRight does not provide keyboard access to hidden audit columns");
     await page.getByText("Scroll horizontally to view all audit columns.", { exact: true }).waitFor();
     const auditOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert(auditOverflow <= 1, `320px audit view overflows the page by ${auditOverflow}px`);

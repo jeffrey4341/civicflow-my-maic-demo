@@ -28,9 +28,15 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
         {ready && reply ? (
           <>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              {t(language, "reply.from")}: <span lang={language === "en" ? undefined : "en"}>{c.department} — {c.unit}
-                {reply.approved_by ? ` · ${reply.approved_by}` : ""}
-              </span>
+              {t(language, "reply.from")}: <span data-language-part="department" lang="en">{c.department}</span>
+              <span aria-hidden="true"> — </span>
+              <span data-language-part="unit" lang="en">{c.unit}</span>
+              {reply.approved_by ? (
+                <>
+                  <span aria-hidden="true"> · </span>
+                  <span data-language-part="approver" lang="en">{reply.approved_by}</span>
+                </>
+              ) : null}
             </p>
             <div className="mt-6 border-y border-civic-200 bg-civic-50 px-4 py-5 text-base leading-7 text-slate-900">
               {reply.body}
@@ -41,8 +47,8 @@ export default async function CitizenReplyPage({ params }: { params: Promise<{ i
                 <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
                   {reply.citations.map((citation) => (
                     <li key={`${citation.source_doc}-${citation.section}`} className="py-3 text-sm leading-6 text-slate-700">
-                      <span lang={language === "en" ? undefined : "en"} className="font-medium text-slate-900">{citation.doc_title}</span>
-                      <span lang={language === "en" ? undefined : "en"} className="block">{citation.section}</span>
+                      <span data-language-part="policy-title" lang="en" className="font-medium text-slate-900">{citation.doc_title}</span>
+                      <span data-language-part="policy-section" lang="en" className="block">{citation.section}</span>
                     </li>
                   ))}
                 </ul>
