@@ -31,7 +31,7 @@ Each MAIC T5 sub-theme maps to a concrete, auditable capability already implemen
 ### 2.1 Citizen Agents
 A mobile-first intake agent turns an unstructured citizen request into a structured `CitizenCase`, detects missing information, and produces a draft reply — all before a human officer touches it.
 
-- [ ] Mobile intake wizard at `/m`: language selection → free-text request → clarifying questions — see [src/app/m/page.tsx](../../src/app/m/page.tsx)
+- [ ] Mobile citizen service at `/m`: new request or tracking, language confirmation, review-before-submit, and structured follow-up questions — see [src/app/m/page.tsx](../../src/app/m/page.tsx)
 - [ ] 8-stage triage pipeline orchestrated end-to-end — see [src/lib/ai/pipeline.ts](../../src/lib/ai/pipeline.ts)
 - [ ] Missing-information detection forces `needs_info` instead of guessing — see [src/lib/ai/pipeline.ts](../../src/lib/ai/pipeline.ts)
 
@@ -56,7 +56,7 @@ Native handling of the four Malaysian citizen languages: **Malay (ms), English (
 
 - [ ] Language detection via Unicode script blocks + keyword heuristics — see [src/lib/ai/language.ts](../../src/lib/ai/language.ts)
 - [ ] All citizen-facing strings localized for all four languages — see [src/lib/i18n.ts](../../src/lib/i18n.ts)
-- [ ] Citizen reply drafted in the **detected** language (`CitizenReplyDraft.body_localized`)
+- [ ] Citizen reply drafted in the citizen-confirmed case language (`CitizenReplyDraft.language` / `CitizenReplyDraft.body`); detected language remains visible for review
 - [ ] Optional Anthropic Claude path refines detection/classification **only** when `ANTHROPIC_API_KEY` is set; deterministic fallback otherwise — see [src/lib/llm.ts](../../src/lib/llm.ts)
 
 ### 2.5 Civic Tech (transparency & safety)
@@ -103,8 +103,11 @@ All gates below are reported as **passing** in the audit trail; re-run them on t
 
 ### 4.1 Build, types, tests, dependencies
 - [ ] `npm run typecheck` — TypeScript compiles clean (`tsc --noEmit`)
-- [ ] `npm test` — Vitest passes (**9 test files / 48 tests**, including governance, LLM parity, RAG eval, and public-demo UI guard suites)
+- [ ] `npm test` — Vitest passes (**10 test files / 57 tests**, including governance, LLM parity, RAG evaluation, citizen detail integrity, and officer lifecycle review)
 - [ ] `npm run build` — Next.js **15.5.19** production build completes; all routes build (`/m`, `/officer`, `/officer/cases/[id]`, `/officer/approvals`, `/officer/audit`, `/api/*`)
+- [ ] `npm run smoke:citizen` — real mobile flow covers language mismatch confirmation, needs-info submission, structured follow-up, tracking, and 320 px overflow
+- [ ] `npm run smoke:officer` — real staff flow covers search/default closed filtering, officer review, reply release, explicit work start, and note-gated closure
+- [ ] `npm run smoke:e2e` — production-server smoke covers the four canonical governance paths and route rendering
 - [ ] `npm run lint` — passes (note: aliases to `tsc --noEmit`, not full ESLint)
 - [ ] `npm audit --omit=dev --audit-level=moderate` — **0 vulnerabilities** in production deps; PostCSS pinned via `overrides` to `8.5.15` — see [package.json](../../package.json)
 
@@ -121,10 +124,10 @@ Launch: `npm run build && npm run start -- --hostname 127.0.0.1 --port 3000` (us
 ### 4.3 Governance behavior (P0 — must hold)
 - [ ] Malay flood-risk drainage case (`"Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat."`) → `awaiting_supervisor`; start/close blocked until a supervisor approves with a note
 - [ ] Chinese food-stall licence query → `needs_info` with missing fields (location, business type, operating hours); start/close blocked
-- [ ] English education-aid question (`"Can I apply for education aid for my child?"`) → `officer_review_only = true`; shows "Start officer review", no auto-approve / generic close
+- [ ] English education-aid question (`"Can I apply for education aid for my child?"`) → `officer_review_only = true`; requires a recorded human welfare outcome and never auto-approves eligibility
 - [ ] Unknown/general enquiry with no qualifying citation → `manual_review`; start/close blocked
 - [ ] Attempting a blocked status transition (e.g. `POST /api/cases/{id}/status` → `in_progress`) is rejected and logged as a `status.denied` audit event
-- [ ] Officer UI hides unsafe status buttons on gated cases and shows the blocker reason
+- [ ] Officer UI orders each case by **Next required action** and keeps review, supervisor decision, reply release, start work, and note-gated closure as separate controls with blocker reasons
 - [ ] `/officer/audit` shows the full per-case trail: language detection → classification → retrieval → routing → approval → reply draft → status changes (and denials)
 
 ### 4.4 Public-artifact safety

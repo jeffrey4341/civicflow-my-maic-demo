@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import fs from "node:fs/promises";
+import { createServer } from "node:net";
 import path from "node:path";
 import { chromium } from "playwright";
 
@@ -9,166 +11,303 @@ const baseUrl = process.env.CIVICFLOW_BASE_URL || `http://127.0.0.1:${port}`;
 const startServer = process.env.CIVICFLOW_SMOKE_START_SERVER !== "0" && !process.env.CIVICFLOW_BASE_URL;
 const screenshotDir = path.join(root, "output", "playwright", "maic-smoke");
 
-const cases = {
+const CASE_TEXT = {
   drainage: "Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat.",
   licence: "\u6211\u8981\u7533\u8bf7\u5c0f\u98df\u6863\u6267\u7167\uff0c\u9700\u8981\u4ec0\u4e48\u6587\u4ef6\uff1f",
   welfare: "Can I apply for education aid for my child?",
-  unknown: "QWERTY zzzz unrelated demo text.",
+  unknown: "QWERTY zzzz unrelated synthetic demo text.",
 };
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-async function sleep(ms) {
-  await new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForServer(url) {
-  const deadline = Date.now() + 45000;
-  while (Date.now() < deadline) {
-    try {
-      const res = await fetch(`${url}/m`);
-      if (res.ok) return;
-    } catch {
-      // Retry until the production server is ready.
-    }
-    await sleep(600);
-  }
-  throw new Error(`Server did not become ready at ${url}`);
-}
-
-async function requestJson(method, endpoint, body) {
-  const res = await fetch(`${baseUrl}${endpoint}`, {
-    method,
-    headers: body ? { "content-type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
+async function assertPortAvailable() {
+  await new Promise((resolve, reject) => {
+    const probe = createServer();
+    probe.once("error", () => reject(new Error(`Port ${port} is already in use; refusing to attach to a server this smoke did not start.`)));
+    probe.once("listening", () => probe.close(resolve));
+    probe.listen(port, "127.0.0.1");
   });
-  const text = await res.text();
+}
+
+async function waitForServer(server, getLaunchError) {
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    if (getLaunchError()) throw getLaunchError();
+    if (server?.exitCode != null) throw new Error(`Next production server exited early with code ${server.exitCode}.`);
+    try {
+      const response = await fetch(`${baseUrl}/m`);
+      if (response.ok) return;
+    } catch {
+      // Production server is still starting.
+    }
+    await sleep(500);
+  }
+  throw new Error(`Production server did not become ready at ${baseUrl}`);
+}
+
+async function stopServer(server) {
+  if (!server?.pid || server.exitCode !== null) return;
+  if (process.platform === "win32") {
+    await new Promise((resolve) => {
+      const killer = spawn("taskkill", ["/pid", String(server.pid), "/T", "/F"], {
+        stdio: "ignore",
+        windowsHide: true,
+      });
+      killer.once("error", resolve);
+      killer.once("exit", resolve);
+    });
+    return;
+  }
+  const exited = once(server, "exit");
+  server.kill("SIGTERM");
+  await Promise.race([exited, sleep(3_000)]);
+  if (server.exitCode === null) server.kill("SIGKILL");
+}
+
+async function rawRequest(method, endpoint, body) {
+  const response = await fetch(`${baseUrl}${endpoint}`, {
+    method,
+    headers: body === undefined ? undefined : { "content-type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const text = await response.text();
   let json = null;
   try {
     json = text ? JSON.parse(text) : null;
   } catch {
     throw new Error(`${method} ${endpoint} returned non-JSON: ${text.slice(0, 160)}`);
   }
-  if (!res.ok) {
-    throw new Error(`${method} ${endpoint} failed with ${res.status}: ${text.slice(0, 240)}`);
-  }
-  return json;
+  return { response, json, text };
 }
 
-async function submitCase(text, language = "en") {
+async function requestJson(method, endpoint, body) {
+  const result = await rawRequest(method, endpoint, body);
+  if (!result.response.ok) {
+    throw new Error(`${method} ${endpoint} failed with ${result.response.status}: ${result.text.slice(0, 240)}`);
+  }
+  return result.json;
+}
+
+async function submitCase({ text, language, locationText, answers }) {
   return requestJson("POST", "/api/cases", {
     text,
     language,
-    location_text: "Jalan Demo, Taman Demo",
-    media_refs: ["photo:smoke-demo.jpg"],
+    location_text: locationText,
+    answers,
+    media_refs: [],
+    source_channel: "web",
   });
 }
 
+function reviewPayload(c, overrides = {}) {
+  return {
+    triage_revision: c.triage_revision,
+    officer: "Officer Tan (demo)",
+    note: "Reviewed the synthetic request, routing, policy evidence, and citizen reply.",
+    citizen_language: c.citizen_language,
+    category: c.category,
+    routing: { department: c.department, unit: c.unit },
+    citation_keys: c.citations.map(({ source_doc, section }) => ({ source_doc, section })),
+    reply_body: "Officer-reviewed synthetic citizen reply for this demo case.",
+    reply_body_en: "Officer-reviewed synthetic citizen reply for this demo case.",
+    resolution: "proceed",
+    welfare_outcome: null,
+    ...overrides,
+  };
+}
+
 async function expectVisibleText(page, text, label) {
-  await page.getByText(text, { exact: false }).first().waitFor({ timeout: 12000 });
+  await page.getByText(text, { exact: false }).first().waitFor({ timeout: 15_000 });
   console.log(`ok: ${label}`);
 }
 
 async function main() {
   await fs.mkdir(screenshotDir, { recursive: true });
-
   let server = null;
+  let launchError = null;
+  let browser = null;
+
   if (startServer) {
+    await assertPortAvailable();
     server = spawn(
       process.execPath,
       ["node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)],
       { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
     );
+    server.once("error", (error) => { launchError = error; });
     server.stdout.on("data", (chunk) => process.stdout.write(`[next] ${chunk}`));
     server.stderr.on("data", (chunk) => process.stderr.write(`[next] ${chunk}`));
   }
 
   try {
-    await waitForServer(baseUrl);
+    await waitForServer(server, () => launchError);
     const reset = await requestJson("POST", "/api/reset");
-    assert(reset.ok === true, "reset endpoint did not return ok=true");
+    assert(reset.ok === true, "POST /api/reset did not return ok=true.");
 
-    const drainage = await submitCase(cases.drainage, "ms");
-    assert(drainage.status === "awaiting_supervisor", "drainage case must await supervisor");
-    assert(drainage.approval_task_id, "drainage case must create approval task");
-    assert(drainage.citations.length > 0, "drainage case must include citations");
-
-    const startAttempt = await fetch(`${baseUrl}/api/cases/${drainage.case_id}/status`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: "in_progress", officer: "Smoke Officer" }),
+    let drainage = await submitCase({
+      text: CASE_TEXT.drainage,
+      language: "ms",
+      locationText: "Jalan Demo, Taman Demo",
+      answers: { location: "Jalan Demo, Taman Demo" },
     });
-    assert(startAttempt.status === 400, "pending flood-risk case should block generic start");
+    assert(drainage.status === "awaiting_supervisor", `Flood-risk drainage should await a supervisor, got ${drainage.status}.`);
+    assert(drainage.approval_task_id, "Flood-risk drainage did not create an approval task.");
+    assert(drainage.citations.length > 0, "Flood-risk drainage has no policy citation.");
 
-    const licence = await submitCase(cases.licence, "zh");
-    assert(licence.status === "needs_info", "licence case must require missing information");
-    assert(
-      licence.missing_info.some((item) => item.field === "location") &&
-        licence.missing_info.some((item) => item.field === "business_type") &&
-        licence.missing_info.some((item) => item.field === "operating_hours"),
-      "licence case must include required missing fields",
-    );
-
-    const welfare = await submitCase(cases.welfare, "en");
-    assert(welfare.officer_review_only === true, "welfare case must be officer-review-only");
-    const closeAttempt = await fetch(`${baseUrl}/api/cases/${welfare.case_id}/status`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: "closed", officer: "Smoke Officer" }),
+    const deniedStart = await rawRequest("POST", `/api/cases/${drainage.case_id}/status`, {
+      triage_revision: drainage.triage_revision,
+      status: "in_progress",
+      officer: "Smoke Officer (demo)",
     });
-    assert(closeAttempt.status === 400, "welfare case should block generic closure");
+    assert(deniedStart.response.status === 400, `Pre-review flood-risk start should return 400, got ${deniedStart.response.status}.`);
+    assert(!String(deniedStart.json?.error ?? "").includes("stale_triage_revision"), "Denied start only exercised the stale-revision guard.");
 
-    const unknown = await submitCase(cases.unknown, "en");
-    assert(unknown.status === "manual_review", "unknown case must fall back to manual review");
+    drainage = await requestJson("POST", `/api/cases/${drainage.case_id}/review`, reviewPayload(drainage));
+    assert(drainage.officer_review?.triage_revision === drainage.triage_revision, "Drainage officer review is not current.");
+    const approval = await requestJson("POST", `/api/approvals/${drainage.approval_task_id}`, {
+      triage_revision: drainage.triage_revision,
+      decision: "approved",
+      decided_by: "Supervisor Lim (demo)",
+      decided_role: "supervisor",
+      note: "Approved after reviewing the synthetic flood-risk evidence.",
+    });
+    assert(approval.status === "approved", "Drainage supervisor task was not approved.");
+    drainage = await requestJson("GET", `/api/cases/${drainage.case_id}`);
+    assert(drainage.status === "routed", `Approval should leave drainage routed, got ${drainage.status}.`);
+    drainage = await requestJson("POST", `/api/cases/${drainage.case_id}/reply`, {
+      triage_revision: drainage.triage_revision,
+      officer: "Officer Tan (demo)",
+    });
+    assert(drainage.reply_draft?.status === "sent", "Drainage reply was not released.");
+    drainage = await requestJson("POST", `/api/cases/${drainage.case_id}/status`, {
+      triage_revision: drainage.triage_revision,
+      status: "in_progress",
+      officer: "Officer Tan (demo)",
+    });
+    assert(drainage.status === "in_progress", "Approved drainage did not start through the explicit work action.");
 
-    const browser = await chromium.launch({ headless: true });
+    let licence = await submitCase({ text: CASE_TEXT.licence, language: "zh" });
+    assert(licence.status === "needs_info", `Incomplete licence case should need information, got ${licence.status}.`);
+    const missingFields = new Set(licence.missing_info.filter((item) => item.required && !item.satisfied).map((item) => item.field));
+    for (const field of ["location", "business_type", "operating_hours"]) {
+      assert(missingFields.has(field), `Licence case is missing the required ${field} follow-up.`);
+    }
+    const originalLicenceText = licence.original_text;
+    const licenceRevision = licence.triage_revision;
+    licence = await requestJson("PATCH", `/api/cases/${licence.citizen_ref}`, {
+      triage_revision: licence.triage_revision,
+      answers: {
+        location: "Synthetic Market A",
+        business_type: "Synthetic food stall",
+        operating_hours: "09:00 to 17:00",
+      },
+    });
+    assert(licence.status === "routed", `Completed licence follow-up should route, got ${licence.status}.`);
+    assert(licence.triage_revision === licenceRevision + 1, "Licence follow-up did not increment the triage revision exactly once.");
+    assert(licence.original_text === originalLicenceText, "Structured licence details changed the citizen's original text.");
+
+    let welfare = await submitCase({
+      text: CASE_TEXT.welfare,
+      language: "en",
+      locationText: "Synthetic Neighbourhood",
+    });
+    assert(welfare.officer_review_only === true, "Welfare case is not marked for human-only eligibility review.");
+    welfare = await requestJson("POST", `/api/cases/${welfare.case_id}/review`, reviewPayload(welfare, { welfare_outcome: "eligible" }));
+    assert(welfare.officer_review?.welfare_outcome === "eligible", "Welfare review did not record the human outcome.");
+    assert(welfare.approval_task_id === null, "Welfare eligibility was incorrectly converted into an automated supervisor task.");
+    assert(welfare.status === "routed", `Welfare review should not auto-start or auto-close, got ${welfare.status}.`);
+    assert(welfare.reply_draft?.status === "approved", "Welfare reply should be approved but not auto-released.");
+
+    const unknown = await submitCase({ text: CASE_TEXT.unknown, language: "en" });
+    assert(unknown.status === "manual_review", `Unknown request should fall back to manual review, got ${unknown.status}.`);
+    assert(unknown.manual_review_reason, "Unknown request entered manual review without a recorded reason.");
+
+    const audit = await requestJson("GET", "/api/audit");
+    assert(audit.some((event) => event.case_id === drainage.case_id && event.event_type === "status.held"), "Held flood-risk start was not recorded in the audit trail.");
+
+    browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
-    page.on("console", (msg) => {
-      if (["error", "warning"].includes(msg.type())) {
-        console.log(`browser ${msg.type()}: ${msg.text()}`);
+    page.setDefaultTimeout(15_000);
+    const browserFailures = [];
+    const sameOrigin = (url) => {
+      try { return new URL(url).origin === new URL(baseUrl).origin; } catch { return false; }
+    };
+    page.on("pageerror", (error) => browserFailures.push(`pageerror: ${error.message}`));
+    page.on("console", (message) => {
+      if (["warning", "error"].includes(message.type())) browserFailures.push(`console ${message.type()}: ${message.text()}`);
+    });
+    page.on("requestfailed", (request) => {
+      const url = new URL(request.url());
+      const failure = request.failure()?.errorText ?? "unknown error";
+      const cancelledRsc = request.method() === "GET" && url.searchParams.has("_rsc") && failure === "net::ERR_ABORTED";
+      if (sameOrigin(request.url()) && !cancelledRsc) browserFailures.push(`request failed: ${request.method()} ${request.url()} (${failure})`);
+    });
+    page.on("response", (response) => {
+      if (sameOrigin(response.url()) && response.status() >= 400) {
+        browserFailures.push(`HTTP ${response.status()}: ${response.request().method()} ${response.url()}`);
       }
     });
+    const assertBrowserHealthy = () => assert(browserFailures.length === 0, browserFailures.join("\n"));
+
+    await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });
+    await expectVisibleText(page, "A clear path from citizen request to human decision.", "role launcher renders");
+    await page.screenshot({ path: path.join(screenshotDir, "01-role-launcher.png"), fullPage: true });
+    assertBrowserHealthy();
 
     await page.goto(`${baseUrl}/m`, { waitUntil: "networkidle" });
-    await expectVisibleText(page, "CivicFlow MY", "citizen mobile route renders");
-    await page.screenshot({ path: path.join(screenshotDir, "01-citizen-mobile.png"), fullPage: true });
+    await page.getByRole("tab", { name: "New request", exact: true }).waitFor();
+    await page.getByRole("tab", { name: "Track a case", exact: true }).waitFor();
+    await page.screenshot({ path: path.join(screenshotDir, "02-citizen-services.png"), fullPage: true });
+    assertBrowserHealthy();
 
     await page.goto(`${baseUrl}/officer`, { waitUntil: "networkidle" });
-    await expectVisibleText(page, "Case queue", "officer queue renders");
-    await expectVisibleText(page, drainage.citizen_ref, "drainage case visible in queue");
-    await page.screenshot({ path: path.join(screenshotDir, "02-officer-queue.png"), fullPage: true });
+    await page.getByRole("heading", { name: "Case queue", exact: true }).waitFor();
+    await expectVisibleText(page, drainage.citizen_ref, "drainage case appears in active queue");
+    await page.screenshot({ path: path.join(screenshotDir, "03-officer-queue.png"), fullPage: true });
+    assertBrowserHealthy();
 
     await page.goto(`${baseUrl}/officer/cases/${drainage.case_id}`, { waitUntil: "networkidle" });
-    await expectVisibleText(page, "Supervisor approval required before work can start", "approval blocker visible");
-    await expectVisibleText(page, "Drainage Response SOP", "drainage citation visible");
-    await page.screenshot({ path: path.join(screenshotDir, "03-drainage-approval-gate.png"), fullPage: true });
+    await expectVisibleText(page, "Complete and close", "approved drainage shows the correct next action");
+    await expectVisibleText(page, "Drainage Response SOP", "drainage policy evidence renders");
+    await expectVisibleText(page, "Reply released to the citizen", "drainage reply release is visible");
+    await page.screenshot({ path: path.join(screenshotDir, "04-drainage-governed-flow.png"), fullPage: true });
+    assertBrowserHealthy();
 
     await page.goto(`${baseUrl}/officer/cases/${licence.case_id}`, { waitUntil: "networkidle" });
-    await expectVisibleText(page, "Missing information must be resolved", "needs-info blocker visible");
-    await expectVisibleText(page, "Business Licensing FAQ", "licensing citation visible");
-    await page.screenshot({ path: path.join(screenshotDir, "04-licence-needs-info.png"), fullPage: true });
+    await expectVisibleText(page, "Complete officer review", "completed licence follow-up returns to officer review");
+    await expectVisibleText(page, "Business Licensing FAQ", "licence policy evidence renders");
+    await page.screenshot({ path: path.join(screenshotDir, "05-licence-follow-up.png"), fullPage: true });
+    assertBrowserHealthy();
 
     await page.goto(`${baseUrl}/officer/cases/${welfare.case_id}`, { waitUntil: "networkidle" });
-    await expectVisibleText(page, "Start officer review", "welfare officer-review action visible");
-    await expectVisibleText(page, "Welfare Education Aid Policy", "welfare citation visible");
-    await page.screenshot({ path: path.join(screenshotDir, "05-welfare-review.png"), fullPage: true });
+    await expectVisibleText(page, "Release the reviewed reply", "welfare case remains at a separate human release step");
+    await page.getByLabel("Human welfare outcome", { exact: true }).waitFor();
+    await page.screenshot({ path: path.join(screenshotDir, "06-welfare-human-outcome.png"), fullPage: true });
+    assertBrowserHealthy();
+
+    await page.goto(`${baseUrl}/officer/approvals`, { waitUntil: "networkidle" });
+    await expectVisibleText(page, "Supervisor approvals", "approval workspace renders");
+    await expectVisibleText(page, drainage.citizen_ref, "drainage supervisor decision appears in history");
+    await page.screenshot({ path: path.join(screenshotDir, "07-approval-history.png"), fullPage: true });
+    assertBrowserHealthy();
 
     await page.goto(`${baseUrl}/officer/audit`, { waitUntil: "networkidle" });
-    await expectVisibleText(page, "Audit evidence", "audit route renders");
-    await expectVisibleText(page, "status.denied", "denied transition audit visible");
-    await page.screenshot({ path: path.join(screenshotDir, "06-audit-evidence.png"), fullPage: true });
+    await page.getByRole("heading", { name: "Audit trail", exact: true }).waitFor();
+    await expectVisibleText(page, "status.held", "held transition audit is visible");
+    await page.screenshot({ path: path.join(screenshotDir, "08-audit-trail.png"), fullPage: true });
+    assertBrowserHealthy();
 
-    await browser.close();
-    console.log(`MAIC e2e smoke passed at ${baseUrl}`);
+    console.log(`MAIC e2e smoke passed: 4 canonical cases and 8 rendered routes at ${baseUrl}`);
     console.log(`Screenshots: ${screenshotDir}`);
   } finally {
-    if (server) {
-      server.kill("SIGTERM");
-      await sleep(800);
-      if (!server.killed) server.kill("SIGKILL");
-    }
+    if (browser) await browser.close();
+    if (server) await stopServer(server);
   }
 }
 

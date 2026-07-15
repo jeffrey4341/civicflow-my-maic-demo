@@ -90,6 +90,12 @@ Then open **http://127.0.0.1:3000/m** and **http://127.0.0.1:3000/officer**.
 
 If port `3000` is already occupied on the demo machine, keep the same command and change only the port, for example `--port 3004`, then open the matching `127.0.0.1` URL.
 
+### Current UI/UX foundation
+
+- **Citizen services (`/m`)** — one calm mobile flow for a new request or tracking code, explicit language confirmation when detection differs, a review-before-submit step, and structured follow-up fields for cases that need more information.
+- **Officer workspace (`/officer`)** — active cases by default, search and action filters, a plain-language **Next action** for every row, and a single decision page ordered as officer review → supervisor decision → citizen reply → start or close → audit trail.
+- **Human actions stay separate** — saving a review does not release a reply, approval does not start work, and closure requires a released reply plus an officer note.
+
 ### Demo recording checklist
 
 - **Recording date:** 2026-06-14 (MYT), prepared as the second small documentation commit for the public demo trail.
@@ -103,7 +109,10 @@ npm run typecheck
 npm test
 npm run lint
 npm audit --omit=dev --audit-level=moderate
-npm run smoke:e2e   # Playwright browser smoke — builds & starts its own production server on 127.0.0.1:3012
+npm run build
+npm run smoke:citizen  # Mobile citizen journey; starts and stops its own dev server on 127.0.0.1:3013
+npm run smoke:officer  # Review → release → start → close; own dev server on 127.0.0.1:3012
+npm run smoke:e2e      # Canonical governance paths; starts the current production build on 127.0.0.1:3012
 ```
 
 **Optional — Anthropic LLM path.** The demo runs end-to-end **without** any API key using the deterministic pipeline. If you wish to exercise the optional LLM path, set an `ANTHROPIC_API_KEY` in your environment before `npm run dev`. With no key present, the deterministic fallback returns structured output of identical shape, so the demo behaves consistently either way.
@@ -114,9 +123,9 @@ npm run smoke:e2e   # Playwright browser smoke — builds & starts its own produ
 
 | Route | Audience | Purpose |
 | --- | --- | --- |
-| `/m` | Citizen | Mobile-first intake: submit a multilingual service request, view the draft reply |
-| `/officer` | Staff | Officer console home: case queue and triage |
-| `/officer/cases/[id]` | Staff | Single-case view: classification, citations, routing, reply draft, timeline |
+| `/m` | Citizen | Submit or track a multilingual request; provide structured follow-up details |
+| `/officer` | Staff | Search and filter the active queue by next required human action |
+| `/officer/cases/[id]` | Staff | Review facts and evidence; decide, release, start or close; inspect audit history |
 | `/officer/approvals` | Supervisor | Approval queue for high-risk cases (`awaiting_supervisor`) |
 | `/officer/audit` | Staff | Append-only audit timeline across cases |
 | `POST /api/reset` | System | Re-seed the in-memory store from `data/seed` |
