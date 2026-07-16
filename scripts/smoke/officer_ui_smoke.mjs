@@ -2,6 +2,7 @@ import { chromium } from "playwright";
 import {
   assert,
   assertPortAvailable,
+  isExpectedNextRequestAbort,
   requestJson as requestJsonAt,
   startNextServer,
   stopServer,
@@ -92,12 +93,7 @@ async function main() {
           && text.startsWith(`The resource ${baseUrl}/_next/static/css/app/layout.css?v=`)
           && text.endsWith(" was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.");
       },
-      isExpectedRequestFailure: (request) => {
-        const url = new URL(request.url());
-        return request.method() === "GET"
-          && url.searchParams.has("_rsc")
-          && request.failure()?.errorText === "net::ERR_ABORTED";
-      },
+      isExpectedRequestFailure: isExpectedNextRequestAbort,
     });
 
     await page.goto(`${baseUrl}/officer`, { waitUntil: "networkidle" });

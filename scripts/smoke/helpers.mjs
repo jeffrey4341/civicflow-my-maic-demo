@@ -217,6 +217,17 @@ export function matchesResourceConsole(message, {
   }
 }
 
+export function isExpectedNextRequestAbort(request) {
+  if (request.method() !== "GET" || request.failure()?.errorText !== "net::ERR_ABORTED") return false;
+  try {
+    const url = new URL(request.url());
+    return url.searchParams.has("_rsc")
+      || (url.pathname.startsWith("/_next/static/webpack/") && url.pathname.endsWith(".hot-update.js"));
+  } catch {
+    return false;
+  }
+}
+
 export function watchBrowser(page, {
   baseUrl,
   isExpectedConsoleMessage = () => false,

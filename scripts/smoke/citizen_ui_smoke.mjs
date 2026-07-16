@@ -2,6 +2,7 @@ import { chromium } from "playwright";
 import {
   assert,
   assertPortAvailable,
+  isExpectedNextRequestAbort,
   matchesResourceConsole,
   startNextServer,
   stopServer,
@@ -92,14 +93,7 @@ async function main() {
           statusText: "Not Found",
         });
       },
-      isExpectedRequestFailure: (request) => {
-        const url = new URL(request.url());
-        const failure = request.failure()?.errorText ?? "unknown error";
-        return failure === "net::ERR_ABORTED" && (
-          (request.method() === "GET" && url.searchParams.has("_rsc"))
-          || (url.pathname.includes("/_next/static/webpack/") && url.pathname.endsWith(".hot-update.js"))
-        );
-      },
+      isExpectedRequestFailure: isExpectedNextRequestAbort,
       isExpectedResponse: (response) => {
         const url = new URL(response.url());
         const expectedInvalidPage = expectNotFound

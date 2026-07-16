@@ -120,7 +120,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.6fr)]">
             <div>
               <h3 className="font-semibold text-slate-950">Citizen request</h3>
-              <blockquote className="mt-3 border-l-2 border-slate-300 pl-4 text-base leading-7 text-slate-900">{c.original_text}</blockquote>
+              <blockquote className="mt-3 border-y border-slate-200 py-3 text-base leading-7 text-slate-900">{c.original_text}</blockquote>
               {c.translated_text_en !== c.original_text ? <p className="mt-3 text-sm leading-6 text-slate-600">English reference: {c.translated_text_en}</p> : null}
               <dl className="mt-5 grid gap-4 sm:grid-cols-2">
                 <Fact label="Selected language" value={LANGUAGE_NAMES[c.citizen_language]} />

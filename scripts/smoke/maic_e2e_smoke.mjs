@@ -4,6 +4,7 @@ import { chromium } from "playwright";
 import {
   assert,
   assertPortAvailable,
+  isExpectedNextRequestAbort,
   rawRequest as rawRequestAt,
   requestJson as requestJsonAt,
   startNextServer,
@@ -224,12 +225,7 @@ async function main() {
     page.setDefaultTimeout(15_000);
     const assertBrowserHealthy = watchBrowser(page, {
       baseUrl,
-      isExpectedRequestFailure: (request) => {
-        const url = new URL(request.url());
-        return request.method() === "GET"
-          && url.searchParams.has("_rsc")
-          && request.failure()?.errorText === "net::ERR_ABORTED";
-      },
+      isExpectedRequestFailure: isExpectedNextRequestAbort,
     });
 
     await page.goto(`${baseUrl}/`, { waitUntil: "networkidle" });

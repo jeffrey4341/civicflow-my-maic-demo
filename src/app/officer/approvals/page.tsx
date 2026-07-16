@@ -61,7 +61,7 @@ export default async function ApprovalsPage() {
                     </div>
                     <h3 className="mt-4 text-lg font-semibold text-slate-950">{approval.title}</h3>
                     <p className="mt-2 text-sm leading-6 text-slate-700">{approval.reason}</p>
-                    {c ? <blockquote className="mt-4 border-l-2 border-slate-300 pl-4 text-sm leading-6 text-slate-600">{c.translated_text_en}</blockquote> : null}
+                    {c ? <blockquote className="mt-4 border-y border-slate-200 py-3 text-sm leading-6 text-slate-600">{c.translated_text_en}</blockquote> : null}
                     {approval.risk_factors.length > 0 ? (
                       <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
                         {approval.risk_factors.map((factor) => <li key={factor}>{factor}</li>)}
