@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
-import { once } from "node:events";
 import { createServer } from "node:net";
+
+const NEXT_READY_PATTERN = /\bReady in\s+\d+(?:\.\d+)?\s*(?:ms|s)\b/i;
+const ANSI_ESCAPE_PATTERN = /\u001b\[[0-?]*[ -\/]*[@-~]/g;
 
 export function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -21,50 +23,157 @@ export async function assertPortAvailable(port) {
 
 export function startNextServer(command, port, cwd = process.cwd()) {
   let launchError = null;
+  let readySettled = false;
+  let settleReady;
+  let outputBuffer = "";
+  const ready = new Promise((resolve) => { settleReady = resolve; });
   const server = spawn(
     process.execPath,
     ["node_modules/next/dist/bin/next", command, "--hostname", "127.0.0.1", "--port", String(port)],
     { cwd, stdio: ["ignore", "pipe", "pipe"] },
   );
-  server.once("error", (error) => { launchError = error; });
-  server.stdout.on("data", (chunk) => process.stdout.write(`[next] ${chunk}`));
-  server.stderr.on("data", (chunk) => process.stderr.write(`[next] ${chunk}`));
-  return { server, getLaunchError: () => launchError };
+
+  const finishReady = (result) => {
+    if (readySettled) return;
+    readySettled = true;
+    settleReady(result);
+  };
+  const observeOutput = (chunk, stream) => {
+    stream.write(`[next] ${chunk}`);
+    outputBuffer = `${outputBuffer}${chunk}`.replace(ANSI_ESCAPE_PATTERN, "").slice(-8_192);
+    if (NEXT_READY_PATTERN.test(outputBuffer)) finishReady({ ok: true });
+  };
+
+  server.once("error", (error) => {
+    launchError = error;
+    finishReady({ ok: false, error });
+  });
+  server.once("exit", (code, signal) => {
+    finishReady({
+      ok: false,
+      error: new Error(`Next ${command} process exited before its ready signal (code ${code ?? "none"}, signal ${signal ?? "none"}).`),
+    });
+  });
+  server.stdout.on("data", (chunk) => observeOutput(chunk, process.stdout));
+  server.stderr.on("data", (chunk) => observeOutput(chunk, process.stderr));
+  return { server, ready, getLaunchError: () => launchError };
 }
 
-export async function waitForServer({ baseUrl, pathname, server, getLaunchError = () => null, label = "Server" }) {
+function childHasExited(server) {
+  return server.exitCode !== null || server.signalCode !== null;
+}
+
+function waitForReadySignal(ready, timeoutMs, label) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(
+      () => resolve({ ok: false, error: new Error(`${label} did not emit a ready signal.`) }),
+      timeoutMs,
+    );
+    ready.then((result) => {
+      clearTimeout(timer);
+      resolve(result);
+    });
+  });
+}
+
+export async function waitForServer({ baseUrl, pathname, server, ready, getLaunchError = () => null, label = "Server" }) {
   const deadline = Date.now() + 45_000;
+  if (server) {
+    if (!ready) throw new Error(`${label} is missing its child-owned ready signal.`);
+    const remaining = Math.max(0, deadline - Date.now());
+    const readyResult = await waitForReadySignal(ready, remaining, label);
+    if (!readyResult.ok) throw readyResult.error;
+    if (getLaunchError()) throw getLaunchError();
+    if (childHasExited(server)) {
+      throw new Error(`${label} exited immediately after its ready signal (code ${server.exitCode ?? "none"}, signal ${server.signalCode ?? "none"}).`);
+    }
+  }
+
   while (Date.now() < deadline) {
     if (getLaunchError()) throw getLaunchError();
-    if (server?.exitCode != null) throw new Error(`${label} exited early with code ${server.exitCode}.`);
+    if (server && childHasExited(server)) {
+      throw new Error(`${label} exited early (code ${server.exitCode ?? "none"}, signal ${server.signalCode ?? "none"}).`);
+    }
+    let response = null;
     try {
-      const response = await fetch(`${baseUrl}${pathname}`);
-      if (response.ok) return;
+      response = await fetch(`${baseUrl}${pathname}`);
     } catch {
       // The server is still starting.
+    }
+    if (response?.ok) {
+      if (server && childHasExited(server)) {
+        throw new Error(`${label} exited before ownership could be confirmed.`);
+      }
+      return;
     }
     await sleep(500);
   }
   throw new Error(`${label} did not become ready at ${baseUrl}`);
 }
 
-export async function stopServer(server) {
-  if (!server?.pid || server.exitCode !== null) return;
-  if (process.platform === "win32") {
-    await new Promise((resolve) => {
-      const killer = spawn("taskkill", ["/pid", String(server.pid), "/T", "/F"], {
-        stdio: "ignore",
-        windowsHide: true,
-      });
-      killer.once("error", resolve);
-      killer.once("exit", resolve);
+function waitForChildExit(server, timeoutMs) {
+  if (childHasExited(server)) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    let settled = false;
+    let timer;
+    const finish = (exited) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      server.off("exit", onExit);
+      resolve(exited);
+    };
+    const onExit = () => finish(true);
+    server.once("exit", onExit);
+    timer = setTimeout(() => finish(childHasExited(server)), timeoutMs);
+    if (childHasExited(server)) finish(true);
+  });
+}
+
+function runTaskkill(pid) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      resolve(result);
+    };
+    const killer = spawn("taskkill", ["/pid", String(pid), "/T", "/F"], {
+      stdio: "ignore",
+      windowsHide: true,
     });
+    killer.once("error", (error) => finish({ code: null, error }));
+    killer.once("exit", (code) => finish({ code, error: null }));
+  });
+}
+
+export async function stopServer(server) {
+  if (!server?.pid || childHasExited(server)) return;
+  if (process.platform === "win32") {
+    if (childHasExited(server)) return;
+    const result = await runTaskkill(server.pid);
+    if (result.error && !childHasExited(server)) {
+      throw new Error(`Could not stop owned server process ${server.pid}: ${result.error.message}`);
+    }
+    if (result.code !== 0 && !childHasExited(server)) {
+      throw new Error(`taskkill failed for owned server process ${server.pid} with exit code ${result.code}.`);
+    }
+    if (!(await waitForChildExit(server, 5_000))) {
+      throw new Error(`Owned server process ${server.pid} did not exit after taskkill.`);
+    }
     return;
   }
-  const exited = once(server, "exit");
-  server.kill("SIGTERM");
-  await Promise.race([exited, sleep(3_000)]);
-  if (server.exitCode === null) server.kill("SIGKILL");
+
+  if (!server.kill("SIGTERM") && !childHasExited(server)) {
+    throw new Error(`Could not send SIGTERM to owned server process ${server.pid}.`);
+  }
+  if (await waitForChildExit(server, 3_000)) return;
+  if (!server.kill("SIGKILL") && !childHasExited(server)) {
+    throw new Error(`Could not send SIGKILL to owned server process ${server.pid}.`);
+  }
+  if (!(await waitForChildExit(server, 3_000))) {
+    throw new Error(`Owned server process ${server.pid} did not exit after SIGKILL.`);
+  }
 }
 
 export async function rawRequest(baseUrl, method, endpoint, body) {
@@ -91,6 +200,23 @@ export async function requestJson(baseUrl, method, endpoint, body) {
   return result.json;
 }
 
+export function matchesResourceConsole(message, {
+  baseUrl,
+  pathname,
+  status,
+  statusText,
+}) {
+  if (message.type() !== "error") return false;
+  const expectedText = `Failed to load resource: the server responded with a status of ${status} (${statusText})`;
+  if (message.text() !== expectedText) return false;
+  try {
+    const location = new URL(message.location().url);
+    return location.origin === new URL(baseUrl).origin && location.pathname === pathname;
+  } catch {
+    return false;
+  }
+}
+
 export function watchBrowser(page, {
   baseUrl,
   isExpectedConsoleMessage = () => false,
@@ -98,9 +224,6 @@ export function watchBrowser(page, {
   isExpectedRequestFailure = () => false,
 } = {}) {
   const failures = [];
-  const consoleMessages = [];
-  const expectedConsoleErrors = new Map();
-  let consoleCursor = 0;
   const origin = new URL(baseUrl).origin;
   const sameOrigin = (url) => {
     try { return new URL(url).origin === origin; } catch { return false; }
@@ -109,7 +232,7 @@ export function watchBrowser(page, {
   page.on("pageerror", (error) => failures.push(`pageerror: ${error.message}`));
   page.on("console", (message) => {
     if (["warning", "error"].includes(message.type()) && !isExpectedConsoleMessage(message)) {
-      consoleMessages.push({ type: message.type(), text: message.text() });
+      failures.push(`console ${message.type()}: ${message.text()}`);
     }
   });
   page.on("requestfailed", (request) => {
@@ -119,25 +242,9 @@ export function watchBrowser(page, {
   });
   page.on("response", (response) => {
     if (!sameOrigin(response.url()) || response.status() < 400) return;
-    if (isExpectedResponse(response)) {
-      const message = `Failed to load resource: the server responded with a status of ${response.status()} (${response.statusText()})`;
-      expectedConsoleErrors.set(message, (expectedConsoleErrors.get(message) ?? 0) + 1);
-      return;
-    }
+    if (isExpectedResponse(response)) return;
     failures.push(`HTTP ${response.status()}: ${response.request().method()} ${response.url()}`);
   });
 
-  return () => {
-    while (consoleCursor < consoleMessages.length) {
-      const message = consoleMessages[consoleCursor++];
-      const allowance = expectedConsoleErrors.get(message.text) ?? 0;
-      if (message.type === "error" && allowance > 0) {
-        expectedConsoleErrors.set(message.text, allowance - 1);
-      } else {
-        failures.push(`console ${message.type}: ${message.text}`);
-      }
-    }
-    expectedConsoleErrors.clear();
-    assert(failures.length === 0, failures.join("\n"));
-  };
+  return () => assert(failures.length === 0, failures.join("\n"));
 }

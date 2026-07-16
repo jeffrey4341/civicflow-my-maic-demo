@@ -64,16 +64,17 @@ async function expectVisibleText(page, text, label) {
 async function main() {
   await fs.mkdir(screenshotDir, { recursive: true });
   let server = null;
+  let serverReady = null;
   let getLaunchError = () => null;
   let browser = null;
 
   if (startServer) {
     await assertPortAvailable(port);
-    ({ server, getLaunchError } = startNextServer("start", port, root));
+    ({ server, ready: serverReady, getLaunchError } = startNextServer("start", port, root));
   }
 
   try {
-    await waitForServer({ baseUrl, pathname: "/m", server, getLaunchError, label: "Production server" });
+    await waitForServer({ baseUrl, pathname: "/m", server, ready: serverReady, getLaunchError, label: "Production server" });
     const reset = await requestJson("POST", "/api/reset");
     assert(reset.ok === true, "POST /api/reset did not return ok=true.");
 

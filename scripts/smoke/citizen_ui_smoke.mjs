@@ -2,6 +2,7 @@ import { chromium } from "playwright";
 import {
   assert,
   assertPortAvailable,
+  matchesResourceConsole,
   startNextServer,
   stopServer,
   waitForServer,
@@ -45,15 +46,16 @@ const notFoundCopy = {
 
 async function main() {
   let server = null;
+  let serverReady = null;
   let getLaunchError = () => null;
   if (startServer) {
     await assertPortAvailable(port);
-    ({ server, getLaunchError } = startNextServer("dev", port));
+    ({ server, ready: serverReady, getLaunchError } = startNextServer("dev", port));
   }
 
   let browser = null;
   try {
-    await waitForServer({ baseUrl, pathname: "/m", server, getLaunchError, label: "Citizen smoke server" });
+    await waitForServer({ baseUrl, pathname: "/m", server, ready: serverReady, getLaunchError, label: "Citizen smoke server" });
     await fetch(`${baseUrl}/api/reset`, { method: "POST" });
     const localizedTrackingHtml = await (await fetch(`${baseUrl}/m?view=track&lang=zh`)).text();
     const newPanelTag = localizedTrackingHtml.match(/<div[^>]*id="citizen-panel-new"[^>]*>/)?.[0] ?? "";
@@ -67,6 +69,29 @@ async function main() {
     let expectNotFound = false;
     const assertBrowserHealthy = watchBrowser(page, {
       baseUrl,
+      isExpectedConsoleMessage: (message) => {
+        if (expectedApiFailure && matchesResourceConsole(message, {
+          baseUrl,
+          pathname: expectedApiFailure.pathname,
+          status: expectedApiFailure.status,
+          statusText: expectedApiFailure.statusText,
+        })) return true;
+
+        if (!expectNotFound) return false;
+        let pathname;
+        try {
+          pathname = new URL(message.location().url).pathname;
+        } catch {
+          return false;
+        }
+        const expectedPath = pathname === "/not-a-real-page" || pathname.startsWith("/m/cases/CF-NOTREAL");
+        return expectedPath && matchesResourceConsole(message, {
+          baseUrl,
+          pathname,
+          status: 404,
+          statusText: "Not Found",
+        });
+      },
       isExpectedRequestFailure: (request) => {
         const url = new URL(request.url());
         const failure = request.failure()?.errorText ?? "unknown error";
@@ -88,7 +113,7 @@ async function main() {
       },
     });
 
-    async function withExpectedApiFailure({ method, pathname, status, body }, action) {
+    async function withExpectedApiFailure({ method, pathname, status, statusText, body }, action) {
       const pattern = `**${pathname}`;
       const handler = (route) => route.fulfill({
         status,
@@ -96,9 +121,18 @@ async function main() {
         body: JSON.stringify(body),
       });
       await page.route(pattern, handler);
-      expectedApiFailure = { method, pathname, status };
+      expectedApiFailure = { method, pathname, status, statusText };
+      const expectedConsole = page.waitForEvent("console", {
+        predicate: (message) => matchesResourceConsole(message, {
+          baseUrl,
+          pathname,
+          status,
+          statusText,
+        }),
+        timeout: 5_000,
+      });
       try {
-        await action();
+        await Promise.all([action(), expectedConsole]);
         assertBrowserHealthy();
       } finally {
         expectedApiFailure = null;

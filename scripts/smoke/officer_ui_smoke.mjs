@@ -53,11 +53,11 @@ async function assertHeadingOrder(page) {
 
 async function main() {
   await assertPortAvailable(port);
-  const { server, getLaunchError } = startNextServer("dev", port);
+  const { server, ready, getLaunchError } = startNextServer("dev", port);
 
   let browser = null;
   try {
-    await waitForServer({ baseUrl, pathname: "/officer", server, getLaunchError, label: "Next dev server" });
+    await waitForServer({ baseUrl, pathname: "/officer", server, ready, getLaunchError, label: "Next dev server" });
     const reset = await requestJson("POST", "/api/reset");
     assert(reset.ok === true, "POST /api/reset did not return ok=true.");
 
