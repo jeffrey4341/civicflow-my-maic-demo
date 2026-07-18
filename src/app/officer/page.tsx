@@ -1,12 +1,23 @@
 import Link from "next/link";
 
 import { OfficerQueue } from "@/components/officer/OfficerQueue";
+import { hasCurrentOfficerReview } from "@/lib/lifecycle";
 import { listApprovals, listCases } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function OfficerQueuePage() {
   const [cases, pendingApprovals] = await Promise.all([listCases(), listApprovals("pending")]);
+  const caseById = new Map(cases.map((item) => [item.case_id, item]));
+  const decisionReadyApprovals = pendingApprovals.filter((approval) => {
+    const record = caseById.get(approval.case_id);
+    return Boolean(
+      record
+      && record.approval_task_id === approval.approval_id
+      && record.triage_revision === approval.triage_revision
+      && hasCurrentOfficerReview(record),
+    );
+  });
   const active = cases.filter((item) => item.status !== "closed").length;
   const needsReview = cases.filter(
     (item) => item.status !== "closed"
@@ -25,12 +36,12 @@ export default async function OfficerQueuePage() {
             Work from the next required human action. Closed cases stay hidden until you choose that filter.
           </p>
         </div>
-        {pendingApprovals.length > 0 ? (
+        {decisionReadyApprovals.length > 0 ? (
           <Link
             href="/officer/approvals"
             className="inline-flex min-h-12 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-950 outline-none hover:bg-amber-100 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
           >
-            {pendingApprovals.length} supervisor decision{pendingApprovals.length === 1 ? "" : "s"} waiting
+            {decisionReadyApprovals.length} supervisor decision{decisionReadyApprovals.length === 1 ? "" : "s"} waiting
           </Link>
         ) : null}
       </div>
@@ -39,7 +50,7 @@ export default async function OfficerQueuePage() {
         <Metric label="Active" value={active} />
         <Metric label="Needs review" value={needsReview} />
         <Metric label="Needs citizen info" value={needsInfo} />
-        <Metric label="Needs supervisor" value={pendingApprovals.length} />
+        <Metric label="Needs supervisor" value={decisionReadyApprovals.length} />
       </dl>
 
       <OfficerQueue cases={cases} />

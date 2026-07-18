@@ -82,6 +82,14 @@ async function main() {
     assert(created.citations.length > 0, "Complete business-licensing case must have current citations.");
     assert(Number.isInteger(created.triage_revision), "Created case did not include a valid triage revision.");
 
+    const unreviewedFlood = await requestJson("POST", "/api/cases", {
+      text: "Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat.",
+      language: "ms",
+      source_channel: "web",
+    });
+    assert(unreviewedFlood.status === "awaiting_supervisor", `Flood-risk case should be gated, got ${unreviewedFlood.status}.`);
+    assert(unreviewedFlood.officer_review === null, "Fresh flood-risk case unexpectedly has an officer review.");
+
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
     page.setDefaultTimeout(12_000);
@@ -109,6 +117,43 @@ async function main() {
     await page.getByText("Next action", { exact: true }).first().waitFor();
     assertBrowserHealthy();
 
+    await search.fill(unreviewedFlood.citizen_ref);
+    await page.getByRole("button", { name: "Needs approval", exact: true }).click();
+    assert((await page.getByText(unreviewedFlood.citizen_ref, { exact: true }).count()) === 0, "Unreviewed case is presented as ready for supervisor approval.");
+    await page.getByRole("button", { name: "Needs review", exact: true }).click();
+    await page.getByText(unreviewedFlood.citizen_ref, { exact: true }).waitFor();
+    await page.getByText("Officer review required", { exact: true }).waitFor();
+
+    await page.goto(`${baseUrl}/officer/approvals`, { waitUntil: "networkidle" });
+    const waitingReviewSection = page.locator("section").filter({
+      has: page.getByRole("heading", { name: "Waiting for officer review", exact: true }),
+    }).first();
+    const pendingDecisionSection = page.locator("section").filter({
+      has: page.getByRole("heading", { name: "Pending decisions", exact: true }),
+    }).first();
+    await waitingReviewSection.getByText(unreviewedFlood.citizen_ref, { exact: true }).waitFor();
+    assert((await pendingDecisionSection.getByText(unreviewedFlood.citizen_ref, { exact: true }).count()) === 0, "Unreviewed case appears under Pending decisions.");
+    assert((await waitingReviewSection.getByRole("button", { name: "Approve request", exact: true }).count()) === 0, "Waiting-for-review item exposes a supervisor decision action.");
+
+    const reviewedFlood = await requestJson("POST", `/api/cases/${unreviewedFlood.case_id}/review`, {
+      triage_revision: unreviewedFlood.triage_revision,
+      officer: "Officer Tan (demo)",
+      note: "Reviewed the synthetic flood-risk request and policy evidence.",
+      citizen_language: unreviewedFlood.citizen_language,
+      category: unreviewedFlood.category,
+      routing: { department: unreviewedFlood.department, unit: unreviewedFlood.unit },
+      citation_keys: unreviewedFlood.citations.map(({ source_doc, section }) => ({ source_doc, section })),
+      reply_body: unreviewedFlood.reply_draft.body,
+      reply_body_en: unreviewedFlood.reply_draft.body_en,
+      resolution: "proceed",
+      welfare_outcome: null,
+    });
+    assert(reviewedFlood.officer_review?.triage_revision === reviewedFlood.triage_revision, "Flood-risk officer review was not saved.");
+    await page.reload({ waitUntil: "networkidle" });
+    await pendingDecisionSection.getByText(unreviewedFlood.citizen_ref, { exact: true }).waitFor();
+    assert((await waitingReviewSection.getByText(unreviewedFlood.citizen_ref, { exact: true }).count()) === 0, "Reviewed case remains in the waiting-for-review group.");
+
+    await page.goto(`${baseUrl}/officer`, { waitUntil: "networkidle" });
     await search.fill(created.citizen_ref);
     const caseLink = page.getByRole("link").filter({ hasText: created.citizen_ref }).first();
     await caseLink.waitFor();

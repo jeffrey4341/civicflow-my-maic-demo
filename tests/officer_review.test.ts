@@ -259,6 +259,68 @@ describe("officer review contract", () => {
     )).status).toBe(200);
   });
 
+  it("keeps the default high-risk reply truthful through approval and closure", async () => {
+    const c = await submitFloodCase();
+    const task = await getApproval(c.approval_task_id!);
+    const expectedBody = c.reply_draft!.body;
+    const expectedBodyEn = c.reply_draft!.body_en;
+    expect(task).toBeDefined();
+
+    expect((await postJson(
+      reviewCaseRoute,
+      `http://localhost/api/cases/${c.case_id}/review`,
+      c.case_id,
+      reviewBody(c, {
+        reply_body: c.reply_draft!.body,
+        reply_body_en: c.reply_draft!.body_en,
+      }),
+    )).status).toBe(200);
+    expect((await postJson(
+      decideApprovalRoute,
+      `http://localhost/api/approvals/${task!.approval_id}`,
+      task!.approval_id,
+      {
+        triage_revision: 1,
+        decision: "approved",
+        decided_by: "Supervisor Lim (demo)",
+        decided_role: "supervisor",
+        note: "Synthetic flood-risk review approved.",
+      },
+    )).status).toBe(200);
+    expect((await postJson(
+      releaseReplyRoute,
+      `http://localhost/api/cases/${c.case_id}/reply`,
+      c.case_id,
+      { triage_revision: 1, officer: "Officer Tan (demo)" },
+    )).status).toBe(200);
+    expect((await postJson(
+      setStatusRoute,
+      `http://localhost/api/cases/${c.case_id}/status`,
+      c.case_id,
+      { triage_revision: 1, status: "in_progress", officer: "Officer Tan (demo)" },
+    )).status).toBe(200);
+    expect((await postJson(
+      setStatusRoute,
+      `http://localhost/api/cases/${c.case_id}/status`,
+      c.case_id,
+      {
+        triage_revision: 1,
+        status: "closed",
+        officer: "Officer Tan (demo)",
+        note: "Synthetic drainage work completed.",
+      },
+    )).status).toBe(200);
+
+    const closed = await getCase(c.case_id);
+    expect(closed).toMatchObject({ status: "closed", reply_draft: { status: "sent" } });
+    expect(closed!.reply_draft!.body).toBe(expectedBody);
+    expect(closed!.reply_draft!.body_en).toBe(expectedBodyEn);
+    expect(closed!.reply_draft!.body).toContain("kelulusan penyelia");
+    expect(closed!.reply_draft!.body).not.toContain("akan menyemaknya");
+    expect(closed!.reply_draft!.body_en).toContain("supervisor approval");
+    expect(closed!.reply_draft!.body_en).not.toContain("will review it");
+  });
+
   it("supersedes an old approval when substantive reviewed triage facts change", async () => {
     const c = await submitFloodCase();
     const oldApprovalId = c.approval_task_id!;

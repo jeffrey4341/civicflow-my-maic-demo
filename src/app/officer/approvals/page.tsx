@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ApprovalActions } from "@/components/officer/ApprovalActions";
 import { Badge } from "@/components/ui";
+import { hasCurrentOfficerReview } from "@/lib/lifecycle";
 import { getCase, listApprovals } from "@/lib/store";
 import type { ApprovalStatus, CitizenCase } from "@/lib/types";
 
@@ -19,7 +20,18 @@ export default async function ApprovalsPage() {
   const relatedCases = await Promise.all(approvals.map((approval) => getCase(approval.case_id)));
   const caseById = new Map<string, CitizenCase>();
   relatedCases.forEach((c) => c && caseById.set(c.case_id, c));
-  const pending = approvals.filter((approval) => approval.status === "pending");
+  const unresolved = approvals.filter((approval) => approval.status === "pending");
+  const pending = unresolved.filter((approval) => {
+    const c = caseById.get(approval.case_id);
+    return Boolean(
+      c
+      && c.approval_task_id === approval.approval_id
+      && c.triage_revision === approval.triage_revision
+      && hasCurrentOfficerReview(c),
+    );
+  });
+  const pendingIds = new Set(pending.map((approval) => approval.approval_id));
+  const waitingForReview = unresolved.filter((approval) => !pendingIds.has(approval.approval_id));
   const history = approvals.filter((approval) => approval.status !== "pending");
 
   return (
@@ -41,12 +53,6 @@ export default async function ApprovalsPage() {
           <div className="divide-y divide-slate-200 border-b border-slate-200 bg-white">
             {pending.map((approval) => {
               const c = caseById.get(approval.case_id);
-              const current = Boolean(
-                c
-                && c.approval_task_id === approval.approval_id
-                && c.triage_revision === approval.triage_revision
-                && c.officer_review?.triage_revision === c.triage_revision,
-              );
               return (
                 <article key={approval.approval_id} className="grid gap-6 py-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
                   <div>
@@ -71,7 +77,6 @@ export default async function ApprovalsPage() {
                   <ApprovalActions
                     approvalId={approval.approval_id}
                     triageRevision={approval.triage_revision}
-                    disabledReason={current ? null : "Waiting for an officer review on the current triage revision."}
                   />
                 </article>
               );
@@ -79,6 +84,39 @@ export default async function ApprovalsPage() {
           </div>
         ) : (
           <p className="border-b border-slate-200 bg-white px-4 py-8 text-sm text-slate-600">No supervisor decisions are waiting.</p>
+        )}
+      </section>
+
+      <section className="mt-10" aria-labelledby="waiting-review-heading">
+        <div className="flex items-baseline justify-between gap-4 border-b border-slate-300 pb-3">
+          <h2 id="waiting-review-heading" className="text-xl font-semibold text-slate-950">Waiting for officer review</h2>
+          <span className="text-sm text-slate-600">{waitingForReview.length}</span>
+        </div>
+        {waitingForReview.length > 0 ? (
+          <ul className="divide-y divide-slate-200 border-b border-slate-200 bg-white">
+            {waitingForReview.map((approval) => {
+              const c = caseById.get(approval.case_id);
+              return (
+                <li key={approval.approval_id} className="grid gap-3 px-3 py-5 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-start">
+                  <div>
+                    <Badge className="bg-slate-200 text-slate-800">Officer review required</Badge>
+                    <span className="mt-2 block text-xs text-slate-500">Revision {approval.triage_revision}</span>
+                  </div>
+                  <div>
+                    {c ? (
+                      <Link href={`/officer/cases/${c.case_id}`} className="inline-flex min-h-11 items-center font-mono text-sm font-semibold text-civic-800 underline-offset-4 hover:underline">
+                        {c.citizen_ref}
+                      </Link>
+                    ) : <span className="text-sm text-slate-500">Case unavailable</span>}
+                    <p className="text-sm font-medium text-slate-900">{approval.title}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">Complete the current officer review before a supervisor decision can be recorded.</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="border-b border-slate-200 bg-white px-4 py-8 text-sm text-slate-600">No approval tasks are waiting for officer review.</p>
         )}
       </section>
 

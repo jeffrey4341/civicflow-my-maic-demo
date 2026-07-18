@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { LANGUAGE_NAMES, categoryLabel } from "@/lib/i18n";
+import { hasCurrentOfficerReview } from "@/lib/lifecycle";
 import type { CitizenCase } from "@/lib/types";
 import { StatusBadge, UrgencyBadge } from "@/components/ui";
 
@@ -33,7 +34,7 @@ function matchesFilter(c: CitizenCase, filter: QueueFilter): boolean {
   if (filter === "all") return true;
   if (filter === "active") return c.status !== "closed";
   if (filter === "closed") return c.status === "closed";
-  if (filter === "approval") return c.status === "awaiting_supervisor";
+  if (filter === "approval") return c.status === "awaiting_supervisor" && hasCurrentOfficerReview(c);
   if (filter === "work") return c.status === "in_progress";
   return c.status !== "closed"
     && c.status !== "needs_info"

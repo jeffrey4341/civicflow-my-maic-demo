@@ -27,7 +27,7 @@ import { runTriage } from "@/lib/ai/pipeline";
 import { buildApprovalTask } from "@/lib/ai/approval";
 import { evaluateApprovalGate } from "@/lib/ai/approval";
 import { assertSyntheticDataOnly } from "@/lib/ai/classify";
-import { detectMissingInfo, hasBlockingGaps } from "@/lib/ai/missingInfo";
+import { detectMissingInfo, hasBlockingGaps, resolveLocationText } from "@/lib/ai/missingInfo";
 import { makeAuditEvent } from "@/lib/audit";
 import { loadPolicyChunks } from "@/lib/rag/policies";
 
@@ -444,7 +444,10 @@ export async function submitCase(input: SubmitInput): Promise<CitizenCase> {
       .map(([field, value]) => [field, String(value).trim()])
       .filter(([, value]) => value),
   ) as Record<string, string>;
-  const locationText = (input.location_text?.trim() || answers.location || "").trim();
+  const locationText = resolveLocationText(
+    input.text,
+    input.location_text?.trim() || answers.location || "",
+  );
   const mediaRefs = (input.media_refs ?? []).map((value) => String(value).trim()).filter(Boolean);
   assertSyntheticDataOnly(input.text, locationText, ...mediaRefs, ...Object.values(answers));
   const built = await buildCase({

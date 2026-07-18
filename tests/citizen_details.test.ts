@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST as previewTriage } from "@/app/api/triage/route";
 import { POST as createCase } from "@/app/api/cases/route";
 import * as caseRoute from "@/app/api/cases/[id]/route";
+import { resolveLocationText } from "@/lib/ai/missingInfo";
 import { getCase, listApprovals, listAudit, listCases, resetStore, submitCase } from "@/lib/store";
 import * as util from "@/lib/util";
 
@@ -254,6 +255,45 @@ describe("citizen details and triage revisions", () => {
 
     expect(response.status).toBe(201);
     expect((await response.json()).location_text).toBe("Synthetic Market A");
+  });
+
+  it("persists a synthetic location mentioned in the citizen request", async () => {
+    const response = await createCase(
+      new Request("http://localhost/api/cases", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          text: "Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat.",
+          language: "ms",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    const created = await response.json();
+    expect(created.location_text).toBe("Jalan SS2");
+    expect(created.missing_info.find((item: { field: string }) => item.field === "location"))
+      .toMatchObject({ required: true, satisfied: true });
+    const missingInfoEvent = (await listAudit(created.case_id))
+      .find((event) => event.event_type === "ai.missing_info");
+    const fields = missingInfoEvent?.payload.fields as Array<Record<string, unknown>> | undefined;
+    expect(fields?.find((item) => item.field === "location"))
+      .toMatchObject({ required: true, satisfied: true });
+  });
+
+  it("infers only documented synthetic location shapes", () => {
+    expect(resolveLocationText("A synthetic food stall will operate at Synthetic Market A.", ""))
+      .toBe("Synthetic Market A");
+    expect(resolveLocationText("Sampah di Taman Demo tidak dikutip.", ""))
+      .toBe("Taman Demo");
+    expect(resolveLocationText("The blocked drain affects Synthetic Neighbourhood residents.", ""))
+      .toBe("Synthetic Neighbourhood");
+    expect(resolveLocationText("Waste collection at Synthetic Lane stopped yesterday.", ""))
+      .toBe("Synthetic Lane");
+    expect(resolveLocationText("Synthetic Market is closed for maintenance.", ""))
+      .toBe("");
+    expect(resolveLocationText("A synthetic food stall needs a licence.", ""))
+      .toBe("");
   });
 
   it("allows only one concurrent follow-up for the same triage revision", async () => {

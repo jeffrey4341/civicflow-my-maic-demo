@@ -68,10 +68,10 @@ const F: Record<string, Frag> = {
     ta: "அலுவலர் மதிப்பாய்வுக்காக இந்த ஆவணங்களைத் தயார் செய்யவும்: {list}.",
   },
   supervisor: {
-    en: "As this may involve flood risk, a supervisor will review it as a priority.",
-    ms: "Memandangkan ini mungkin melibatkan risiko banjir, seorang penyelia akan menyemaknya sebagai keutamaan.",
-    zh: "由于此个案可能涉及水灾风险，主管将优先审核。",
-    ta: "இது வெள்ள அபாயத்தை உள்ளடக்கக்கூடும் என்பதால், ஒரு மேற்பார்வையாளர் இதை முன்னுரிமையாக மதிப்பாய்வு செய்வார்.",
+    en: "This flood-risk request requires supervisor approval before council work can begin.",
+    ms: "Permohonan berkaitan risiko banjir ini memerlukan kelulusan penyelia sebelum tindakan pihak majlis dapat dimulakan.",
+    zh: "这项涉及洪水风险的服务请求须经主管批准，市政部门方可开始处理。",
+    ta: "வெள்ள அபாயம் தொடர்பான இந்தக் கோரிக்கைக்கு, நகராட்சி மன்றம் நடவடிக்கை எடுப்பதற்கு முன் மேற்பார்வையாளரின் ஒப்புதல் அவசியம்.",
   },
   eligibility: {
     en: "Eligibility is decided by a welfare officer after document review — this is not an automatic approval.",

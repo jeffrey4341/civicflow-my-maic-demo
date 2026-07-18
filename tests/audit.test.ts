@@ -39,6 +39,24 @@ describe("audit event creation", () => {
     expect(out.status).toBe("awaiting_supervisor");
   });
 
+  it.each([
+    ["en", "This flood-risk request requires supervisor approval before council work can begin.", "will review it"],
+    ["ms", "Permohonan berkaitan risiko banjir ini memerlukan kelulusan penyelia sebelum tindakan pihak majlis dapat dimulakan.", "akan menyemaknya"],
+    ["zh", "这项涉及洪水风险的服务请求须经主管批准，市政部门方可开始处理。", "主管将优先审核"],
+    ["ta", "வெள்ள அபாயம் தொடர்பான இந்தக் கோரிக்கைக்கு, நகராட்சி மன்றம் நடவடிக்கை எடுப்பதற்கு முன் மேற்பார்வையாளரின் ஒப்புதல் அவசியம்.", "மதிப்பாய்வு செய்வார்"],
+  ] as const)("uses state-stable supervisor copy in %s", async (language, expected, stale) => {
+    const out = await runTriage({
+      case_id: `case_flood_${language}`,
+      citizen_ref: `CF-${language.toUpperCase()}01`,
+      text: "Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat.",
+      selected_language: language,
+      location_text: "Jalan SS2",
+    });
+
+    expect(out.result.reply_draft.body).toContain(expected);
+    expect(out.result.reply_draft.body).not.toContain(stale);
+  });
+
   it("drafts a reply grounded on a citation (every recommendation is cited)", async () => {
     const out = await runTriage({
       case_id: "case_lic",

@@ -1,4 +1,4 @@
-import type { PolicyCitation } from "@/lib/types";
+import type { CitizenCase, PolicyCitation } from "@/lib/types";
 
 const MANUAL_REVIEW_NO_CITATION_REASON =
   "Manual review required because no reliable policy citation was found.";
@@ -6,6 +6,10 @@ export const MANUAL_REVIEW_LOW_CONFIDENCE_REASON =
   "Manual review required because classification confidence is low.";
 
 const LOW_CONFIDENCE_THRESHOLD = 0.5;
+
+export function hasCurrentOfficerReview(record: CitizenCase): boolean {
+  return record.officer_review?.triage_revision === record.triage_revision;
+}
 
 export function manualReviewReasonFor(
   citations: PolicyCitation[],
