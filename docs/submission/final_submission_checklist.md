@@ -99,16 +99,16 @@ This is the most important integrity claim for a public e-gov demo. **All three 
 
 ## 4. Verification Checklist
 
-All gates below are reported as **passing** in the audit trail; re-run them on the submission machine before recording or pushing. Current source of truth: [fable5_system_audit_2026-07-02.md](../audit/fable5_system_audit_2026-07-02.md) and [final_submission_packaging_check.md](../audit/final_submission_packaging_check.md).
+Re-run every gate on the exact submission tree before recording or pushing; current code and same-session command output are the source of truth. Historical references: [fable5_system_audit_2026-07-02.md](../audit/fable5_system_audit_2026-07-02.md) and [final_submission_packaging_check.md](../audit/final_submission_packaging_check.md).
 
 ### 4.1 Build, types, tests, dependencies
 - [ ] `npm run typecheck` — TypeScript compiles clean (`tsc --noEmit`)
-- [ ] `npm test` — Vitest passes (**10 test files / 67 tests**, including governance, LLM parity, RAG evaluation, citizen detail integrity, and officer lifecycle review)
-- [ ] `npm run build` — Next.js **15.5.19** production build completes; all routes build (`/m`, `/officer`, `/officer/cases/[id]`, `/officer/approvals`, `/officer/audit`, `/api/*`)
+- [ ] `npm test` — Vitest passes (**10 test files / 74 tests**, including governance, LLM parity, RAG evaluation, citizen detail integrity, and officer lifecycle review)
+- [ ] `npm run build` — Next.js **15.5.22** production build completes; all routes build (`/m`, `/officer`, `/officer/cases/[id]`, `/officer/approvals`, `/officer/audit`, `/api/*`)
 - [ ] `npm run smoke:citizen` — real 320 px mobile flow covers keyboard tabs, language mismatch confirmation, needs-info submission, structured follow-up, tracking, and overflow checks
 - [ ] `npm run smoke:officer` — real staff flow covers search/default closed filtering, Enter-key policy search without review submission, officer review, reply sending, explicit work start, and note-gated closure
 - [ ] `npm run smoke:e2e` — production-server smoke covers synthetic-data rejection, the four canonical governance paths, closure/immutability gates, and eight rendered routes
-- [ ] `npm audit --omit=dev --audit-level=moderate` — **0 vulnerabilities** in production deps; PostCSS pinned via `overrides` to `8.5.15` — see [package.json](../../package.json)
+- [ ] `npm audit --omit=dev --audit-level=moderate` — **0 vulnerabilities** in production deps; PostCSS and Sharp pinned via `overrides` to `8.5.18` and `0.35.3`; Node.js **20.9+** required — see [package.json](../../package.json)
 
 ### 4.2 Production server smoke test
 Launch: `npm run build && npm run start -- --hostname 127.0.0.1 --port 3000` (use an alternate port such as 3015 if 3000 is busy).
@@ -172,7 +172,7 @@ Source: public-repo readiness audit of [LICENSE](../../LICENSE), [.gitignore](..
 - [ ] **.gitignore**: excludes `.env` / `.env.*`, `node_modules/`, `.next/`, build artifacts, IDE folders; negation `!.env.example` keeps the template tracked — see [.gitignore](../../.gitignore)
 - [ ] **.env.example**: present, optional `ANTHROPIC_API_KEY` commented/blank, no real secrets — see [.env.example](../../.env.example)
 - [ ] **Third-party notices**: all runtime/dev deps listed with MIT/Apache-2.0 licences; notes the Anthropic path uses built-in `fetch` (no bundled SDK) — see [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md)
-- [ ] **README**: prerequisites (Node 18+), install/dev/build/start, port guidance, test commands, optional-LLM explanation, demo walkthrough — see [README.md](../../README.md)
+- [ ] **README**: prerequisites (Node 20.9+), install/dev/build/start, port guidance, test commands, optional-LLM explanation, demo walkthrough — see [README.md](../../README.md)
 - [ ] **AI disclosure**: where AI is used, what it never does, determinism/fallback, human oversight, 100% synthetic — see [AI_DISCLOSURE.md](../../AI_DISCLOSURE.md)
 - [ ] **No secrets in history**: `ANTHROPIC_API_KEY` appears only as a commented template; verify with `git log` / `git grep`
 - [ ] **No build artifacts tracked**: `git ls-files` shows no `node_modules/`, `.next/`, `dist/`
@@ -186,7 +186,7 @@ Source: public-repo readiness audit of [LICENSE](../../LICENSE), [.gitignore](..
 Everything a judge should be able to find from the repository root.
 
 - [ ] **Public repository** (GitHub) — section 6 complete, default branch builds clean
-- [ ] **Public demo portal URL** — live, no-login, verified by hosted smoke (`CIVICFLOW_BASE_URL=<url> npm run smoke:e2e`); current URL recorded in [README.md](../../README.md); evidence: [portal_deploy_recheck_2026-07-03.md](../audit/portal_deploy_recheck_2026-07-03.md). Note: trycloudflare quick-tunnel URLs rotate on restart — re-verify the URL is live at the start of each judging window; stable-host path: [railway_portal_runbook.md](../deployment/railway_portal_runbook.md); self-host scripts: `scripts/portal/setup_portal.ps1` / `.sh`
+- [ ] **Public demo portal URL** — no permanent public endpoint is currently claimed in the README. Before judging, establish a no-login endpoint and verify it with `CIVICFLOW_BASE_URL=<url> npm run smoke:e2e`. Quick-tunnel URLs rotate on restart; stable-host path: [railway_portal_runbook.md](../deployment/railway_portal_runbook.md); self-host scripts: `scripts/portal/setup_portal.ps1` / `.sh`
 - [ ] **3-minute demo video** — section 5 complete; file rendered, QA'd, and either committed to release assets or linked from the README/submission form (decide hosting; `outputs/` is currently untracked)
 - [ ] **README** as the entry point with quick-start and demo walkthrough — [README.md](../../README.md)
 - [ ] **Architecture doc** — [architecture.md](../architecture/architecture.md)
