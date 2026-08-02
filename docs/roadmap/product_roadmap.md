@@ -10,7 +10,7 @@ The current repository remains a synthetic demo. The roadmap below describes the
 
 **Product North Star:** three of three canonical journeys must run from citizen intake to a citizen-visible, policy-cited, human-owned and audited outcome, with zero unsafe bypasses.
 
-The MAIC submission deadline is **2026-09-01 00:00 MYT**. The English 179-second video is locally rendered and verified; its public judging URL, the public no-login deployment and the completed submission-portal record remain external delivery gates until each is verified directly.
+The MAIC submission deadline is **2026-09-01 00:00 MYT**. The English 179-second video is locally verified and publicly released with no login wall. The public no-login application deployment and completed submission-portal record remain external delivery gates until each is verified directly.
 
 ## Phase 0 - Current Hackathon Artifact
 
@@ -29,7 +29,7 @@ The current artifact demonstrates the core civic workflow with synthetic data:
 
 This phase proves the workflow logic: AI drafts, humans decide and every case is traceable.
 
-**Current verified product status (2026-08-02).** Local evidence covers all three canonical journeys and their governance checks. The Malay drainage case preserves policy evidence and the reviewed reply through officer review, supervisor approval, reply release, work start and human closure. The Chinese licence journey resolves missing details in the same case, returns the new revision to officer review and completes the separated release/start/close path. The education/welfare journey requires a human-recorded outcome and never creates an AI eligibility decision. Citation-or-manual-review, denied-transition audit events and separate consequential actions remain hard boundaries. A real-UI English demo video is verified at `179.000000` seconds. This remains local evidence only: there is still no production identity, tenancy, persistent database, live agency adapter, verified public deployment, public video URL or completed portal submission.
+**Current verified product status (2026-08-02).** Local evidence covers all three canonical journeys and their governance checks. The Malay drainage case preserves policy evidence and the reviewed reply through officer review, supervisor approval, reply release, work start and human closure. The Chinese licence journey resolves missing details in the same case, returns the new revision to officer review and completes the separated release/start/close path. The education/welfare journey requires a human-recorded outcome and never creates an AI eligibility decision. Citation-or-manual-review, denied-transition audit events and separate consequential actions remain hard boundaries. A real-UI English demo video is verified at `179.000000` seconds and publicly available from the MAIC preliminary GitHub release. There is still no production identity, tenancy, persistent database, live agency adapter, verified public application deployment or completed portal submission.
 
 ## Phase 1 - 0 to 90 Days: Outcome-Gated Pilot Foundation
 
@@ -44,7 +44,7 @@ The first product step is to preserve the narrow product thesis and earn the rig
 - Configure and smoke-test a stable public no-login demo URL; do not claim deployment before direct verification.
 - Complete the MAIC portal fields and capture submission confirmation before **2026-09-01 00:00 MYT**.
 
-Expected outcome: a truthful, reproducible submission package. Until the public video URL, public deployment and portal confirmation exist, submission delivery remains incomplete.
+Expected outcome: a truthful, reproducible submission package. The public repository, release artifacts and video URL now exist; submission delivery remains incomplete until the public application deployment and portal confirmation are directly verified.
 
 ### Day 31-60 - One-agency trust boundary
 
