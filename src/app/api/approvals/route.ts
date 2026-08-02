@@ -6,6 +6,6 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const status = new URL(req.url).searchParams.get("status") as ApprovalStatus | null;
-  const valid: ApprovalStatus[] = ["pending", "approved", "rejected"];
+  const valid: ApprovalStatus[] = ["pending", "approved", "rejected", "superseded"];
   return NextResponse.json(await listApprovals(status && valid.includes(status) ? status : undefined));
 }

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildApprovalTask, evaluateApprovalGate } from "@/lib/ai/approval";
-import { decideApproval, listApprovals, resetStore, submitCase } from "@/lib/store";
+import { decideApproval, listApprovals, resetStore, reviewCase, submitCase } from "@/lib/store";
 
 describe("approval gate", () => {
   it("requires supervisor approval for flood-risk drainage", () => {
@@ -38,6 +38,7 @@ describe("approval gate", () => {
   it("builds an approval task requested by the AI agent, pending, role=supervisor", () => {
     const task = buildApprovalTask({
       case_id: "c1",
+      triage_revision: 1,
       title: "t",
       reason: "r",
       risk_factors: ["x"],
@@ -68,14 +69,36 @@ describe("approval governance (no self-approval, role-gated)", () => {
     const task = pending.find((t) => t.case_id === c.case_id);
     expect(task).toBeDefined();
 
+    await reviewCase({
+      case_id: c.case_id,
+      triage_revision: c.triage_revision,
+      officer: "Officer Tan (demo)",
+      note: "Reviewed synthetic flood-risk case.",
+      citizen_language: c.citizen_language,
+      category: c.category,
+      routing: { department: c.department, unit: c.unit },
+      citation_keys: c.citations.map(({ source_doc, section }) => ({ source_doc, section })),
+      reply_body: "Officer-reviewed synthetic citizen reply.",
+      reply_body_en: "Officer-reviewed synthetic citizen reply.",
+      resolution: "proceed",
+    });
+
     // Wrong role may not decide.
     await expect(
-      decideApproval({ approval_id: task!.approval_id, decision: "approved", decided_by: "Officer X", decided_role: "officer" }),
+      decideApproval({
+        approval_id: task!.approval_id,
+        triage_revision: c.triage_revision,
+        decision: "approved",
+        decided_by: "Officer X",
+        decided_role: "officer",
+        note: "Officer cannot approve this task.",
+      }),
     ).rejects.toThrow();
 
     // Correct role approves.
     const approved = await decideApproval({
       approval_id: task!.approval_id,
+      triage_revision: c.triage_revision,
       decision: "approved",
       decided_by: "Supervisor Lim (demo)",
       decided_role: "supervisor",
@@ -86,7 +109,13 @@ describe("approval governance (no self-approval, role-gated)", () => {
 
     // Cannot decide twice.
     await expect(
-      decideApproval({ approval_id: task!.approval_id, decision: "rejected", decided_role: "supervisor" }),
+      decideApproval({
+        approval_id: task!.approval_id,
+        triage_revision: c.triage_revision,
+        decision: "rejected",
+        decided_role: "supervisor",
+        note: "A second decision is not permitted.",
+      }),
     ).rejects.toThrow();
   });
 });

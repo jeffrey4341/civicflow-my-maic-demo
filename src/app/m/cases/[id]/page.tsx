@@ -1,114 +1,182 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+
+import { CitizenFollowUpForm, CitizenUpdateStatus } from "@/components/citizen/CitizenFollowUpForm";
+import { LANGUAGE_NAMES, categoryLabel, statusLabel, t } from "@/lib/i18n";
 import { getCase } from "@/lib/store";
-import { CASE_STATUS_ORDER } from "@/lib/types";
-import { LANGUAGE_NAMES, categoryLabel, statusLabel, t, urgencyLabel } from "@/lib/i18n";
-import { StatusBadge, UrgencyBadge } from "@/components/ui";
+import type { CaseStatus, CitizenCase, Language } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const CITIZEN_MILESTONES = ["submitted", "routed", "awaiting_supervisor", "in_progress", "closed"] as const;
+interface Stage {
+  status: CaseStatus;
+  state: "complete" | "current";
+}
 
-export default async function CitizenCasePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+function stagesFor(c: CitizenCase): Stage[] {
+  if (c.status === "needs_info") {
+    return [{ status: "submitted", state: "complete" }, { status: "needs_info", state: "current" }];
+  }
+  if (c.status === "manual_review") {
+    return [{ status: "submitted", state: "complete" }, { status: "manual_review", state: "current" }];
+  }
+  if (c.status === "awaiting_supervisor") {
+    return [
+      { status: "submitted", state: "complete" },
+      { status: "routed", state: "complete" },
+      { status: "awaiting_supervisor", state: "current" },
+    ];
+  }
+  if (c.status === "routed") {
+    return [{ status: "submitted", state: "complete" }, { status: "routed", state: "current" }];
+  }
+  if (c.status === "in_progress") {
+    return [
+      { status: "submitted", state: "complete" },
+      { status: "routed", state: "complete" },
+      { status: "in_progress", state: "current" },
+    ];
+  }
+  const closedWithoutAction = c.officer_review?.resolution === "close_no_action";
+  return closedWithoutAction
+    ? [
+        { status: "submitted", state: "complete" },
+        { status: "manual_review", state: "complete" },
+        { status: "closed", state: "current" },
+      ]
+    : [
+        { status: "submitted", state: "complete" },
+        { status: "routed", state: "complete" },
+        { status: "in_progress", state: "complete" },
+        { status: "closed", state: "current" },
+      ];
+}
+
+function nextStepText(c: CitizenCase, language: Language): string {
+  const key: Record<CaseStatus, string> = {
+    draft: "status.routed_next",
+    needs_info: "status.needs_help",
+    submitted: "status.routed_next",
+    manual_review: "status.manual_next",
+    routed: "status.routed_next",
+    awaiting_supervisor: "status.supervisor_next",
+    in_progress: "status.progress_next",
+    closed: "status.closed_next",
+  };
+  return t(language, key[c.status]);
+}
+
+export default async function CitizenCasePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ updated?: string }>;
+}) {
+  const [{ id }, query] = await Promise.all([params, searchParams]);
   const c = await getCase(id);
   if (!c) notFound();
-  const lang = c.citizen_language;
-  const required = c.missing_info.filter((m) => m.required && !m.satisfied);
+  const language = c.citizen_language;
+  const required = c.missing_info.filter((item) => item.required && !item.satisfied);
+  const showAssignment = !["needs_info", "manual_review"].includes(c.status);
   const replyReady = c.reply_draft?.status === "sent";
-  const currentIdx = CASE_STATUS_ORDER.indexOf(c.status);
+  const heading = c.status === "needs_info" ? t(language, "status.needs_heading") : t(language, "status.title");
 
   return (
-    <div className="flex flex-col">
-      <div className="bg-flag-gold/15 px-4 py-2 text-center text-xxs font-medium text-amber-900">
-        {t(lang, "common.synthetic_banner")}
-      </div>
+    <div lang={language}>
+      <aside className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950" role="note">
+        {t(language, "common.synthetic_banner")}
+      </aside>
 
-      <section className="px-5 py-6">
-        <div className="rounded-xl bg-civic-600 p-5 text-white">
-          <div className="text-2xl">✅</div>
-          <h1 className="mt-2 text-lg font-bold">{t(lang, "created.title")}</h1>
-          <p className="mt-1 text-sm text-civic-50">{t(lang, "created.intro")}</p>
-          <div className="mt-4 rounded-lg bg-white/15 px-3 py-2">
-            <div className="text-2xs uppercase tracking-wide text-civic-100">{t(lang, "created.ref_label")}</div>
-            <div className="font-mono text-xl font-bold tracking-wider">{c.citizen_ref}</div>
-          </div>
-        </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
-          <Info label={t(lang, "created.detected_lang")} value={LANGUAGE_NAMES[c.detected_language]} />
-          <Info label={t(lang, "created.category")} value={categoryLabel(c.category, lang)} />
-          <Info label={t(lang, "created.department")} value={`${c.department} – ${c.unit}`} />
-          <div>
-            <div className="text-2xs uppercase tracking-wide text-slate-400">{t(lang, "created.urgency")}</div>
-            <div className="mt-1"><UrgencyBadge urgency={c.urgency} locale={lang} /></div>
-          </div>
-        </div>
-
-        {/* Status progress */}
-        <div className="mt-6">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-700">{t(lang, "status.timeline")}</p>
-            <StatusBadge status={c.status} locale={lang} />
-          </div>
-          <ol className="mt-3 space-y-2">
-            {CITIZEN_MILESTONES.map((s) => {
-              const reached = CASE_STATUS_ORDER.indexOf(s) <= currentIdx && currentIdx >= 0;
-              const isCurrent = s === c.status;
-              return (
-                <li key={s} className="flex items-center gap-3" aria-current={isCurrent ? "step" : undefined}>
-                  <span aria-hidden="true" className={`flex h-5 w-5 items-center justify-center rounded-full text-xxs ${reached ? "bg-civic-500 text-white" : "bg-slate-200 text-slate-400"}`}>
-                    {reached ? "✓" : "•"}
-                  </span>
-                  <span className={`text-sm ${isCurrent ? "font-semibold text-civic-700" : reached ? "text-slate-600" : "text-slate-400"}`}>
-                    {statusLabel(s, lang)}
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-
-        {c.status === "needs_info" && required.length > 0 && (
-          <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm font-semibold text-amber-900">{t(lang, "status.missing_title")}</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-amber-800">
-              {required.map((m) => <li key={m.field}>{m.question_localized}</li>)}
-            </ul>
-          </div>
-        )}
-
-        {/* Reply */}
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
-          {replyReady ? (
-            <>
-              <p className="text-sm font-semibold text-civic-700">{t(lang, "status.reply_ready")}</p>
-              <Link
-                href={`/m/cases/${c.citizen_ref}/reply`}
-                className="mt-3 block w-full rounded-xl bg-civic-600 py-2.5 text-center font-semibold text-white hover:bg-civic-700"
-              >
-                {t(lang, "status.view_reply")}
-              </Link>
-            </>
-          ) : (
-            <p className="text-sm text-slate-500">{t(lang, "status.reply_pending")}</p>
-          )}
-        </div>
-
-        <div className="mt-5 flex justify-between text-xxs text-slate-400">
-          <Link href="/m" className="underline">＋ New request</Link>
-          <Link href={`/officer/cases/${c.case_id}`} className="underline">Officer view →</Link>
+      <section className="mt-7">
+        <p className="text-sm font-medium text-civic-800">{statusLabel(c.status, language)}</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">{heading}</h1>
+        <div className="mt-5 flex flex-wrap items-baseline justify-between gap-2 border-y border-slate-200 py-4">
+          <span className="text-sm text-slate-600">{t(language, "status.track_label")}</span>
+          <span className="font-mono text-lg font-semibold tracking-wide text-slate-950">{c.citizen_ref}</span>
         </div>
       </section>
+
+      <section className="mt-7" aria-labelledby="next-action-heading">
+        <h2 id="next-action-heading" className="text-lg font-semibold text-slate-950">
+          {t(language, "status.what_next")}
+        </h2>
+        {query.updated === "1" ? <CitizenUpdateStatus message={t(language, "status.details_saved")} /> : null}
+        <p className="mt-2 text-sm leading-6 text-slate-700">{nextStepText(c, language)}</p>
+        {c.status === "needs_info" && required.length > 0 ? (
+          <CitizenFollowUpForm
+            citizenRef={c.citizen_ref}
+            triageRevision={c.triage_revision}
+            language={language}
+            fields={required}
+          />
+        ) : null}
+      </section>
+
+      <section className="mt-8 border-t border-slate-200 pt-7" aria-labelledby="progress-heading">
+        <h2 id="progress-heading" className="text-lg font-semibold text-slate-950">{t(language, "status.timeline")}</h2>
+        <ol className="mt-4 space-y-4">
+          {stagesFor(c).map((stage, index) => (
+            <li key={`${stage.status}-${index}`} className="flex items-center gap-3" aria-current={stage.state === "current" ? "step" : undefined}>
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${stage.state === "current" ? "border-civic-700 bg-civic-700 text-white" : "border-civic-300 bg-civic-50 text-civic-800"}`}>
+                {index + 1}
+              </span>
+              <span className={stage.state === "current" ? "font-semibold text-slate-950" : "text-sm text-slate-600"}>
+                {statusLabel(stage.status, language)}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="mt-8 border-t border-slate-200 pt-7" aria-labelledby="case-summary-heading">
+        <h2 id="case-summary-heading" className="text-lg font-semibold text-slate-950">{t(language, "review.understanding")}</h2>
+        <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+          <SummaryItem label={t(language, "created.category")} value={categoryLabel(c.category, language)} />
+          <SummaryItem label={t(language, "landing.choose_language")} value={LANGUAGE_NAMES[language]} />
+          {showAssignment ? (
+            <SummaryItem
+              label={t(language, "status.assigned_to")}
+              value={(
+                <>
+                  <span data-language-part="department" lang="en">{c.department}</span>
+                  <span aria-hidden="true"> — </span>
+                  <span data-language-part="unit" lang="en">{c.unit}</span>
+                </>
+              )}
+            />
+          ) : null}
+        </dl>
+      </section>
+
+      <section className="mt-8 border-t border-slate-200 pt-7">
+        {replyReady ? (
+          <>
+            <h2 className="text-lg font-semibold text-slate-950">{t(language, "status.reply_ready")}</h2>
+            <Link
+              href={`/m/cases/${c.citizen_ref}/reply`}
+              className="mt-4 flex min-h-12 items-center justify-center rounded-lg bg-civic-700 px-4 font-semibold text-white outline-none hover:bg-civic-800 focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2"
+            >
+              {t(language, "status.view_reply")}
+            </Link>
+          </>
+        ) : (
+          <p className="text-sm leading-6 text-slate-600">{t(language, "status.reply_pending")}</p>
+        )}
+      </section>
+
+      <nav className="mt-8 flex flex-wrap gap-x-6 gap-y-3 border-t border-slate-200 pt-6 text-sm font-medium" aria-label={t(language, "a11y.case_actions")}>
+        <Link href="/m" className="inline-flex min-h-11 items-center text-civic-800 underline-offset-4 hover:underline">{t(language, "status.new_request")}</Link>
+      </nav>
     </div>
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function SummaryItem({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <div className="text-2xs uppercase tracking-wide text-slate-400">{label}</div>
-      <div className="font-medium text-slate-800">{value}</div>
+      <dt className="text-sm text-slate-600">{label}</dt>
+      <dd className="mt-1 font-medium text-slate-900">{value}</dd>
     </div>
   );
 }

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="civicflow-mark-title">
+  <title id="civicflow-mark-title">CivicFlow MY civic service mark</title>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#1d5754"/>
+  <path fill="#eef7f6" d="M14 27.5 32 16l18 11.5V32H14v-4.5Z"/>
+  <path fill="#eef7f6" d="M18 32h10v13H18zm18 0h10v13H36z"/>
+  <path d="M12 49c8 0 10-7 20-7s12 7 20 7" fill="none" stroke="#ffcc00" stroke-width="5" stroke-linecap="round"/>
+</svg>

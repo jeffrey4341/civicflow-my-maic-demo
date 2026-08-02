@@ -18,7 +18,7 @@ The "model" described here is not a single trained model. It is a **deterministi
 | Version | Hackathon demo (T5) |
 | Owner | CivicFlow MY Mobile demo team |
 | Default engine | Deterministic TypeScript (heuristics + hybrid retrieval) — runs fully offline |
-| Optional engine | Anthropic Claude (e.g. `claude-opus-4` family / `claude-sonnet`), used **only** if `ANTHROPIC_API_KEY` is set |
+| Optional engine | Anthropic Claude, configurable through `CIVICFLOW_LLM_MODEL`, used **only** if `ANTHROPIC_API_KEY` is set |
 | Data | 100% synthetic — no real citizen data, SOPs, NRIC, addresses, or phone numbers |
 | Languages | Malay (`ms`), English (`en`), Chinese (`zh`), Tamil (`ta`) |
 | Status | Public-demo safe; **not for production** |
@@ -85,9 +85,9 @@ The deterministic engine produces **the same structured JSON schema** as the opt
 
 The optional LLM path is used **only if an `ANTHROPIC_API_KEY` is present**. Otherwise the deterministic fallback is used. The demo is designed to run with **no API key**.
 
-- **Provider / models:** Anthropic Claude — for example the `claude-opus-4` family or `claude-sonnet` (configurable via `CIVICFLOW_LLM_MODEL`). The optional LLM path calls the Anthropic Messages HTTP API directly via the runtime's built-in `fetch` — no third-party SDK is bundled or **required** to run the demo.
-- **Role:** The LLM may assist with language detection, classification, summarisation, citation selection from retrieved candidates, routing recommendation, missing-info detection, and reply drafting.
-- **Same contract:** The LLM path is constrained to emit the **same structured JSON schema** as the deterministic engine (the `RoutingDecision`, `PolicyCitation`, `CitizenReplyDraft`, etc. shapes). The downstream workflow does not branch on which engine produced the output.
+- **Provider / model:** Anthropic Claude, selected through `CIVICFLOW_LLM_MODEL`. The optional path calls the Anthropic Messages HTTP API directly through the runtime's built-in `fetch`; no provider SDK is bundled or required.
+- **Role:** The LLM may refine detected language, an English translation, case category and urgency. It may add risk but cannot downgrade a deterministic category-specific human gate.
+- **Bounded contract:** The refinement has one validated schema. Retrieval, routing, missing-info detection, approval gates, reply drafting, lifecycle enforcement and audit recording remain deterministic application logic.
 - **No autonomy:** Whether the LLM or the deterministic engine is used, the AI **does not** close cases, approve high-risk escalations, dispatch field teams, or decide eligibility.
 
 ---
@@ -118,7 +118,7 @@ The deterministic fallback runs the entire pipeline when no LLM key is configure
 
 ### 5.3 Outputs (data models)
 
-- **`CitizenCase`** — the case record. Status lifecycle: `draft -> needs_info -> submitted -> routed -> awaiting_supervisor -> in_progress -> closed`.
+- **`CitizenCase`** — the case record. Status lifecycle: `draft -> needs_info -> submitted -> manual_review -> routed -> awaiting_supervisor -> in_progress -> closed`.
 - **`RoutingDecision`** — recommended department and rationale.
 - **`PolicyCitation`** — `source_doc`, `section`, `snippet`, `confidence`.
 - **`ApprovalTask`** — supervisor approval task for high-risk cases.

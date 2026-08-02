@@ -11,6 +11,8 @@
 import type { CaseCategory, PiiRisk, Urgency } from "@/lib/types";
 import { clamp, round2 } from "@/lib/util";
 
+export const SYNTHETIC_DATA_ONLY_CODE = "synthetic_data_only";
+
 interface Keyword {
   term: string;
   weight: number;
@@ -75,6 +77,7 @@ const HIGH_URGENCY_WORDS = [
   "urgent", "segera", "emergency", "kecemasan", "bahaya", "danger", "dangerous",
   "紧急", "危险", "அவசரம்",
 ];
+const URGENCY_ORDER: Urgency[] = ["low", "normal", "high", "urgent", "flood_risk"];
 
 function scoreCategory(text: string, keywords: Keyword[]): number {
   const lower = text.toLowerCase();
@@ -93,7 +96,7 @@ export interface Classification {
   matched_terms: string[];
 }
 
-function classifyUrgency(text: string, category: CaseCategory): Urgency {
+export function classifyUrgency(text: string, category: CaseCategory): Urgency {
   const lower = text.toLowerCase();
   if (category === "drainage") {
     if (FLOOD_RISK_SIGNALS.some((s) => lower.includes(s))) return "flood_risk";
@@ -104,6 +107,10 @@ function classifyUrgency(text: string, category: CaseCategory): Urgency {
   return "normal";
 }
 
+export function maxUrgency(left: Urgency, right: Urgency): Urgency {
+  return URGENCY_ORDER.indexOf(left) >= URGENCY_ORDER.indexOf(right) ? left : right;
+}
+
 export function detectPiiRisk(text: string): PiiRisk {
   const nric = /\b\d{6}-\d{2}-\d{4}\b/;
   // Malaysian phone-shaped placeholders, e.g. 012-0000000, 03-00000000.
@@ -111,10 +118,25 @@ export function detectPiiRisk(text: string): PiiRisk {
   const email = /[\w.+-]+@[\w-]+\.[\w.-]+/;
   const longDigits = /\b\d{7,}\b/;
   const idWords = /\b(nric|mykad|no\.?\s?kp|i\/?c\s?no|ic number|telefon|phone no)\b/i;
+  const patronymicName = /\b\p{Lu}[\p{L}'’.-]*(?:\s+\p{Lu}[\p{L}'’.-]*){0,2}\s+(?:[Bb][Ii][Nn](?:[Tt][Ii])?|[Aa]\/[LlPp])\s+\p{Lu}[\p{L}'’.-]*\b/u;
+  const declaredName = /\b(?:my name is|nama saya|name\s*:)\s+\p{L}[\p{L}'’.-]*(?:\s+\p{L}[\p{L}'’.-]*){1,4}\b/iu;
+  const numberedStreetAddress = /\b\d{1,5}[a-z]?(?:[-/]\d+)?\s*,?\s*(?:jalan|jln\.?|lorong|persiaran|lebuh|road|rd\.?|street|st\.?|avenue|ave\.?)\s+(?!(?:demo|synthetic|example|contoh|ss2)\b)[\p{L}\d]/iu;
 
   if (nric.test(text) || phone.test(text) || email.test(text)) return "high";
-  if (longDigits.test(text) || idWords.test(text)) return "medium";
+  if (
+    longDigits.test(text)
+    || idWords.test(text)
+    || patronymicName.test(text)
+    || declaredName.test(text)
+    || numberedStreetAddress.test(text)
+  ) return "medium";
   return "low";
+}
+
+/** Fail before optional model calls or persistence when input looks personal. */
+export function assertSyntheticDataOnly(...values: string[]): void {
+  if (detectPiiRisk(values.join("\n")) === "low") return;
+  throw Object.assign(new Error(SYNTHETIC_DATA_ONLY_CODE), { code: SYNTHETIC_DATA_ONLY_CODE });
 }
 
 /** Classify free-text into category + urgency + PII-risk with a confidence. */

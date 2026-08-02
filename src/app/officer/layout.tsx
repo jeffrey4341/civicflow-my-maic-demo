@@ -1,31 +1,41 @@
+import Image from "next/image";
 import Link from "next/link";
+
+import { OfficerNav } from "@/components/officer/OfficerNav";
 import { ResetButton } from "@/components/officer/ResetButton";
 
 export default function OfficerLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-slate-100">
-      <div className="bg-flag-gold/20 px-4 py-1.5 text-center text-xxs font-medium text-amber-900">
-        Officer console · synthetic demo data · AI drafts recommendations — officers and supervisors decide
-      </div>
+    <div className="min-h-screen bg-slate-50">
+      <Link href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-3 focus:font-semibold focus:text-civic-900 focus:ring-2 focus:ring-civic-700">
+        Skip to main content
+      </Link>
+      <aside className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-xs font-medium leading-5 text-amber-950" role="note">
+        Officer workspace · Synthetic demo data only · Human review and approval remain required
+      </aside>
       <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-6">
-            <Link href="/officer" className="flex items-center gap-2 font-semibold text-civic-700">
-              <span aria-hidden>🏛️</span> CivicFlow MY · Officer
+        <div className="mx-auto flex max-w-7xl flex-col px-4 sm:px-6 lg:px-8">
+          <div className="flex min-h-16 items-center justify-between gap-4">
+            <Link href="/officer" className="flex min-h-11 items-center gap-3 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2">
+              <Image src="/civicflow-mark.svg" alt="" width={36} height={36} priority />
+              <span>
+                <span className="block font-semibold leading-5 text-slate-950">CivicFlow MY</span>
+                <span className="block text-xs leading-4 text-slate-500">Officer workspace</span>
+              </span>
             </Link>
-            <nav className="hidden items-center gap-4 text-sm text-slate-600 sm:flex">
-              <Link href="/officer" className="hover:text-civic-700">Queue</Link>
-              <Link href="/officer/approvals" className="hover:text-civic-700">Approvals</Link>
-              <Link href="/officer/audit" className="hover:text-civic-700">Audit</Link>
-            </nav>
+            <div className="flex items-center gap-2 sm:gap-4">
+              <Link href="/m" className="hidden min-h-11 items-center text-sm font-medium text-slate-600 underline-offset-4 hover:text-slate-950 hover:underline sm:flex">
+                Citizen services
+              </Link>
+              <ResetButton />
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/m" className="text-xs text-slate-400 underline">Citizen app</Link>
-            <ResetButton />
+          <div className="overflow-x-auto border-t border-slate-100">
+            <OfficerNav />
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl px-4 py-7 outline-none sm:px-6 sm:py-9 lg:px-8">{children}</main>
     </div>
   );
 }

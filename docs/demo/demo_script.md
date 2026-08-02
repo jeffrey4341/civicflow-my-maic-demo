@@ -1,32 +1,16 @@
-# CivicFlow MY Mobile — Live Demo Script
+# CivicFlow MY Mobile — 179-Second Demo Script
 
 **MAIC Nexus Challenge T5 — Public Services & Smart Cities**
-A mobile-first, multilingual citizen-service AI casework platform for Malaysian local councils (Pihak Berkuasa Tempatan / PBT).
 
-> **Demo length:** ~5–7 minutes. Three acts, one persona each.
-> **Important:** All data is 100% synthetic. No real citizen data, NRIC, addresses, phone numbers, or government SOPs. The demo runs fully offline with deterministic AI fallbacks — **no API key required**.
+> **Important:** All data is 100% synthetic. No real citizen data, NRIC, addresses, phone numbers or government SOPs are used. The judging path runs offline with deterministic AI fallbacks and no API key. The submission deadline is **2026-09-01 00:00 MYT**.
 
----
+## Recording status
 
-## What you are showing
+The current product journeys and governance checks are locally verified. The current-UI video was rendered and verified on **2026-08-02** at the ignored local path `output/demo-video/civicflow-real-ui-179s/video/civicflow-my-mobile-real-ui-demo-179s.mp4`; the public release URL remains pending. The 180.067-second June render remains historical evidence and is not the final submission video.
 
-CivicFlow MY Mobile is **not** a generic chatbot and **not** a generic Enterprise Agent OS. It is a **citizen-service workflow / casework layer** for PBTs.
+Verified encoding: H.264 video, 1280×720, yuv420p, 30 fps; AAC mono 48 kHz; `ffprobe` container duration **179.000000 seconds**. Full audio/video decode and ten scene-midpoint frames completed with exit 0. SHA-256: `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342`. Public upload remains pending.
 
-A citizen submits a service request in Malay, English, Chinese, or Tamil. The system:
-
-1. **Detects** the language
-2. **Classifies** the case (category + urgency)
-3. **Retrieves** SOP / FAQ / service-charter **citations** (RAG)
-4. **Routes** to the correct department
-5. **Triggers supervisor approval** for high-risk cases
-6. **Drafts** a multilingual citizen reply
-7. **Records** a full append-only audit timeline
-
-> **Governance boundary to repeat out loud:** AI **drafts** recommendations; officers and supervisors **decide**. High-risk cases **require human approval**. AI never autonomously closes cases, approves escalation, dispatches field teams, or decides eligibility.
-
----
-
-## Setup (run before judges arrive)
+## Setup
 
 From the project root:
 
@@ -36,189 +20,135 @@ npm run build
 npm run start -- --hostname 127.0.0.1 --port 3000
 ```
 
-Open the app at **http://127.0.0.1:3000**.
+Open:
 
-If port `3000` is already occupied on the demo machine, keep the same command and change only the port, for example `--port 3004`, then open the matching `127.0.0.1` URL.
+- Citizen mobile app: `http://127.0.0.1:3000/m`
+- Officer console: `http://127.0.0.1:3000/officer`
+- Approvals: `http://127.0.0.1:3000/officer/approvals`
+- Audit: `http://127.0.0.1:3000/officer/audit`
 
-Use `npm run dev` only for development edits. For the recorded demo, use the production build/server path above so the run matches the public submission artifact.
+If port `3000` is occupied, use the same command with another available port. Never stop a process that was not started for this recording.
 
-## Recording checklist
-
-- **Recording date:** 2026-06-14 (MYT), prepared as the second public-demo documentation commit.
-- **Demo flow:** record the three core paths in order: Malay drainage approval gate, Chinese business-licence missing-info flow, and English education-aid officer-review flow.
-- **Public artifact note:** all visible cases, policies, identifiers, and audit events are synthetic. The recording must show CivicFlow as a public hackathon demo artifact, not a production council system.
-
-Optional — guarantee a clean, known state before you present:
+Before each take, reset to a known synthetic state:
 
 ```bash
 npm run seed:reset
 ```
 
-> `seed:reset` re-seeds the in-memory JSON store from `data/seed`. It is equivalent to calling `POST /api/reset`. Run it once before your first take so the case list, approvals, and audit log start empty/known.
-
-**Two windows / tabs you will switch between:**
-
-- **Citizen mobile** — `/m` (mobile-first; resize the browser narrow or use device emulation)
-- **Officer console** — `/officer`, with case detail at `/officer/cases/[id]`, the approval queue at `/officer/approvals`, and the global audit log at `/officer/audit`
-
----
-
-## Opening line (15 seconds)
-
-> "This is CivicFlow MY Mobile — a casework layer that lets a Malaysian council handle citizen requests in four languages. The AI drafts; the officer decides. Watch how one Malay drain complaint, one Chinese licence query, and one English aid request each get a different, governed outcome — with citations and a full audit trail. Everything here is synthetic."
-
----
-
-## Act 1 — Malay blocked drain / flood risk (the approval gate)
-
-**Persona:** *Encik Rahman*, a resident reporting a blocked drain that floods quickly when it rains. This is the **high-risk** path that **requires** supervisor approval.
-
-### 1. Citizen submits (open `/m`)
-
-Paste this exact text into the citizen request box:
-
-```
-Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat.
-```
-
-Submit.
-
-### 2. Expected visible outcome on `/m`
-
-| Field | Expected |
-|---|---|
-| **Language detected** | Malay (ms) |
-| **Category** | Drainage |
-| **Urgency** | Urgent — flood-risk review |
-| **Department** | Engineering / Drainage Unit |
-| **Citation** | Drainage Response SOP (`drainage_response_sop.md`) — section heading + snippet + confidence |
-| **Status** | `awaiting_supervisor` (the request is held for human approval, not auto-actioned) |
-| **Citizen reply draft** | In **Malay**, acknowledging the report and stating it is under review |
-
-> Say: "Because this is flood-risk, the system did **not** act on it — it raised a supervisor approval task. No drain team gets dispatched by the AI."
-
-### 3. Show the approval gate (open `/officer/approvals`)
-
-- Point to the new **ApprovalTask** for the drainage case sitting in the queue.
-- Open it: the officer sees the AI's routing recommendation, the urgency, and the **Drainage Response SOP** citation backing the decision.
-- **Approve** (or note that Approve / Reject are both available — the human owns the decision).
-
-### 4. Show the audit timeline (open `/officer/cases/[id]`)
-
-Open the case detail and scroll to the **audit timeline**. Walk the append-only `AuditEvent` chain:
-
-```
-language detected → classified → policy retrieved (citation) →
-routing decision → approval rule fired → awaiting_supervisor →
-supervisor approved → in_progress
-```
-
-> Emphasise: "Every stage is logged with its citation. This is the evidence trail an Auditor-General or a council ratepayer could inspect."
-
----
-
-## Act 2 — Chinese food-stall licence (missing info + Chinese reply)
-
-**Persona:** *Ms Tan*, a would-be hawker asking what documents she needs to license a small food stall. This is the **clarification** path — the AI detects missing information and asks for it instead of guessing.
-
-### 1. Citizen submits (open `/m`)
-
-Paste this exact text:
-
-```
-我要申请小食档执照，需要什么文件？
-```
-
-Submit.
-
-### 2. Expected visible outcome on `/m`
-
-| Field | Expected |
-|---|---|
-| **Language detected** | Chinese (zh) |
-| **Category** | Business licensing |
-| **Department** | Licensing Unit |
-| **Citation** | Business Licensing FAQ (`business_licensing_faq.md`) |
-| **Status** | `needs_info` (missing-info detected — not yet routed for action) |
-| **Missing-info clarification** | Asks for **location**, **business type**, and **operating hours** |
-| **Citizen reply draft** | In **Chinese**, listing the documents needed, with official **Malay / English** terms retained for accuracy (e.g. *Lesen Penjaja* / business licence) |
-
-> Say: "The AI didn't fabricate a checklist for the wrong stall type. It identified the three things it still needs and asked — in Chinese — while keeping the official Malay and English licensing terms so nothing is lost in translation."
-
-### 3. Show on the officer side (open `/officer/cases/[id]`)
-
-- Status reads `needs_info`.
-- The **missing-info** fields (location, business type, operating hours) are listed as outstanding.
-- The **Business Licensing FAQ** citation is attached to the routing recommendation.
-- Audit timeline shows: `language detected → classified → policy retrieved → missing-info detected → needs_info`.
-
----
-
-## Act 3 — English education aid (officer review, no auto-approval)
-
-**Persona:** *Mr Kumar*, a parent asking whether he can apply for education aid for his child. This is the **human-eligibility** path — the AI pre-screens and assembles a document checklist, but **does not decide eligibility** and **does not auto-approve**.
-
-### 1. Citizen submits (open `/m`)
-
-Paste this exact text:
-
-```
-Can I apply for education aid for my child?
-```
-
-Submit.
-
-### 2. Expected visible outcome on `/m`
-
-| Field | Expected |
-|---|---|
-| **Language detected** | English (en) |
-| **Category** | Education aid / welfare |
-| **Department** | Welfare / Education Support |
-| **Citation** | Welfare Education Aid Policy (`welfare_education_aid_policy.md`) |
-| **Approval** | **No automatic approval** — officer review required |
-| **Status** | Routed for officer review (eligibility decided by a human) |
-| **Document checklist** | Missing-document checklist shown (e.g. proof of household income, child's enrolment confirmation, guardianship — synthetic placeholders only) |
-| **Citizen reply draft** | In **English**, explaining that eligibility is assessed by an officer and listing the documents to prepare |
-
-> Say: "The AI will never tell a citizen they qualify for welfare. It cites the Welfare Education Aid Policy, builds the document checklist, and routes the case to a human who decides eligibility."
-
-### 3. Show on the officer side (open `/officer/cases/[id]`)
-
-- Case is flagged **officer-review-required**; there is **no auto-approval** and no eligibility verdict from the AI.
-- The **missing-document checklist** is shown as actionable items.
-- The **Welfare Education Aid Policy** citation backs the routing.
-- Audit timeline shows the same governed stage sequence, ending in officer review rather than an AI decision.
-
----
-
-## What to emphasise (the four judging points)
-
-- **Multilingual by design** — one platform handles Malay, English, Chinese, and Tamil. Language is detected automatically and the citizen is answered **in their own language**, with official Malay/English terms preserved for accuracy.
-- **Grounded in citations (RAG)** — every classification and routing decision is backed by a **PolicyCitation** (source doc, section, snippet, confidence) drawn from the council's synthetic SOPs, FAQs, and service charter. No ungrounded answers.
-- **Human-in-the-loop governance** — AI **drafts**; officers and supervisors **decide**. High-risk drainage **requires** supervisor approval (Act 1); welfare eligibility is **never** auto-decided (Act 3). The AI does not close cases, approve escalation, dispatch teams, or decide eligibility.
-- **Audit evidence** — every case carries an append-only audit timeline of `AuditEvent`s, each tied to its citation and decision. This is inspectable, accountable e-government — not a black box.
-
-> One closing sentence: "Same pipeline, three governed outcomes — an approval gate, a clarification, and a human-eligibility review — all multilingual, all cited, all auditable."
-
----
-
-## Reset between runs
-
-Before each fresh take, return the demo to a clean known state so the case list, approval queue, and audit log start empty:
-
-```bash
-npm run seed:reset
-```
-
-or call the endpoint directly:
+or:
 
 ```bash
 curl -X POST http://127.0.0.1:3000/api/reset
 ```
 
-This re-seeds the in-memory store from `data/seed`. Because storage is in-memory, a full server restart (`Ctrl+C`, then `npm run dev`) also resets all state. Run the reset between every rehearsal and before the live judging run.
+Use the matching port if not using `3000`.
 
 ---
 
-*CivicFlow MY Mobile is a public hackathon demo artifact. All data, policies, names, and identifiers are synthetic and for demonstration only. This is not a production system and makes no production-readiness or performance claims.*
+## 0:00-0:14 — Opening: casework, not chat
+
+Show the current role launcher.
+
+“CivicFlow MY is a public-service casework demo for Malaysian councils. This walkthrough uses the real product interface and synthetic data only. Citizens submit requests, officers review recommendations, and supervisors decide high-risk cases.”
+
+---
+
+## 0:14-0:31 — Citizen intake
+
+Show `/m`, the four language choices, request field and review-before-submit flow.
+
+“The citizen flow begins with four languages: Bahasa Melayu, English, Chinese, and Tamil. A person writes in their own words or starts from a guided example. The system detects language and service category before submission, without requiring an external model.”
+
+---
+
+## 0:31-0:47 — Officer queue
+
+Show `/officer` and the next-required-action grouping.
+
+“The officer queue turns mixed-language requests into an actionable workload. Each row shows the original request, a translated reference where needed, the service, route, status, risk, and the next required human action.”
+
+---
+
+## 0:47-1:10 — Malay drainage: evidence, routing and the human gate
+
+Use the synthetic request:
+
+```text
+Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat.
+```
+
+Show Malay detection, flood-risk classification, the Drainage Response SOP citation and Engineering / Drainage Unit recommendation.
+
+“Here is the governed Malay drainage flow. Deterministic triage detects Malay, classifies drainage and flooding, retrieves cited policy, and recommends the Engineering Drainage Unit. Flood risk triggers a supervisor checkpoint. The officer reviews the facts and reply; the system never dispatches work or closes the case by itself.”
+
+---
+
+## 1:10-1:32 — Chinese licence: missing details
+
+Show the first licence revision, the three missing fields and the revised officer-review state.
+
+“For a Chinese food-stall licence enquiry, the first revision is not treated as complete. CivicFlow identifies missing location, business type, and operating hours, then asks once for the required details. After the citizen supplies them, the officer reviews the updated facts, three cited FAQ sections, routing, and the Chinese reply draft.”
+
+---
+
+## 1:32-1:52 — Chinese licence: governed completion
+
+Use the synthetic request:
+
+```text
+我要申请小食档执照，需要什么文件？
+```
+
+Show the same case after officer review, reply release, work start and human closure.
+
+“Once the licence case is reviewed, the officer can release the reply and record the work outcome. The citizen sees a Chinese response backed by the same policy citations. Saving a review does not silently send anything: review, send, start work, and close remain separate human actions.”
+
+---
+
+## 1:52-2:07 — Citizen-visible Chinese reply
+
+Show the Chinese citizen reply and its policy references.
+
+“The citizen-facing reply keeps the official department and policy references visible in Chinese. It also says this is a demo and not a real licence approval. That distinction is central: AI drafts service guidance; public officers remain accountable for decisions.”
+
+---
+
+## 2:07-2:27 — Welfare: human outcome gate
+
+Use the synthetic request:
+
+```text
+Can I apply for education aid for my child?
+```
+
+Show the Welfare Education Aid Policy evidence and the separately recorded human outcome.
+
+“Education aid follows a different boundary. CivicFlow retrieves the welfare policy and prepares evidence for review, but it never decides eligibility. The screen records the human welfare outcome separately from automated classification and routing, then preserves the complete case history.”
+
+---
+
+## 2:27-2:42 — Supervisor decision history
+
+Open `/officer/approvals` and show the drainage decision in history with its case reference and decision note.
+
+“High-risk approvals have their own workspace. Flood-risk recommendations remain blocked until the current officer-reviewed revision receives a documented supervisor decision. The history shows who approved, what was approved, and which revision the decision applies to.”
+
+---
+
+## 2:42-2:59 — Audit and closing
+
+Open `/officer/audit` and show a case-level sequence containing automated stages, human actions and a denied or held transition.
+
+“Finally, the append-only audit joins every automated and human event, from submission through routing, approval, replies, and status changes. CivicFlow combines multilingual intake, cited recommendations, explicit human checkpoints, and traceable casework in an offline-ready public demo.”
+
+---
+
+## Final recording gate
+
+- [x] Render against the current verified UI, not the superseded generated text cards.
+- [x] Confirm nominal duration is 179 seconds and `ffprobe` reports an actual duration of `179.000000` seconds.
+- [x] Decode the full MP4 and inspect ten scene-midpoint frames for black frames, overlap, stale UI and unreadable crops.
+- [x] Confirm narration is English throughout while multilingual citizen content remains legible.
+- [ ] Upload to an accepted portal field or stable public judging URL and verify playback without a login wall.
+- [x] Record the final local video path, portable metadata and SHA-256 `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342` in this verification record.
+- [ ] Keep the portal-submission confirmation unchecked until direct evidence exists.

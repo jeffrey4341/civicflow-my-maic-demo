@@ -6,9 +6,9 @@ This document lists the third-party open-source dependencies used by this demo a
 
 The dependencies below are the building blocks that make the demo run. Each entry records the package name, its role in the project, and its licence (all are permissive: MIT or Apache-2.0).
 
-## Licence summary
+## Application dependency licence summary
 
-All third-party dependencies are distributed under the permissive **MIT** or **Apache-2.0** licences. No copyleft, no proprietary, and no source-available-restricted components are included.
+All application dependencies committed in `package-lock.json` are distributed under the permissive **MIT** or **Apache-2.0** licences. No proprietary application package is bundled.
 
 ## Runtime dependencies
 
@@ -31,6 +31,7 @@ These packages support building, type-checking, styling, and testing. They are n
 | `postcss` | CSS transformation pipeline used by Tailwind | MIT |
 | `autoprefixer` | PostCSS plugin that adds vendor prefixes for cross-browser CSS | MIT |
 | `vitest` | Test runner for the deterministic AI/RAG pipeline and route handlers | MIT |
+| `playwright` | Browser automation for the MAIC e2e smoke script (`npm run smoke:e2e`) | Apache-2.0 |
 | `@types/node` | TypeScript type definitions for the Node.js runtime | MIT |
 | `@types/react` | TypeScript type definitions for React | MIT |
 | `@types/react-dom` | TypeScript type definitions for React DOM | MIT |
@@ -43,6 +44,10 @@ using the runtime's built-in `fetch` — **no third-party SDK is bundled or
 required**. When no key is configured, the deterministic TypeScript fallback
 produces identical-shape structured output, so the demo runs end-to-end with the
 dependencies listed above and nothing else.
+
+## Optional media-authoring tools — not bundled
+
+`npm run demo:video` is an artifact-authoring command, not an application runtime path. It requires Python with the external `edge-tts` package, network access to its speech service, and `ffmpeg` / `ffprobe`. Those tools are installed and licensed separately by the person producing the video; they are not included in `package-lock.json`, not shipped with the app, and not needed for build, test or deployment.
 
 ## Notes
 

@@ -16,9 +16,6 @@ next-env.d.ts
 # testing
 /coverage
 
-# demo outputs — recordings stay out of the public repo
-/outputs/
-
 # misc
 .DS_Store
 *.pem
@@ -45,3 +42,8 @@ yarn-error.log*
 
 # vitest
 /.vitest/
+
+# generated demo media & tool artifacts — keep out of commits (see docs/submission/final_submission_checklist.md)
+/output/
+/outputs/
+/.codex-remote-attachments/

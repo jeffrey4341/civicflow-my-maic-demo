@@ -4,7 +4,11 @@ import type { ApprovalStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-/** Supervisor approves or rejects a high-risk case. Role-gated; no self-approval. */
+/**
+ * Supervisor approves or rejects a high-risk case.
+ * Demo-level gating only: the role/self-approval checks compare client-asserted
+ * body strings (no auth/session layer). Server-side identity is a pilot TODO.
+ */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
@@ -15,6 +19,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try {
     const updated = await decideApproval({
       approval_id: id,
+      triage_revision: Number(body.triage_revision),
       decision,
       decided_by: String(body.decided_by ?? "Supervisor (demo)"),
       decided_role: String(body.decided_role ?? "supervisor"),
@@ -22,6 +27,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     });
     return NextResponse.json(updated);
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 400 });
+    const message = (err as Error).message;
+    return NextResponse.json(
+      { error: message },
+      { status: message === "stale_triage_revision" ? 409 : message.includes("not found") ? 404 : 400 },
+    );
   }
 }

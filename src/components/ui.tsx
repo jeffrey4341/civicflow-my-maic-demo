@@ -1,148 +1,33 @@
+import { statusLabel, urgencyLabel } from "@/lib/i18n";
 import type {
   AuditActor,
   AuditEvent,
   CaseStatus,
   Language,
-  PiiRisk,
-  PolicyCitation,
   Urgency,
 } from "@/lib/types";
-import { statusLabel, urgencyLabel } from "@/lib/i18n";
-
-/* ──────────────────────────────────────────────────────────────────────────
- * Interactive primitives — the single source of truth for buttons and form
- * fields. Every interactive control should use these so focus, disabled, and
- * loading behaviour stay consistent and accessible across the app.
- * ────────────────────────────────────────────────────────────────────────── */
-
-type ButtonVariant =
-  | "primary"
-  | "secondary"
-  | "success"
-  | "danger"
-  | "soft-indigo"
-  | "soft-emerald";
-type ButtonSize = "sm" | "md" | "lg";
-
-const BTN_VARIANT: Record<ButtonVariant, string> = {
-  primary: "bg-civic-600 text-white hover:bg-civic-700",
-  secondary: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
-  success: "bg-emerald-600 text-white hover:bg-emerald-700",
-  danger: "bg-red-600 text-white hover:bg-red-700",
-  "soft-indigo": "border border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
-  "soft-emerald": "border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
-};
-
-const BTN_SIZE: Record<ButtonSize, string> = {
-  sm: "px-3 py-1.5 text-xs",
-  md: "px-4 py-2 text-sm",
-  lg: "px-4 py-3 text-sm",
-};
-
-/** Decorative loading spinner; hidden from assistive tech (button sets aria-busy). */
-export function Spinner({ className = "" }: { className?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={`inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-r-transparent ${className}`}
-    />
-  );
-}
-
-export function Button({
-  variant = "primary",
-  size = "md",
-  loading = false,
-  fullWidth = false,
-  className = "",
-  disabled,
-  children,
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: ButtonVariant;
-  size?: ButtonSize;
-  loading?: boolean;
-  fullWidth?: boolean;
-}) {
-  return (
-    <button
-      {...props}
-      disabled={disabled || loading}
-      aria-busy={loading || undefined}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-civic-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40 ${BTN_VARIANT[variant]} ${BTN_SIZE[size]} ${fullWidth ? "w-full" : ""} ${className}`}
-    >
-      {loading && <Spinner />}
-      {children}
-    </button>
-  );
-}
-
-const FIELD_BASE =
-  "w-full rounded-lg border border-slate-300 text-sm transition-colors focus:border-civic-500 focus:outline-none focus:ring-2 focus:ring-civic-200 disabled:opacity-50";
-
-/** Single-line text field. Pass `label` to render an associated <label>. */
-export function Input({
-  label,
-  className = "",
-  ...props
-}: React.InputHTMLAttributes<HTMLInputElement> & { label?: string }) {
-  const field = <input className={`${FIELD_BASE} px-3 py-2 ${className}`} {...props} />;
-  if (!label) return field;
-  return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-slate-600">{label}</span>
-      {field}
-    </label>
-  );
-}
-
-/** Multi-line text field. Pass `label` to render an associated <label>. */
-export function Textarea({
-  label,
-  className = "",
-  ...props
-}: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }) {
-  const field = <textarea className={`${FIELD_BASE} p-2.5 ${className}`} {...props} />;
-  if (!label) return field;
-  return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-slate-600">{label}</span>
-      {field}
-    </label>
-  );
-}
 
 const STATUS_STYLE: Record<CaseStatus, string> = {
   draft: "bg-slate-100 text-slate-700",
-  needs_info: "bg-amber-100 text-amber-800",
-  submitted: "bg-sky-100 text-sky-800",
+  needs_info: "bg-amber-100 text-amber-900",
+  submitted: "bg-sky-100 text-sky-900",
   manual_review: "bg-red-100 text-red-800",
-  routed: "bg-civic-100 text-civic-800",
-  awaiting_supervisor: "bg-orange-100 text-orange-800",
-  in_progress: "bg-indigo-100 text-indigo-800",
-  closed: "bg-emerald-100 text-emerald-800",
+  routed: "bg-civic-100 text-civic-900",
+  awaiting_supervisor: "bg-orange-100 text-orange-900",
+  in_progress: "bg-indigo-100 text-indigo-900",
+  closed: "bg-emerald-100 text-emerald-900",
 };
 
 const URGENCY_STYLE: Record<Urgency, string> = {
-  low: "bg-slate-100 text-slate-600",
+  low: "bg-slate-100 text-slate-700",
   normal: "bg-slate-100 text-slate-700",
-  high: "bg-amber-100 text-amber-800",
-  urgent: "bg-orange-100 text-orange-800",
+  high: "bg-amber-100 text-amber-900",
+  urgent: "bg-orange-100 text-orange-900",
   flood_risk: "bg-red-100 text-red-800",
 };
 
-const PII_STYLE: Record<PiiRisk, string> = {
-  low: "bg-slate-100 text-slate-600",
-  medium: "bg-amber-100 text-amber-800",
-  high: "bg-red-100 text-red-800",
-};
-
 export function Badge({ className = "", children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${className}`}>
-      {children}
-    </span>
-  );
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${className}`}>{children}</span>;
 }
 
 export function StatusBadge({ status, locale = "en" }: { status: CaseStatus; locale?: Language }) {
@@ -153,59 +38,35 @@ export function UrgencyBadge({ urgency, locale = "en" }: { urgency: Urgency; loc
   return <Badge className={URGENCY_STYLE[urgency]}>{urgencyLabel(urgency, locale)}</Badge>;
 }
 
-export function PiiBadge({ risk }: { risk: PiiRisk }) {
-  return <Badge className={PII_STYLE[risk]}>PII: {risk}</Badge>;
-}
-
-export function ConfidenceBar({ value, label }: { value: number; label?: string }) {
-  const pct = Math.round(value * 100);
-  return (
-    <div>
-      {label ? <div className="mb-1 text-xs text-slate-500">{label}</div> : null}
-      <div className="flex items-center gap-2">
-        <div
-          className="h-2 w-full overflow-hidden rounded-full bg-slate-200"
-          role="progressbar"
-          aria-valuenow={pct}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={label ?? "Confidence"}
-        >
-          <div className="h-full rounded-full bg-civic-500" style={{ width: `${pct}%` }} />
-        </div>
-        <span className="w-9 text-right text-xs tabular-nums text-slate-600">{pct}%</span>
-      </div>
-    </div>
-  );
-}
-
-export function CitationCard({ citation }: { citation: PolicyCitation }) {
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white p-3">
-      <div className="flex items-center justify-between gap-2">
-        <div className="text-sm font-semibold text-civic-700">{citation.doc_title}</div>
-        <Badge className="bg-civic-50 text-civic-700">{Math.round(citation.confidence * 100)}%</Badge>
-      </div>
-      <div className="mt-0.5 text-xs font-medium text-slate-500">§ {citation.section}</div>
-      <p className="mt-2 text-sm text-slate-700">“{citation.snippet}”</p>
-      <div className="mt-2 text-xxs text-slate-500">source: {citation.source_doc}</div>
-    </div>
-  );
-}
-
-/** Actor → dot colour, keyed by the AuditActor union. Single source of truth
- * (also imported by the audit table) using the `actor` semantic tokens. */
-export const ACTOR_DOT: Record<AuditActor, string> = {
-  citizen: "bg-actor-citizen",
-  ai_agent: "bg-actor-ai",
-  system: "bg-actor-system",
-  officer: "bg-actor-officer",
-  supervisor: "bg-actor-supervisor",
+const ACTOR_STYLE: Record<AuditActor, string> = {
+  citizen: "bg-sky-100 text-sky-900",
+  ai_agent: "bg-civic-100 text-civic-900",
+  system: "bg-slate-100 text-slate-700",
+  officer: "bg-indigo-100 text-indigo-900",
+  supervisor: "bg-orange-100 text-orange-900",
 };
+
+const ACTOR_LABEL: Record<AuditActor, string> = {
+  citizen: "Citizen",
+  ai_agent: "Automated triage",
+  system: "System",
+  officer: "Officer",
+  supervisor: "Supervisor",
+};
+
+export function ActorBadge({ actor, label }: { actor: AuditActor; label?: string }) {
+  const showIdentity = (actor === "officer" || actor === "supervisor") && label && label !== ACTOR_LABEL[actor];
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${ACTOR_STYLE[actor]}`}>
+      <span>{ACTOR_LABEL[actor]}</span>
+      {showIdentity ? <span className="font-normal">· {label}</span> : null}
+    </span>
+  );
+}
 
 function formatTime(iso: string): string {
   try {
-    return new Date(iso).toLocaleString("en-GB", {
+    return new Date(iso).toLocaleString("en-MY", {
       day: "2-digit",
       month: "short",
       hour: "2-digit",
@@ -217,30 +78,27 @@ function formatTime(iso: string): string {
 }
 
 export function AuditTimeline({ events }: { events: AuditEvent[] }) {
-  if (events.length === 0) {
-    return <p className="text-sm text-slate-500">No audit events yet.</p>;
-  }
+  if (events.length === 0) return <p className="text-sm text-slate-600">No audit events yet.</p>;
   return (
-    <ol className="relative ml-3 border-l border-slate-200">
-      {events.map((e) => (
-        <li key={e.event_id} className="relative mb-4 pl-5">
-          <span className={`absolute -left-[7px] top-1.5 h-3 w-3 rounded-full border-2 border-white ${ACTOR_DOT[e.actor] ?? "bg-actor-system"}`} aria-hidden="true" />
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xxs text-slate-500">{e.event_type}</span>
-            <span className="text-xxs text-slate-500">· {e.actor_label}</span>
-            <span className="text-xxs text-slate-500">· {formatTime(e.created_at)}</span>
-          </div>
-          <p className="mt-0.5 text-sm text-slate-700">{e.summary}</p>
-        </li>
-      ))}
+    <ol className="divide-y divide-slate-200 border-y border-slate-200">
+      {events.map((event) => {
+        const revision = typeof event.payload.triage_revision === "number" ? event.payload.triage_revision : null;
+        return (
+          <li key={event.event_id} className="grid gap-2 py-4 sm:grid-cols-[150px_minmax(0,1fr)] sm:gap-5">
+            <div>
+              <time dateTime={event.created_at} className="text-xs text-slate-500">{formatTime(event.created_at)}</time>
+              {revision !== null ? <span className="mt-1 block text-xs text-slate-500">Revision {revision}</span> : null}
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <ActorBadge actor={event.actor} label={event.actor_label} />
+                <span className="font-mono text-xs text-slate-500">{event.event_type}</span>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-700">{event.summary}</p>
+            </div>
+          </li>
+        );
+      })}
     </ol>
-  );
-}
-
-export function SafetyBanner({ text }: { text: string }) {
-  return (
-    <div className="bg-flag-gold/15 px-4 py-2 text-center text-xxs font-medium text-amber-900">
-      {text}
-    </div>
   );
 }

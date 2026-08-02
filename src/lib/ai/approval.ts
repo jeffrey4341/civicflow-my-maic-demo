@@ -83,6 +83,7 @@ export function evaluateApprovalGate(input: GateInput): GateResult {
 /** Build a pending supervisor ApprovalTask. The requester is the AI agent. */
 export function buildApprovalTask(args: {
   case_id: string;
+  triage_revision: number;
   title: string;
   reason: string;
   risk_factors: string[];
@@ -92,6 +93,7 @@ export function buildApprovalTask(args: {
   return {
     approval_id: newId("appr"),
     case_id: args.case_id,
+    triage_revision: args.triage_revision,
     title: args.title,
     reason: args.reason,
     risk_factors: args.risk_factors,

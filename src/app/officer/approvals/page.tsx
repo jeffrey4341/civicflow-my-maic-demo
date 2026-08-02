@@ -1,101 +1,177 @@
 import Link from "next/link";
-import { getCase, listApprovals } from "@/lib/store";
-import { Badge } from "@/components/ui";
+
 import { ApprovalActions } from "@/components/officer/ApprovalActions";
-import type { CitizenCase } from "@/lib/types";
+import { Badge } from "@/components/ui";
+import { hasCurrentOfficerReview } from "@/lib/lifecycle";
+import { getCase, listApprovals } from "@/lib/store";
+import type { ApprovalStatus, CitizenCase } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_STYLE: Record<string, string> = {
-  pending: "bg-orange-100 text-orange-800",
+const STATUS_STYLE: Record<ApprovalStatus, string> = {
+  pending: "bg-amber-100 text-amber-900",
   approved: "bg-emerald-100 text-emerald-800",
   rejected: "bg-red-100 text-red-800",
+  superseded: "bg-slate-200 text-slate-700",
 };
 
 export default async function ApprovalsPage() {
-  const approvals = await listApprovals();
-  const cases = await Promise.all(approvals.map((a) => getCase(a.case_id)));
+  const approvals = (await listApprovals()).slice().reverse();
+  const relatedCases = await Promise.all(approvals.map((approval) => getCase(approval.case_id)));
   const caseById = new Map<string, CitizenCase>();
-  cases.forEach((c) => c && caseById.set(c.case_id, c));
-
-  const pending = approvals.filter((a) => a.status === "pending");
-  const decided = approvals.filter((a) => a.status !== "pending");
+  relatedCases.forEach((c) => c && caseById.set(c.case_id, c));
+  const unresolved = approvals.filter((approval) => approval.status === "pending");
+  const pending = unresolved.filter((approval) => {
+    const c = caseById.get(approval.case_id);
+    return Boolean(
+      c
+      && c.approval_task_id === approval.approval_id
+      && c.triage_revision === approval.triage_revision
+      && hasCurrentOfficerReview(c),
+    );
+  });
+  const pendingIds = new Set(pending.map((approval) => approval.approval_id));
+  const waitingForReview = unresolved.filter((approval) => !pendingIds.has(approval.approval_id));
+  const history = approvals.filter((approval) => approval.status !== "pending");
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900">Supervisor approvals</h1>
-      <p className="mt-1 text-sm text-slate-500">
-        High-risk cases the AI escalated. The AI never approves — a supervisor decides.
-      </p>
+      <header className="border-b border-slate-200 pb-7">
+        <p className="text-sm font-semibold text-civic-800">Human checkpoint</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Supervisor approvals</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          High-risk recommendations stay blocked until the current officer-reviewed revision receives a documented supervisor decision.
+        </p>
+      </header>
 
-      <h2 className="mt-6 text-sm font-semibold uppercase tracking-wide text-slate-500">
-        Pending ({pending.length})
-      </h2>
-      <div className="mt-3 space-y-4">
-        {pending.length === 0 && <p className="text-sm text-slate-400">No pending approvals.</p>}
-        {pending.map((a) => {
-          const c = caseById.get(a.case_id);
-          return (
-            <div key={a.approval_id} className="rounded-xl border border-orange-200 bg-white p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Badge className={STATUS_STYLE[a.status]}>{a.status}</Badge>
-                    {c && (
-                      <Link href={`/officer/cases/${c.case_id}`} className="font-mono text-sm font-semibold text-civic-700 hover:underline">
-                        {c.citizen_ref}
-                      </Link>
-                    )}
-                  </div>
-                  <p className="mt-2 text-sm font-medium text-slate-800">{a.title}</p>
-                  <p className="mt-1 text-xs text-slate-500">{a.reason}</p>
-                  {c && <p className="mt-2 text-xs italic text-slate-400">“{c.translated_text_en}”</p>}
-                  <ul className="mt-2 space-y-1">
-                    {a.risk_factors.map((rf, i) => (
-                      <li key={i} className="text-xs text-slate-600">⚠️ {rf}</li>
-                    ))}
-                  </ul>
-                  {a.evidence.length > 0 && (
-                    <p className="mt-2 text-xxs text-slate-400">
-                      Evidence: {a.evidence.map((e) => e.doc_title).join(", ")}
-                    </p>
-                  )}
-                </div>
-                <div className="w-full sm:w-64">
-                  <ApprovalActions approvalId={a.approval_id} />
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {decided.length > 0 && (
-        <>
-          <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Decided ({decided.length})
-          </h2>
-          <div className="mt-3 space-y-2">
-            {decided.map((a) => {
-              const c = caseById.get(a.case_id);
+      <section className="mt-8" aria-labelledby="pending-approvals-heading">
+        <div className="flex items-baseline justify-between gap-4 border-b border-slate-300 pb-3">
+          <h2 id="pending-approvals-heading" className="text-xl font-semibold text-slate-950">Pending decisions</h2>
+          <span className="text-sm text-slate-600">{pending.length}</span>
+        </div>
+        {pending.length > 0 ? (
+          <div className="divide-y divide-slate-200 border-b border-slate-200 bg-white">
+            {pending.map((approval) => {
+              const c = caseById.get(approval.case_id);
               return (
-                <div key={a.approval_id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Badge className={STATUS_STYLE[a.status]}>{a.status}</Badge>
-                    {c && (
-                      <Link href={`/officer/cases/${c.case_id}`} className="font-mono text-xs font-semibold text-civic-700 hover:underline">
-                        {c.citizen_ref}
-                      </Link>
-                    )}
-                    <span className="text-slate-600">{a.title}</span>
+                <article key={approval.approval_id} className="grid gap-6 py-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.6fr)]">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Badge className={STATUS_STYLE.pending}>Pending</Badge>
+                      <span className="text-sm text-slate-600">Revision {approval.triage_revision}</span>
+                      {c ? (
+                        <Link href={`/officer/cases/${c.case_id}`} className="inline-flex min-h-11 items-center font-mono text-sm font-semibold text-civic-800 underline-offset-4 hover:underline">
+                          {c.citizen_ref}
+                        </Link>
+                      ) : null}
+                    </div>
+                    <h3 className="mt-4 text-lg font-semibold text-slate-950">{approval.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">{approval.reason}</p>
+                    {c ? <blockquote className="mt-4 border-y border-slate-200 py-3 text-sm leading-6 text-slate-600">{c.translated_text_en}</blockquote> : null}
+                    {approval.risk_factors.length > 0 ? (
+                      <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">
+                        {approval.risk_factors.map((factor) => <li key={factor}>{factor}</li>)}
+                      </ul>
+                    ) : null}
+                    {approval.evidence.length > 0 ? (
+                      <div className="mt-5">
+                        <h4 className="text-sm font-semibold text-slate-950">Policy evidence</h4>
+                        <ul className="mt-2 space-y-2 text-sm leading-6 text-slate-700">
+                          {approval.evidence.map((citation) => (
+                            <li key={`${citation.source_doc}-${citation.section}`}>
+                              <span className="font-medium">{citation.doc_title}</span> — {citation.section} · confidence {citation.confidence.toFixed(2)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                   </div>
-                  <span className="text-xxs text-slate-400">by {a.decision_by}</span>
-                </div>
+                  <ApprovalActions
+                    approvalId={approval.approval_id}
+                    triageRevision={approval.triage_revision}
+                  />
+                </article>
               );
             })}
           </div>
-        </>
-      )}
+        ) : (
+          <p className="border-b border-slate-200 bg-white px-4 py-8 text-sm text-slate-600">No supervisor decisions are waiting.</p>
+        )}
+      </section>
+
+      <section className="mt-10" aria-labelledby="waiting-review-heading">
+        <div className="flex items-baseline justify-between gap-4 border-b border-slate-300 pb-3">
+          <h2 id="waiting-review-heading" className="text-xl font-semibold text-slate-950">Waiting for officer review</h2>
+          <span className="text-sm text-slate-600">{waitingForReview.length}</span>
+        </div>
+        {waitingForReview.length > 0 ? (
+          <ul className="divide-y divide-slate-200 border-b border-slate-200 bg-white">
+            {waitingForReview.map((approval) => {
+              const c = caseById.get(approval.case_id);
+              return (
+                <li key={approval.approval_id} className="grid gap-3 px-3 py-5 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-start">
+                  <div>
+                    <Badge className="bg-slate-200 text-slate-800">Officer review required</Badge>
+                    <span className="mt-2 block text-xs text-slate-500">Revision {approval.triage_revision}</span>
+                  </div>
+                  <div>
+                    {c ? (
+                      <Link href={`/officer/cases/${c.case_id}`} className="inline-flex min-h-11 items-center font-mono text-sm font-semibold text-civic-800 underline-offset-4 hover:underline">
+                        {c.citizen_ref}
+                      </Link>
+                    ) : <span className="text-sm text-slate-500">Case unavailable</span>}
+                    <p className="text-sm font-medium text-slate-900">{approval.title}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">Complete the current officer review before a supervisor decision can be recorded.</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="border-b border-slate-200 bg-white px-4 py-8 text-sm text-slate-600">No approval tasks are waiting for officer review.</p>
+        )}
+      </section>
+
+      <section className="mt-10" aria-labelledby="approval-history-heading">
+        <div className="flex items-baseline justify-between gap-4 border-b border-slate-300 pb-3">
+          <h2 id="approval-history-heading" className="text-xl font-semibold text-slate-950">Decision history</h2>
+          <span className="text-sm text-slate-600">{history.length}</span>
+        </div>
+        {history.length > 0 ? (
+          <ul className="divide-y divide-slate-200 border-b border-slate-200 bg-white">
+            {history.map((approval) => {
+              const c = caseById.get(approval.case_id);
+              return (
+                <li key={approval.approval_id} className="grid gap-3 px-3 py-5 sm:grid-cols-[140px_120px_minmax(0,1fr)_minmax(160px,auto)] sm:items-start">
+                  <div>
+                    <Badge className={STATUS_STYLE[approval.status]}>{approval.status.charAt(0).toUpperCase() + approval.status.slice(1)}</Badge>
+                    <span className="mt-2 block text-xs text-slate-500">Revision {approval.triage_revision}</span>
+                  </div>
+                  {c ? (
+                    <Link href={`/officer/cases/${c.case_id}`} className="inline-flex min-h-11 items-center font-mono text-sm font-semibold text-civic-800 underline-offset-4 hover:underline">{c.citizen_ref}</Link>
+                  ) : <span className="text-sm text-slate-500">Case unavailable</span>}
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{approval.title}</p>
+                    {approval.decision_note ? <p className="mt-1 text-sm leading-6 text-slate-600">{approval.decision_note}</p> : null}
+                    {approval.evidence.length > 0 ? (
+                      <ul className="mt-2 space-y-1 text-xs leading-5 text-slate-500" aria-label="Decision policy evidence">
+                        {approval.evidence.map((citation) => (
+                          <li key={`${citation.source_doc}-${citation.section}`}>
+                            {citation.doc_title} — {citation.section} · confidence {citation.confidence.toFixed(2)}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                  <p className="text-sm text-slate-600">{approval.decision_by ? `by ${approval.decision_by}` : "Historical task"}</p>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="border-b border-slate-200 bg-white px-4 py-8 text-sm text-slate-600">No approval history yet.</p>
+        )}
+      </section>
     </div>
   );
 }

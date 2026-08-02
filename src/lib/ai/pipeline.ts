@@ -17,7 +17,7 @@ import type {
   TriageResult,
 } from "@/lib/types";
 import { detectLanguage, translateToEnglish } from "@/lib/ai/language";
-import { classifyCase } from "@/lib/ai/classify";
+import { classifyCase, classifyUrgency, maxUrgency } from "@/lib/ai/classify";
 import { routeCase } from "@/lib/ai/routing";
 import { detectMissingInfo, hasBlockingGaps } from "@/lib/ai/missingInfo";
 import { evaluateApprovalGate, type GateResult } from "@/lib/ai/approval";
@@ -34,6 +34,7 @@ export interface TriageInput {
   text: string;
   selected_language: Language;
   location_text: string;
+  answers?: Record<string, string>;
 }
 
 export interface TriageOutput {
@@ -55,36 +56,53 @@ export interface TriageOutput {
  * visible to the citizen even though it is never the current status here.
  */
 function computeStatus(needsInfo: boolean, gate: GateResult, manualReviewReason: string | null): CaseStatus {
-  if (manualReviewReason) return "manual_review";
   if (needsInfo) return "needs_info";
+  if (manualReviewReason) return "manual_review";
   if (gate.requires_supervisor) return "awaiting_supervisor";
   return "routed";
 }
 
-export async function runTriage(input: TriageInput): Promise<TriageOutput> {
-  const { case_id, citizen_ref, text, selected_language, location_text } = input;
+export async function runTriage(
+  input: TriageInput,
+  { allowLlm = true }: { allowLlm?: boolean } = {},
+): Promise<TriageOutput> {
+  const { case_id, citizen_ref, text, selected_language, location_text, answers = {} } = input;
   const audit: AuditEvent[] = [];
+  const answerText = Object.entries(answers)
+    .filter(([, value]) => value.trim())
+    .map(([field, value]) => `${field}: ${value.trim()}`)
+    .join("\n");
+  const analysisText = answerText ? `${text}\n${answerText}` : text;
 
   // 1. Language detection
   let detected_language = detectLanguage(text);
 
   // 2. Classification (deterministic baseline)
-  const baseline = classifyCase(text);
+  const baseline = classifyCase(analysisText);
   let category = baseline.category;
   let urgency = baseline.urgency;
   let category_confidence = baseline.category_confidence;
   const pii_risk = baseline.pii_risk;
+  // LLM refinement may add risk, but it cannot remove a deterministic category-specific human gate.
+  const baselineSafetyGate = evaluateApprovalGate({
+    category: baseline.category,
+    urgency: baseline.urgency,
+    pii_risk: "low",
+    category_confidence: 1,
+  });
   let ai_mode: AiMode = "deterministic";
 
   // 2b. Optional LLM refinement (no-op offline; deterministic fallback on error)
   let llmTranslation: string | null = null;
-  if (isLlmConfigured()) {
-    const refined = await llmRefineClassification(text);
+  if (allowLlm && isLlmConfigured()) {
+    const refined = await llmRefineClassification(analysisText);
     if (refined) {
       detected_language = refined.detected_language;
-      category = refined.category;
-      urgency = refined.urgency;
-      category_confidence = Math.max(category_confidence, 0.9);
+      if (!baselineSafetyGate.requires_supervisor && !baselineSafetyGate.officer_review_only) {
+        category = refined.category;
+        const deterministicUrgency = classifyUrgency(analysisText, category);
+        urgency = maxUrgency(deterministicUrgency, refined.urgency);
+      }
       llmTranslation = refined.translated_text_en;
       ai_mode = "llm";
     }
@@ -115,7 +133,7 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
   );
 
   // 4. Policy retrieval (RAG)
-  const citations: PolicyCitation[] = retrievePolicies(`${text} ${translated_text_en}`, {
+  const citations: PolicyCitation[] = retrievePolicies(`${analysisText} ${translated_text_en}`, {
     category,
     hints: baseline.matched_terms,
     topK: 3,
@@ -147,7 +165,7 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
   );
 
   // 6. Missing-info detection
-  const missing_info = detectMissingInfo(category, text, location_text, detected_language);
+  const missing_info = detectMissingInfo(category, text, location_text, selected_language, answers);
   const needsInfo = hasBlockingGaps(missing_info);
   const blockingCount = missing_info.filter((m) => m.required && !m.satisfied).length;
   if (missing_info.length > 0) {
@@ -167,7 +185,8 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
   // 7. Approval gate
   const gate = evaluateApprovalGate({ category, urgency, pii_risk, category_confidence });
   const manual_review_reason = manualReviewReasonFor(citations, category_confidence);
-  if (gate.requires_supervisor) {
+  const status = computeStatus(needsInfo, gate, manual_review_reason);
+  if (status === "awaiting_supervisor") {
     audit.push(
       makeAuditEvent({
         case_id,
@@ -193,7 +212,7 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
   // 8. Reply draft
   const reply_draft = generateReplyDraft({
     case_id,
-    language: detected_language,
+    language: selected_language,
     category,
     citizen_ref,
     department: routing.department,
@@ -210,8 +229,8 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
       case_id,
       actor: "ai_agent",
       event_type: "reply.drafted",
-      summary: `Drafted citizen reply in ${detected_language} (awaiting officer review).`,
-      payload: { language: detected_language, grounded_on: primaryCitation?.source_doc ?? "manual-review" },
+      summary: `Drafted citizen reply in ${selected_language} (awaiting officer review).`,
+      payload: { language: selected_language, grounded_on: primaryCitation?.source_doc ?? "manual-review" },
     }),
   );
 
@@ -234,5 +253,5 @@ export async function runTriage(input: TriageInput): Promise<TriageOutput> {
     ai_mode,
   };
 
-  return { result, gate, status: computeStatus(needsInfo, gate, manual_review_reason), needsInfo, audit };
+  return { result, gate, status, needsInfo, audit };
 }

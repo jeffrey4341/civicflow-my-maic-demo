@@ -1,224 +1,153 @@
 # CivicFlow MY Mobile
 
-`MAIC Nexus Challenge T5 — Public Services & Smart Cities` · `Public Demo Artifact` · `100% Synthetic Data` · `Runs Offline — No API Key Required`
+**MAIC Nexus Challenge T5 — Public Services & Smart Cities**
 
-> **This is a MAIC T5 (Public Services & Smart Cities) public hackathon demo.**
-> It is a **public demo artifact**. All cases, SOPs, policies, and citizen data are **100% synthetic**.
-> **AI drafts recommendations; officers and supervisors decide.** High-risk cases **require human approval**.
-> CivicFlow is a **citizen-service workflow layer — not a chatbot.**
+A working hackathon prototype for multilingual local-council casework in Malaysia.
 
----
+> Public demo only. Every case, policy and identity in this repository is synthetic. CivicFlow is not an official council service and is not production-ready.
 
-## Overview
+## Why we built it
 
-**CivicFlow MY Mobile** is a mobile-first, multilingual citizen-service AI casework platform for Malaysian local councils (*Pihak Berkuasa Tempatan*, PBT). Citizens submit service requests in **Malay, English, Chinese, or Tamil**; the system detects the language, classifies the case, retrieves SOP / FAQ / service-charter citations via **RAG**, routes the case to the correct department, triggers **supervisor approval for high-risk cases**, drafts a multilingual citizen reply, and records a **full append-only audit timeline**. Throughout, AI is confined to drafting and recommendation — every consequential decision stays with a human officer or supervisor.
+Citizen requests have to be understood, routed to the right team, checked against procedure and answered clearly. Malaysian councils already handle this work through services such as [SISPAA](https://www.mppd.gov.my/en/citizens/e-services/e-complaint) and [PBTCare](https://www.kpkt.gov.my/index.php/pages/view/361?mid=592).
 
----
+CivicFlow does not claim to replace those systems. It explores one narrower idea: can multilingual intake, policy evidence and human review sit in one traceable case workflow?
 
-## What this is / What this is NOT
+A citizen can write in Malay, English, Chinese or Tamil. The prototype structures the request, suggests a category and council team, finds relevant sections in a synthetic policy set and prepares a reply. An officer checks that work. High-risk cases stop for a supervisor. Nothing is sent, started or closed automatically.
 
-| This **is** | This is **NOT** |
+## Hackathon entry
+
+| | |
 | --- | --- |
-| A citizen-service **workflow / casework layer** for local councils | A generic chatbot |
-| A **role-aware** system: citizen mobile intake + officer console | A generic Enterprise Agent OS |
-| **AI-assisted**: drafts classifications, routing, citations, and replies | An autonomous decision-maker |
-| **Human-in-the-loop**: officers and supervisors make every decision | A system that auto-closes cases or auto-approves escalations |
-| **Auditable**: append-only timeline for every case | A black box |
-| A **public demo** on **100% synthetic** data | A production system or a store of real citizen data |
+| Challenge | [MAIC Nexus Challenge](https://www.maicnexus.com/en) |
+| Theme | T5 — Public Services & Smart Cities |
+| Focus | A multilingual, traceable citizen-case workflow |
+| Deliverable | Mobile citizen intake, officer workspace and supervisor approval flow |
+| Current status | Working synthetic prototype; no agency pilot, adoption or performance claim |
 
-**Governance boundary.** AI is used for language detection, classification, summarisation, RAG retrieval, routing recommendation, missing-info detection, and reply drafting. AI does **not** autonomously close cases, approve high-risk escalations, dispatch field teams, or decide eligibility. **Human approval is required for all high-risk decisions.**
+It runs locally without an API key and includes repeatable tests for its core governance paths.
 
----
+## 90-second walkthrough
 
-## Features — mapped to T5 themes
+1. Open `/m`, choose **Bahasa Melayu** and enter:
 
-- **Citizen Agents** — A mobile-first intake agent that turns a free-text citizen request into a structured `CitizenCase`, detects missing information, and produces a draft citizen reply for officer review.
-- **RAG (policy retrieval with citations)** — Every recommendation is grounded in synthetic council policy documents. Each `PolicyCitation` carries `source_doc`, `section`, `snippet`, and `confidence` so officers can trace exactly which SOP, FAQ, or charter section supports a decision.
-- **E-Gov AI (workflow + approval gates)** — Department routing, status lifecycle, and a **supervisor approval gate** for high-risk cases. The full lifecycle is captured in an append-only `AuditEvent` timeline.
-- **Multilingual LLMs** — Native handling of **Malay, English, Chinese, and Tamil**: language detection on intake and citizen replies drafted in the citizen's language (with official Malay/English terms preserved where relevant).
-- **Civic Tech (transparency & safety)** — Synthetic-only data, a deterministic offline pipeline, explicit AI-disclosure and data/model cards, and a clearly drawn human-decision boundary suitable for public review.
+   > Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat.
 
----
+2. Review the detected service and submit the request. Keep the generated tracking code.
+3. Open `/officer`. The new drainage case appears with its suggested team, flood-risk flag and policy sections.
+4. Save the officer review, then open `/officer/approvals` and record the supervisor decision.
+5. Return to the case, send the reviewed reply, start work and close the case with a note.
+6. Use the citizen tracking page to see the final status and the released Malay reply with its cited policy sections.
 
-## Tech stack
+This path makes the key boundary visible: the system prepares the case; people decide.
 
-A single **Next.js 15 (App Router)** application — no separate backend service.
+## Two additional demo paths
 
-- **Next.js 15** (App Router) — UI + API route handlers under `/api`
-- **React 18** + **TypeScript**
-- **Tailwind CSS** — mobile-first styling
-- **In-memory JSON store** — seeded from `data/seed`, re-seedable via `POST /api/reset` (or the `npm run seed:reset` CLI)
-- **Deterministic AI/RAG pipeline** — pure TypeScript, runs fully offline with fixtures
-- **Optional Anthropic LLM path** — used **only** if `ANTHROPIC_API_KEY` is set; otherwise the deterministic fallback produces identical-shape structured output
-- **Vitest** — unit / pipeline tests
+| Citizen request | What the prototype demonstrates | Required human action |
+| --- | --- | --- |
+| Chinese food-stall licence question | Chinese intake, licensing citation and missing-information checklist | Citizen clarification and officer review |
+| English education-aid question | Welfare routing and supporting-document checklist | Officer review; no automatic eligibility decision |
 
-The demo **always runs with no API key**. The optional LLM path is a drop-in enhancement, never a requirement.
+## What works today
 
----
+- Mobile request submission and tracking in Malay, English, Chinese and Tamil.
+- Deterministic classification, missing-information checks and retrieval from six synthetic policy documents.
+- An officer queue organised around the next required human action.
+- Case review with editable routing, selected policy evidence and a citizen reply draft.
+- A separate supervisor queue for high-risk cases.
+- Separate controls for reviewing, sending, starting work and closing a case.
+- A process-scoped, in-memory event timeline for automated steps and human actions, retained until reset or restart.
+- Offline operation by default, with reproducible fixtures and no API key.
 
-## Quick Start
+The default engine is a deterministic TypeScript pipeline. If `ANTHROPIC_API_KEY` is provided, language detection, English translation, category and urgency may use optional model refinement while the deterministic safety gates remain authoritative. Retrieval, routing, missing-information checks, approvals, reply drafting and audit recording remain application logic. In either mode, generated material remains a draft until a person reviews it.
 
-**Prerequisites:** Node.js **18.18+ or 20+** (required by Next.js 15; verified on Node 24 LTS).
+## Workflow and safeguards
+
+```text
+citizen request
+  -> language and category suggestion
+  -> synthetic policy retrieval
+  -> routing and missing-information checks
+  -> officer review
+  -> supervisor decision when high-risk
+  -> officer sends reply
+  -> officer starts and closes work
+```
+
+- A routing recommendation must include selected policy evidence or stay in manual review.
+- High-risk cases cannot proceed without a documented supervisor decision.
+- Saving an officer review does not send the reply.
+- Approving a high-risk case does not start council work.
+- Closing an actionable case requires a sent reply, work in progress and a closure note.
+- The prototype never decides welfare or licensing eligibility, dispatches a field team or closes a case on its own.
+
+## Run locally
+
+**Requirements:** Node.js 20.9 or newer and npm.
 
 ```bash
-# 1. Install dependencies
-npm install
-
-# 2. Start the development server
+npm ci
 npm run dev
 ```
 
-Then open **http://localhost:3000**:
+Open [http://localhost:3000/m](http://localhost:3000/m) for citizen services or [http://localhost:3000/officer](http://localhost:3000/officer) for the staff workspace.
 
-- **`/m`** — citizen mobile experience (submit a request)
-- **`/officer`** — staff console (triage, route, approve, audit)
-
-For demo recording, use the production build/server path:
+For a production-mode local demo:
 
 ```bash
 npm run build
 npm run start -- --hostname 127.0.0.1 --port 3000
 ```
 
-Then open **http://127.0.0.1:3000/m** and **http://127.0.0.1:3000/officer**.
+Quick-tunnel URLs expire when their process stops, so this README does not present one as a permanent public endpoint.
 
-If port `3000` is already occupied on the demo machine, keep the same command and change only the port, for example `--port 3004`, then open the matching `127.0.0.1` URL.
+Regenerating the optional 179-second submission video with `npm run demo:video` also requires Python with `edge-tts`, network access to its speech service, and `ffmpeg` / `ffprobe`. These authoring tools are not needed to build, test or run the app.
 
-### Demo recording checklist
+## Main routes
 
-- **Recording date:** 2026-06-14 (MYT), prepared as the second small documentation commit for the public demo trail.
-- **Demo flow:** submit the three canonical cases in order: Malay blocked drain/flood risk, Chinese food-stall licence clarification, and English education-aid officer review.
-- **Public artifact note:** this repository and the recording are public hackathon artifacts. They use only synthetic data and fictional policy text; they are not production deployment evidence.
+| Route | Purpose |
+| --- | --- |
+| `/m` | Submit or track a citizen request |
+| `/officer` | Review the active case queue |
+| `/officer/cases/[id]` | Review facts, evidence, reply and case actions |
+| `/officer/approvals` | Decide high-risk approval tasks |
+| `/officer/audit` | Inspect the cross-case event timeline |
+| `POST /api/reset` | Restore the synthetic in-memory demo state |
 
-Run the test suite:
+## Verify the artifact
 
 ```bash
 npm run typecheck
 npm test
-npm run lint
+npm run build
+npm run smoke:citizen
+npm run smoke:officer
+npm run smoke:e2e
 npm audit --omit=dev --audit-level=moderate
 ```
 
-**Optional — Anthropic LLM path.** The demo runs end-to-end **without** any API key using the deterministic pipeline. If you wish to exercise the optional LLM path, set an `ANTHROPIC_API_KEY` in your environment before `npm run dev`. With no key present, the deterministic fallback returns structured output of identical shape, so the demo behaves consistently either way.
+The smoke scripts start and stop their own local servers. The dependency audit is a separate hard gate and should be reviewed before any hosted demonstration.
 
----
+## Deliberate limits
 
-## Route map
+- All shipped cases, names, locations and policies are fictional demo material.
+- There is no authentication: officer and supervisor names are client-asserted demo roles.
+- State is held in memory. `POST /api/reset` is intentionally open and clears the event timeline.
+- “Send reply” and “start work” change the demo workflow only; there is no SMS, WhatsApp, GIS or field-work integration.
+- The multilingual rules are tuned to the included examples and have no formal accuracy, fairness or performance evaluation.
+- The current dependency audit must be clean or explicitly risk-accepted before exposing a shared instance.
 
-| Route | Audience | Purpose |
-| --- | --- | --- |
-| `/m` | Citizen | Mobile-first intake: submit a multilingual service request, view the draft reply |
-| `/officer` | Staff | Officer console home: case queue and triage |
-| `/officer/cases/[id]` | Staff | Single-case view: classification, citations, routing, reply draft, timeline |
-| `/officer/approvals` | Supervisor | Approval queue for high-risk cases (`awaiting_supervisor`) |
-| `/officer/audit` | Staff | Append-only audit timeline across cases |
-| `POST /api/reset` | System | Re-seed the in-memory store from `data/seed` |
+Do not enter real citizen information or use this repository for real council decisions.
 
----
+## Stack
 
-## Demo walkthrough — three core cases
+Next.js 15 App Router, React 18, TypeScript, Tailwind CSS, Next.js route handlers, an in-memory store and Vitest. The application is intentionally one repository and one process for the hackathon demo.
 
-| # | Citizen input | Language | Category | Department | Citation | Outcome |
-| --- | --- | --- | --- | --- | --- |
-| 1 | *"Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat."* | Malay (ms) | Drainage | Engineering / Drainage Unit | Drainage Response SOP | **Urgent / flood-risk** review → **supervisor approval REQUIRED**; citizen reply drafted in Malay |
-| 2 | *"我要申请小食档执照，需要什么文件？"* | Chinese (zh) | Business licensing | Licensing Unit | Business Licensing FAQ | **Missing info** flagged (location, business type, operating hours); citizen reply in Chinese with official Malay/English terms |
-| 3 | *"Can I apply for education aid for my child?"* | English (en) | Education aid / Welfare | Welfare / Education Support | Welfare Education Aid Policy | **No automatic approval** — officer review required; missing-document checklist returned |
+## Project notes
 
-Each case demonstrates a different governance path: high-risk escalation (case 1), clarification before routing (case 2), and human eligibility review (case 3).
-
----
-
-## AI pipeline
-
-For every submission, the pipeline runs these stages in order:
-
-1. **Language detection** (ms / en / zh / ta)
-2. **Classification** (category + urgency)
-3. **Policy retrieval** — RAG citations from synthetic policy docs
-4. **Routing decision** — recommend the responsible department
-5. **Missing-info detection** — what the citizen still needs to supply
-6. **Approval rule** — flag high-risk cases for supervisor approval
-7. **Reply draft** — multilingual citizen reply in the detected language
-8. **Audit-event generation** — append events to the case timeline
-
-When no LLM key is present, a **deterministic fallback** produces output of identical shape at every stage.
-
----
-
-## Data model
-
-- **`CitizenCase`** — the core case record
-- **`RoutingDecision`** — recommended department + rationale
-- **`PolicyCitation`** — `source_doc`, `section`, `snippet`, `confidence`
-- **`ApprovalTask`** — supervisor approval gate for high-risk cases
-- **`AuditEvent`** — append-only timeline entry
-- **`CitizenReplyDraft`** — multilingual draft reply for officer review
-
-**`CitizenCase` status lifecycle:**
-
-```
-draft → needs_info → submitted → routed → awaiting_supervisor → in_progress → closed
-```
-
-### Synthetic policy documents (`data/policies/`)
-
-Each document has section headings that RAG cites directly:
-
-- `council_service_charter.md`
-- `drainage_response_sop.md`
-- `business_licensing_faq.md`
-- `welfare_education_aid_policy.md`
-- `citizen_data_privacy_policy.md`
-- `department_routing_rules.md`
-
----
-
-## Project structure
-
-```
-civicflow-my-maic-demo/
-|-- src/
-|   |-- app/
-|   |   |-- m/                     # Citizen mobile route
-|   |   |-- officer/               # Officer console
-|   |   |   |-- cases/[id]/        # Single-case view
-|   |   |   |-- approvals/         # Supervisor approval queue
-|   |   |   `-- audit/             # Audit timeline
-|   |   `-- api/                   # Next.js route handlers (incl. /api/reset)
-|   |-- components/                # Citizen/officer UI components
-|   `-- lib/                       # AI/RAG pipeline (deterministic + optional LLM)
-|-- data/
-|   |-- seed/                      # Seed cases for the in-memory store
-|   `-- policies/                  # Synthetic policy documents (RAG corpus)
-|-- tests/                         # Vitest pipeline + unit tests
-|-- docs/                          # Additional documentation
-|-- AI_DISCLOSURE.md
-|-- DATA_CARD.md
-|-- MODEL_CARD.md
-`-- README.md
-```
-
----
-
-## Demo data & safety
-
-- **100% synthetic.** No real citizen data, no real government SOPs, no real NRIC, no real addresses, no real phone numbers, no private agency data. Any identifiers shown are obvious placeholders.
-- **Public-demo safe.** All policy documents under `data/policies/` are fictional drafts created for this demo; they do not represent any actual council's policies or procedures.
-- **No secrets.** No environment files, credentials, or enterprise modules are included. The optional `ANTHROPIC_API_KEY` is supplied by you at runtime and is never committed.
-- **Human-in-the-loop by design.** AI drafts; officers and supervisors decide. High-risk cases require explicit human approval before any escalation.
-- **Not production-ready.** This is a hackathon demo artifact. It is not hardened, certified, or intended for live citizen-facing deployment.
-
-This repository reuses only **architectural concepts** (not code) from a private reference project — role-aware workflow, RAG-with-citations, approval gates, append-only audit timeline, policy retrieval, model-draft + human-decision, deterministic fallback, synthetic demo data, and a test-first approach. No secrets, environment files, credentials, or enterprise modules were imported.
-
----
-
-## Documentation
-
-- [`AI_DISCLOSURE.md`](./AI_DISCLOSURE.md) — where and how AI is used, and the human-decision boundary
-- [`DATA_CARD.md`](./DATA_CARD.md) — synthetic data sources, scope, and limitations
-- [`MODEL_CARD.md`](./MODEL_CARD.md) — model behaviour, deterministic fallback, and intended use
-- [`docs/`](./docs/) — additional design and walkthrough notes
-
----
-
-*CivicFlow MY Mobile — a public demo for the MAIC Nexus Challenge T5 (Public Services & Smart Cities). Synthetic data only. AI assists; people decide.*
+- [Demo script](./docs/demo/demo_script.md)
+- [MAIC submission materials](./docs/submission/maic_submission_materials_2026-06-18.md)
+- [Product scope](./PRODUCT.md)
+- [AI disclosure](./AI_DISCLOSURE.md)
+- [Data card](./DATA_CARD.md)
+- [Model card](./MODEL_CARD.md)
+- [Roadmap from demo to controlled pilot](./docs/roadmap/product_roadmap.md)

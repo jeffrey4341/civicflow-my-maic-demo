@@ -6,6 +6,72 @@
 
 CivicFlow MY Mobile is ready as a public MAIC Nexus Challenge T5 demo artifact. The governance/product logic was not changed in this packaging pass. The repository now has Git metadata, generated folders are ignored, production dependency audit is clean, public docs match the Next 15 upgrade, and the production build/server path was verified.
 
+## 2026-07-02 Fable 5 P0/P1 Follow-Up
+
+**Current local verdict:** ready for local production launch and source-package commit, with hosted public URL still externally blocked.
+
+Completed public-demo fixes:
+
+- CF-03 LLM/RAG parity: removed the LLM confidence bump so low-confidence default-deny remains reachable with a key set; added main-suite LLM and RAG evaluation tests; prevented off-topic citations from category boost alone.
+- CF-04 accessibility/trust labels: removed `maximumScale: 1`, added citizen language markers and form-control labels, improved touched informational text contrast, and made AI/human audit actors explicit.
+- CF-05 officer mobile: visible compact officer navigation under 640 px, horizontally scrollable queue/audit tables, and native-script language names/text badges instead of flag icons.
+
+Fresh gates:
+
+- `npm run typecheck` - pass.
+- `npm test` - pass, 9 files / 48 tests.
+- `npm run build` - pass, Next.js 15.5.19 production build.
+- `npm audit --omit=dev --audit-level=moderate` - pass, `found 0 vulnerabilities`.
+- Local production launch - pass on `127.0.0.1:3015`; `/`, `/m`, `/officer`, `/officer/approvals`, `/officer/audit`, `/api/cases`, `/api/audit` all returned HTTP 200; temp server stopped.
+- `npm run smoke:e2e` - pass, 11 browser checks on self-started `127.0.0.1:3012`.
+- 375 px officer mobile Playwright check - pass; Queue/Approvals/Audit links visible and audit table remains horizontally scrollable.
+- `gitleaks git --staged --redact --no-banner --no-color --verbose` - pass; no leaks found.
+- Staged PII pattern scan - pass with documented placeholders only (`+60-XXXXXXXX`, `000000-00-0000`, `012-0000000`, `03-00000000`); no real citizen data identified.
+
+Remaining blockers/defers:
+
+- Hosted public URL remains an owner/external deployment action. No cloud deploy was performed and no hosting config was added.
+- The single coherent submission commit is still required after staging the intended public source/docs/scripts package.
+- Auth/session layer, persistent database, rate limiting, and PDPA consent/access/erasure flows remain pilot scope; they were deliberately not built into the public hackathon demo.
+
+## 2026-06-14 Presentation Artifact And Launch Follow-Up
+
+Created a 12-slide editable PowerPoint pitch deck from the supplied CivicFlow slide outline:
+
+- `outputs/manual-20260614-civicflow/presentations/civicflow-maic-pitch/output/civicflow-my-mobile-maic-pitch.pptx`
+
+Deck QA:
+
+- Artifact-tool PowerPoint export passed.
+- PPTX package contains 12 slide XML files.
+- Final PPTX size: 67,890 bytes.
+- Empty media parts: 0.
+- Rendered contact sheet and full-slide previews passed visual inspection.
+- Layout checker passed with 0 errors. Remaining warnings were inspected and are conservative adjacency/tight-title estimates, not visible overflow.
+- Product-platform scorecard: 42 / 45.
+- No official logo or public-sector mark was fabricated. The deck uses CivicFlow product language, workflow diagrams, route names, and governance boundaries as identity cues.
+- The corrupted source pricing range was not invented; the deck uses a non-numeric paid-pilot/subscription/per-case/enterprise commercial bridge.
+
+Verification rerun after deck creation:
+
+- `npm run typecheck` - pass.
+- `npm test` - pass, 6 files / 29 tests.
+- `npm run build` - pass, Next.js 15.5.19 production build.
+- `npm run lint` - pass when run after build completed. A parallel lint/build attempt failed transiently because `next build` was rewriting `.next/types` while `tsc --noEmit` read those generated paths; no source fix was required.
+- `npm audit --omit=dev --audit-level=moderate` - pass, `found 0 vulnerabilities`.
+
+Production-server smoke:
+
+- Ports `3000` and `3004` were already occupied, so the built app was launched on `127.0.0.1:3005`.
+- `GET /m` -> 200.
+- `GET /officer` -> 200.
+- `GET /officer/approvals` -> 200.
+- `GET /officer/audit` -> 200.
+- `POST /api/reset` -> 200, `{"ok":true,"seeded_cases":6}`.
+- `GET /api/cases` -> 200.
+
+Boundary note: this follow-up created the pitch deck and verified the local production server path. It does not change the product/governance logic and does not claim production government deployment.
+
 ## Files Changed
 
 - `.gitignore` - tightened environment-file ignores while keeping `.env.example` trackable.

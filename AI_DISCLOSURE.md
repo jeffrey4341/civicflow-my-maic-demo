@@ -52,7 +52,7 @@ The following actions are **out of scope for the AI by design**. They are reserv
 CivicFlow MY Mobile is built to run **fully offline and deterministically** so that the demo is reproducible for judges and reviewers.
 
 - The AI/RAG pipeline is implemented as **deterministic TypeScript** that runs without any external model call. Given the same input, it produces the same structured output.
-- An **optional Anthropic LLM path** is used **only if an `ANTHROPIC_API_KEY` is present** in the environment.
+- An **optional Anthropic LLM path** is used **only if an `ANTHROPIC_API_KEY` is present**. It may refine detected language, the English translation, category and urgency; deterministic category-specific human gates cannot be downgraded. Retrieval, routing, missing-info checks, approvals, reply drafting, lifecycle rules and audit recording remain application logic.
 - **When no API key is configured** (the default for this demo), the system uses **deterministic fixtures** and heuristics that produce **identical-shape structured output** to the LLM path.
 - **The demo always runs with no API key.** Reviewers do not need any credentials, network access, or paid services to reproduce the full pipeline.
 
@@ -100,12 +100,12 @@ Human oversight is structural, not optional. The casework lifecycle is gated so 
 **Lifecycle gates** (`CitizenCase` status):
 
 ```
-draft → needs_info → submitted → routed → awaiting_supervisor → in_progress → closed
+draft → needs_info → submitted → manual_review → routed → awaiting_supervisor → in_progress → closed
 ```
 
 - The transition into `awaiting_supervisor` exists specifically to enforce **human approval** for high-risk cases — the AI raises the `ApprovalTask`, but only a supervisor can clear it.
 - The transition to `closed` is a **human action**; the AI cannot close cases.
-- Every step writes an append-only `AuditEvent`, producing a reviewable, tamper-evident timeline. Officer console routes (`/officer`, `/officer/cases/[id]`, `/officer/approvals`, `/officer/audit`) make this oversight visible and actionable.
+- Every step writes an append-only `AuditEvent`, producing a reviewable, process-scoped timeline until reset or restart. Officer console routes (`/officer`, `/officer/cases/[id]`, `/officer/approvals`, `/officer/audit`) make this oversight visible and actionable.
 
 **Worked examples** (synthetic):
 

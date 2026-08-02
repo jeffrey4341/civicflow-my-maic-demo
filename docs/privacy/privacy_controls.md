@@ -28,7 +28,7 @@ The demo is shaped around the data-protection principles that underpin Malaysia'
 | **Security** | Demo runs locally and offline by default; no external data egress unless an optional API key is explicitly configured by the operator. |
 | **Retention** | All data is **ephemeral and in-memory**, re-seedable via `POST /api/reset`. Nothing is persisted beyond the running process. |
 | **Data integrity** | Cases carry a structured, append-only audit trail so the record of what happened is accurate and traceable. |
-| **Access** | The officer console exposes case data only within the casework UI; the citizen mobile route exposes only the citizen's own request flow. |
+| **Access** | The officer console exposes case data only within the casework UI; the citizen mobile route surfaces only the citizen's own request flow. Note: the demo API layer is intentionally unauthenticated (`GET /api/cases` returns all synthetic cases) — per-citizen API scoping is a pilot requirement, not a current control. |
 
 ---
 

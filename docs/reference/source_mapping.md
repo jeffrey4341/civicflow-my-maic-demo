@@ -1,6 +1,6 @@
 # Source Mapping — Reusable Concepts Adapted from the Reference Architecture
 
-This document records how **CivicFlow MY Mobile** (a MAIC Nexus Challenge T5 public hackathon demo) reuses **architectural concepts** — and only concepts — adapted from a private reference repository (`enterprise_ai_agent_os`). It exists for transparency: judges, reviewers, and contributors should be able to see exactly what was conceptually borrowed, how it was reimplemented for the citizen-service domain, and what was deliberately left behind.
+This document records how **CivicFlow MY Mobile** (a MAIC Nexus Challenge T5 public hackathon demo) reuses **architectural concepts** — and only concepts — adapted from a private enterprise reference repository (name withheld from this public artifact). It exists for transparency: judges, reviewers, and contributors should be able to see exactly what was conceptually borrowed, how it was reimplemented for the citizen-service domain, and what was deliberately left behind.
 
 > **Hard rule, stated up front:** No source code was copied from the reference repository. No secrets, credentials, environment files, or proprietary enterprise modules were imported. Every concept below was re-derived and reimplemented from scratch for the local-council casework domain, and all data in this repo is 100% synthetic.
 

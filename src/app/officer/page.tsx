@@ -1,89 +1,68 @@
 import Link from "next/link";
+
+import { OfficerQueue } from "@/components/officer/OfficerQueue";
+import { hasCurrentOfficerReview } from "@/lib/lifecycle";
 import { listApprovals, listCases } from "@/lib/store";
-import { LANGUAGE_FLAGS, categoryLabel } from "@/lib/i18n";
-import { PiiBadge, StatusBadge, UrgencyBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
 export default async function OfficerQueuePage() {
-  const [cases, pending] = await Promise.all([listCases(), listApprovals("pending")]);
-
-  const counts = {
-    total: cases.length,
-    awaiting: cases.filter((c) => c.status === "awaiting_supervisor").length,
-    needsInfo: cases.filter((c) => c.status === "needs_info").length,
-    closed: cases.filter((c) => c.status === "closed").length,
-  };
+  const [cases, pendingApprovals] = await Promise.all([listCases(), listApprovals("pending")]);
+  const caseById = new Map(cases.map((item) => [item.case_id, item]));
+  const decisionReadyApprovals = pendingApprovals.filter((approval) => {
+    const record = caseById.get(approval.case_id);
+    return Boolean(
+      record
+      && record.approval_task_id === approval.approval_id
+      && record.triage_revision === approval.triage_revision
+      && hasCurrentOfficerReview(record),
+    );
+  });
+  const active = cases.filter((item) => item.status !== "closed").length;
+  const needsReview = cases.filter(
+    (item) => item.status !== "closed"
+      && item.status !== "needs_info"
+      && (!item.officer_review || item.officer_review.triage_revision !== item.triage_revision || item.status === "manual_review"),
+  ).length;
+  const needsInfo = cases.filter((item) => item.status === "needs_info").length;
 
   return (
     <div>
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col gap-5 border-b border-slate-200 pb-7 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Case queue</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {counts.total} cases · {counts.awaiting} awaiting supervisor · {counts.needsInfo} need info ·{" "}
-            {counts.closed} closed
+          <p className="text-sm font-semibold text-civic-800">Officer workspace</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-950">Case queue</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+            Work from the next required human action. Closed cases stay hidden until you choose that filter.
           </p>
         </div>
-        {pending.length > 0 && (
+        {decisionReadyApprovals.length > 0 ? (
           <Link
             href="/officer/approvals"
-            className="rounded-lg bg-orange-100 px-3 py-2 text-sm font-medium text-orange-800 hover:bg-orange-200"
+            className="inline-flex min-h-12 items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-950 outline-none hover:bg-amber-100 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
           >
-            {pending.length} pending approval{pending.length > 1 ? "s" : ""} →
+            {decisionReadyApprovals.length} supervisor decision{decisionReadyApprovals.length === 1 ? "" : "s"} waiting
           </Link>
-        )}
+        ) : null}
       </div>
 
-      <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-xxs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-4 py-2.5">Ref</th>
-              <th className="px-4 py-2.5">Request</th>
-              <th className="px-4 py-2.5">Category</th>
-              <th className="px-4 py-2.5">Urgency</th>
-              <th className="px-4 py-2.5">Department</th>
-              <th className="px-4 py-2.5">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {cases.map((c) => (
-              <tr key={c.case_id} className="hover:bg-civic-50/40">
-                <td className="px-4 py-3 align-top">
-                  <Link href={`/officer/cases/${c.case_id}`} className="font-mono text-xs font-semibold text-civic-700 hover:underline">
-                    {c.citizen_ref}
-                  </Link>
-                  <div className="mt-1 flex items-center gap-1">
-                    <span title={c.detected_language}>{LANGUAGE_FLAGS[c.detected_language]}</span>
-                    {c.pii_risk !== "low" && <PiiBadge risk={c.pii_risk} />}
-                  </div>
-                </td>
-                <td className="max-w-xs px-4 py-3 align-top">
-                  <Link href={`/officer/cases/${c.case_id}`} className="block">
-                    <span className="line-clamp-2 text-slate-700">{c.original_text}</span>
-                    <span className="mt-0.5 line-clamp-1 text-xxs italic text-slate-400">{c.translated_text_en}</span>
-                  </Link>
-                </td>
-                <td className="px-4 py-3 align-top text-slate-600">{categoryLabel(c.category)}</td>
-                <td className="px-4 py-3 align-top"><UrgencyBadge urgency={c.urgency} /></td>
-                <td className="px-4 py-3 align-top text-slate-600">
-                  {c.department}
-                  <div className="text-xxs text-slate-400">{c.unit}</div>
-                </td>
-                <td className="px-4 py-3 align-top"><StatusBadge status={c.status} /></td>
-              </tr>
-            ))}
-            {cases.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                  No cases yet. Submit one from the <Link href="/m" className="text-civic-600 underline">citizen app</Link>.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <dl className="grid grid-cols-2 gap-px border-b border-slate-200 bg-slate-200 sm:grid-cols-4">
+        <Metric label="Active" value={active} />
+        <Metric label="Needs review" value={needsReview} />
+        <Metric label="Needs citizen info" value={needsInfo} />
+        <Metric label="Needs supervisor" value={decisionReadyApprovals.length} />
+      </dl>
+
+      <OfficerQueue cases={cases} />
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="bg-slate-50 px-4 py-5">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="mt-1 text-2xl font-semibold tabular-nums text-slate-950">{value}</dd>
     </div>
   );
 }
