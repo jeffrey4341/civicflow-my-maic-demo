@@ -1,0 +1,13 @@
+CivicFlow MY Mobile is a mobile-first multilingual citizen-service AI casework platform for Malaysian public agencies, local councils and civic service operators.
+
+Citizens can submit service requests, complaints or eligibility questions in Malay, English, Chinese or Tamil through a simple mobile-first interface. The system detects the language, classifies the issue, asks for missing information, retrieves relevant SOP, FAQ or service-charter citations, recommends department routing, drafts a citizen reply and records every step in an audit timeline.
+
+The prototype demonstrates three public-service workflows. First, a Malay blocked-drain complaint is classified as a drainage and flood-risk case, routed to the Engineering / Drainage Unit, linked to the Drainage Response SOP and blocked from starting work until supervisor approval. Second, a Chinese food-stall business licence query is routed to the Licensing Unit, grounded in the Business Licensing FAQ and returned with a missing-document checklist. Third, an English education or welfare aid request is treated as an officer-review case, with policy citations and explicit wording that eligibility is not automatically approved.
+
+Unlike a generic government chatbot, CivicFlow is designed as an operational workflow layer. AI drafts recommendations, but humans decide. High-risk cases cannot bypass supervisor approval. Missing-information cases cannot be treated as normal routed work. Low-confidence or zero-citation outputs fall back to manual review. Every recommendation is either citation-backed or blocked from normal action.
+
+The artifact is a public hackathon demo using synthetic cases, synthetic SOPs and deterministic local execution. No real citizen data, NRICs, phone numbers, government records or production APIs are used. The repository includes AI disclosure, data card, model card, third-party notices and audit documentation.
+
+CivicFlow addresses the MAIC Public Services & Smart Cities track by combining Citizen Agents, RAG, E-Gov AI, Multilingual LLMs and Civic Tech into a practical public-sector casework system. Initial buyers include local councils, state agencies, public universities, township operators and smart-city vendors. The commercial path begins with paid pilots for service desks that need faster triage, multilingual access, SLA visibility and stronger auditability.
+
+The long-term vision is a governed AI operations layer for Malaysian public services: citizens get easier access, officers get structured casework support, and agencies get accountable, transparent and auditable service delivery.

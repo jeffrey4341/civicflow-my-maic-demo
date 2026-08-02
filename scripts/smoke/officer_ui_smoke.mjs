@@ -150,7 +150,11 @@ async function main() {
     });
     assert(reviewedFlood.officer_review?.triage_revision === reviewedFlood.triage_revision, "Flood-risk officer review was not saved.");
     await page.reload({ waitUntil: "networkidle" });
-    await pendingDecisionSection.getByText(unreviewedFlood.citizen_ref, { exact: true }).waitFor();
+    const pendingArticle = pendingDecisionSection.locator("article").filter({ hasText: unreviewedFlood.citizen_ref }).first();
+    await pendingArticle.getByText(unreviewedFlood.citizen_ref, { exact: true }).waitFor();
+    await pendingArticle.getByRole("heading", { name: "Policy evidence", exact: true }).waitFor();
+    await pendingArticle.getByText("Drainage Response SOP", { exact: false }).first().waitFor();
+    await pendingArticle.getByText(/confidence \d\.\d{2}/).first().waitFor();
     assert((await waitingReviewSection.getByText(unreviewedFlood.citizen_ref, { exact: true }).count()) === 0, "Reviewed case remains in the waiting-for-review group.");
 
     await page.goto(`${baseUrl}/officer`, { waitUntil: "networkidle" });

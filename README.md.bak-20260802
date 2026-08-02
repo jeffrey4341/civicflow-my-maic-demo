@@ -1,6 +1,6 @@
-# CivicFlow MY Mobile
+# CivicFlow MY
 
-**MAIC Nexus Challenge T5 — Public Services & Smart Cities**
+**MAIC Nexus Challenge · T5 — Public Services & Smart Cities**
 
 A working hackathon prototype for multilingual local-council casework in Malaysia.
 
@@ -58,7 +58,7 @@ This path makes the key boundary visible: the system prepares the case; people d
 - A process-scoped, in-memory event timeline for automated steps and human actions, retained until reset or restart.
 - Offline operation by default, with reproducible fixtures and no API key.
 
-The default engine is a deterministic TypeScript pipeline. If `ANTHROPIC_API_KEY` is provided, language detection, English translation, category and urgency may use optional model refinement while the deterministic safety gates remain authoritative. Retrieval, routing, missing-information checks, approvals, reply drafting and audit recording remain application logic. In either mode, generated material remains a draft until a person reviews it.
+The default engine is a deterministic TypeScript pipeline. If `ANTHROPIC_API_KEY` is provided, selected language and classification steps can use optional model assistance while keeping the same structured workflow. In either mode, generated material remains a draft until a person reviews it.
 
 ## Workflow and safeguards
 
@@ -99,8 +99,6 @@ npm run start -- --hostname 127.0.0.1 --port 3000
 ```
 
 Quick-tunnel URLs expire when their process stops, so this README does not present one as a permanent public endpoint.
-
-Regenerating the optional 179-second submission video with `npm run demo:video` also requires Python with `edge-tts`, network access to its speech service, and `ffmpeg` / `ffprobe`. These authoring tools are not needed to build, test or run the app.
 
 ## Main routes
 

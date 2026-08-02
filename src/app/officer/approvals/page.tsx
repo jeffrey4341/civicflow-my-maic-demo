@@ -73,6 +73,18 @@ export default async function ApprovalsPage() {
                         {approval.risk_factors.map((factor) => <li key={factor}>{factor}</li>)}
                       </ul>
                     ) : null}
+                    {approval.evidence.length > 0 ? (
+                      <div className="mt-5">
+                        <h4 className="text-sm font-semibold text-slate-950">Policy evidence</h4>
+                        <ul className="mt-2 space-y-2 text-sm leading-6 text-slate-700">
+                          {approval.evidence.map((citation) => (
+                            <li key={`${citation.source_doc}-${citation.section}`}>
+                              <span className="font-medium">{citation.doc_title}</span> — {citation.section} · confidence {citation.confidence.toFixed(2)}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                   </div>
                   <ApprovalActions
                     approvalId={approval.approval_id}
@@ -141,6 +153,15 @@ export default async function ApprovalsPage() {
                   <div>
                     <p className="text-sm font-medium text-slate-900">{approval.title}</p>
                     {approval.decision_note ? <p className="mt-1 text-sm leading-6 text-slate-600">{approval.decision_note}</p> : null}
+                    {approval.evidence.length > 0 ? (
+                      <ul className="mt-2 space-y-1 text-xs leading-5 text-slate-500" aria-label="Decision policy evidence">
+                        {approval.evidence.map((citation) => (
+                          <li key={`${citation.source_doc}-${citation.section}`}>
+                            {citation.doc_title} — {citation.section} · confidence {citation.confidence.toFixed(2)}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                   <p className="text-sm text-slate-600">{approval.decision_by ? `by ${approval.decision_by}` : "Historical task"}</p>
                 </li>

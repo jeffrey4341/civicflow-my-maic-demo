@@ -220,7 +220,8 @@ export function OfficerReviewForm({
                   />
                   <span>
                     <span className="block text-sm font-semibold text-slate-900">{citation.doc_title}</span>
-                    <span className="mt-1 block text-sm text-slate-700">{citation.section}</span>
+                    <span className="mt-1 block text-sm text-slate-700">{citation.section} · confidence {citation.confidence.toFixed(2)}</span>
+                    <span className="mt-1 block font-mono text-xs text-slate-500">{citation.source_doc}</span>
                     <span className="mt-1 line-clamp-2 block text-xs leading-5 text-slate-500">{citation.snippet}</span>
                   </span>
                 </label>

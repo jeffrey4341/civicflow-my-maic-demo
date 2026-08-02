@@ -20,6 +20,9 @@ function nextRequiredAction(c: CitizenCase, approval: ApprovalTask | null): { ti
   if (c.status === "closed") return { title: "No further action", detail: "This case is closed and its audit record is read-only." };
   if (c.status === "needs_info") return { title: "Wait for citizen details", detail: "Required information is missing. The citizen can add it with the tracking code before review continues." };
   if (!hasCurrentReview(c)) return { title: "Complete officer review", detail: "Confirm the case facts, policy evidence, routing, and citizen reply for this revision." };
+  if (c.category === "education_aid_welfare" && !c.officer_review?.welfare_outcome) {
+    return { title: "Record the human welfare outcome", detail: "An officer must record the eligibility outcome before a reply is sent or council work begins." };
+  }
   if (approval?.status === "pending") return { title: "Supervisor decision required", detail: "The current reviewed revision is high risk and cannot proceed until a supervisor decides." };
   if (approval?.status === "rejected") return { title: "Resolve rejected decision", detail: "Close without operational action, or make substantive changes and resubmit for supervisor approval." };
   if (c.reply_draft?.status !== "sent") return { title: "Send the reviewed reply", detail: "The reply is approved for this revision but remains a draft until an officer sends it." };
@@ -31,6 +34,9 @@ function nextRequiredAction(c: CitizenCase, approval: ApprovalTask | null): { ti
 
 function replyBlocker(c: CitizenCase, approval: ApprovalTask | null): string | null {
   if (!hasCurrentReview(c)) return "Save an officer review for the current revision first.";
+  if (c.category === "education_aid_welfare" && !c.officer_review?.welfare_outcome) {
+    return "Record a human welfare outcome before sending the citizen reply.";
+  }
   if (!c.reply_draft || c.reply_draft.status === "draft" || c.reply_draft.approved_revision !== c.triage_revision) {
     return "Approve the current reply by saving the officer review first.";
   }
@@ -44,6 +50,9 @@ function replyBlocker(c: CitizenCase, approval: ApprovalTask | null): string | n
 }
 
 function startBlocker(c: CitizenCase, approval: ApprovalTask | null): string | null {
+  if (c.category === "education_aid_welfare" && !c.officer_review?.welfare_outcome) {
+    return "Record a human welfare outcome before starting work.";
+  }
   if (c.reply_draft?.status !== "sent") return "Send the reviewed citizen reply before starting work.";
   if (!hasCurrentReview(c) || !["proceed", "resubmit_approval"].includes(c.officer_review!.resolution)) {
     return "A current proceed or approved-resubmission review is required before work can start.";
@@ -112,6 +121,60 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
           </div>
         </DecisionSection>
 
+        <DecisionSection id="governance-checks" title="Governance checks">
+          <p className="mb-5 max-w-3xl text-sm leading-6 text-slate-600">
+            A compact receipt of the evidence and human checkpoints for this case revision.
+          </p>
+          <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <Fact
+              label="Policy evidence"
+              value={c.citations.length > 0
+                ? `${c.citations.length} cited policy section${c.citations.length === 1 ? "" : "s"}`
+                : "Manual review — no actionable recommendation"}
+            />
+            <Fact label="Officer decision" value={currentReview ? `Recorded for revision ${c.triage_revision}` : "Pending"} />
+            <Fact
+              label="Supervisor checkpoint"
+              value={approval
+                ? `${approval.status.charAt(0).toUpperCase() + approval.status.slice(1)} for revision ${approval.triage_revision}`
+                : c.routing?.requires_supervisor
+                  ? "Required after officer review"
+                  : "Not required for current facts"}
+            />
+            {c.category === "education_aid_welfare" ? (
+              <Fact
+                label="Human welfare outcome"
+                value={c.officer_review?.welfare_outcome === "eligible"
+                  ? "Eligible — recorded by officer"
+                  : c.officer_review?.welfare_outcome === "not_eligible"
+                    ? "Not eligible — recorded by officer"
+                    : "Pending"}
+              />
+            ) : null}
+            <Fact
+              label="Citizen reply"
+              value={reply?.status === "sent" ? "Sent by officer" : reply?.status === "approved" ? "Approved draft — not sent" : "Draft — not sent"}
+            />
+            <Fact label="Audit evidence" value={`${audit.length} recorded event${audit.length === 1 ? "" : "s"}`} />
+          </dl>
+          {c.citations.length > 0 ? (
+            <div className="mt-7 border-t border-slate-200 pt-5" aria-label="Policy evidence details">
+              <h3 className="text-sm font-semibold text-slate-950">Policy evidence details</h3>
+              <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
+                {c.citations.map((citation) => (
+                  <li key={`${citation.source_doc}-${citation.section}`} className="py-4">
+                    <p className="text-sm font-semibold text-slate-950">{citation.doc_title}</p>
+                    <p className="mt-1 font-mono text-xs leading-5 text-slate-500">
+                      {citation.source_doc} · {citation.section} · confidence {citation.confidence.toFixed(2)}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">{citation.snippet}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </DecisionSection>
+
         <DecisionSection id="officer-review" title="Officer review">
           <p className="max-w-3xl text-sm leading-6 text-slate-600">
             The automated triage is a starting point. An officer confirms the facts, evidence, routing, and reply before anything is sent or work begins.
@@ -120,7 +183,7 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.6fr)]">
             <div>
               <h3 className="font-semibold text-slate-950">Citizen request</h3>
-              <blockquote className="mt-3 border-y border-slate-200 py-3 text-base leading-7 text-slate-900">{c.original_text}</blockquote>
+              <blockquote lang={c.detected_language} className="mt-3 border-y border-slate-200 py-3 text-base leading-7 text-slate-900">{c.original_text}</blockquote>
               {c.translated_text_en !== c.original_text ? <p className="mt-3 text-sm leading-6 text-slate-600">English reference: {c.translated_text_en}</p> : null}
               <dl className="mt-5 grid gap-4 sm:grid-cols-2">
                 <Fact label="Selected language" value={LANGUAGE_NAMES[c.citizen_language]} />

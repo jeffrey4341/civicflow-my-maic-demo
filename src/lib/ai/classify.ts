@@ -77,6 +77,7 @@ const HIGH_URGENCY_WORDS = [
   "urgent", "segera", "emergency", "kecemasan", "bahaya", "danger", "dangerous",
   "紧急", "危险", "அவசரம்",
 ];
+const URGENCY_ORDER: Urgency[] = ["low", "normal", "high", "urgent", "flood_risk"];
 
 function scoreCategory(text: string, keywords: Keyword[]): number {
   const lower = text.toLowerCase();
@@ -95,7 +96,7 @@ export interface Classification {
   matched_terms: string[];
 }
 
-function classifyUrgency(text: string, category: CaseCategory): Urgency {
+export function classifyUrgency(text: string, category: CaseCategory): Urgency {
   const lower = text.toLowerCase();
   if (category === "drainage") {
     if (FLOOD_RISK_SIGNALS.some((s) => lower.includes(s))) return "flood_risk";
@@ -104,6 +105,10 @@ function classifyUrgency(text: string, category: CaseCategory): Urgency {
   }
   if (HIGH_URGENCY_WORDS.some((s) => lower.includes(s))) return "high";
   return "normal";
+}
+
+export function maxUrgency(left: Urgency, right: Urgency): Urgency {
+  return URGENCY_ORDER.indexOf(left) >= URGENCY_ORDER.indexOf(right) ? left : right;
 }
 
 export function detectPiiRisk(text: string): PiiRisk {

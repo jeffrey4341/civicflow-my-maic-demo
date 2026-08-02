@@ -1,8 +1,14 @@
-# CivicFlow MY Mobile — 3-Minute Demo Script
+# CivicFlow MY Mobile — 179-Second Demo Script
 
 **MAIC Nexus Challenge T5 — Public Services & Smart Cities**
 
-> **Important:** All data is 100% synthetic. No real citizen data, NRIC, addresses, phone numbers, or government SOPs. The demo runs fully offline with deterministic AI fallbacks — no API key required.
+> **Important:** All data is 100% synthetic. No real citizen data, NRIC, addresses, phone numbers or government SOPs are used. The judging path runs offline with deterministic AI fallbacks and no API key. The submission deadline is **2026-09-01 00:00 MYT**.
+
+## Recording status
+
+The current product journeys and governance checks are locally verified. The current-UI video was rendered and verified on **2026-08-02** at the ignored local path `output/demo-video/civicflow-real-ui-179s/video/civicflow-my-mobile-real-ui-demo-179s.mp4`; the public release URL remains pending. The 180.067-second June render remains historical evidence and is not the final submission video.
+
+Verified encoding: H.264 video, 1280×720, yuv420p, 30 fps; AAC mono 48 kHz; `ffprobe` container duration **179.000000 seconds**. Full audio/video decode and ten scene-midpoint frames completed with exit 0. SHA-256: `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342`. Public upload remains pending.
 
 ## Setup
 
@@ -21,13 +27,9 @@ Open:
 - Approvals: `http://127.0.0.1:3000/officer/approvals`
 - Audit: `http://127.0.0.1:3000/officer/audit`
 
-If port `3000` is occupied, use the same command with another local port, for example:
+If port `3000` is occupied, use the same command with another available port. Never stop a process that was not started for this recording.
 
-```bash
-npm run start -- --hostname 127.0.0.1 --port 3004
-```
-
-Before each take, reset to a known demo state:
+Before each take, reset to a known synthetic state:
 
 ```bash
 npm run seed:reset
@@ -43,100 +45,110 @@ Use the matching port if not using `3000`.
 
 ---
 
-## 0:00-0:15 — Opening
+## 0:00-0:14 — Opening: casework, not chat
 
-“CivicFlow MY Mobile is a multilingual citizen-service AI casework platform for Malaysian public agencies. It is not a government chatbot. It is a governed workflow system where AI drafts, humans decide and every case is auditable.”
+Show the current role launcher.
 
-Show the mobile citizen app and officer console side by side.
+“CivicFlow MY is a public-service casework demo for Malaysian councils. This walkthrough uses the real product interface and synthetic data only. Citizens submit requests, officers review recommendations, and supervisors decide high-risk cases.”
 
 ---
 
-## 0:15-0:45 — Act 1: Malay blocked-drain complaint
+## 0:14-0:31 — Citizen intake
 
-“First, a citizen submits a public-service request in Malay.”
+Show `/m`, the four language choices, request field and review-before-submit flow.
 
-Type:
+“The citizen flow begins with four languages: Bahasa Melayu, English, Chinese, and Tamil. A person writes in their own words or starts from a guided example. The system detects language and service category before submission, without requiring an external model.”
+
+---
+
+## 0:31-0:47 — Officer queue
+
+Show `/officer` and the next-required-action grouping.
+
+“The officer queue turns mixed-language requests into an actionable workload. Each row shows the original request, a translated reference where needed, the service, route, status, risk, and the next required human action.”
+
+---
+
+## 0:47-1:10 — Malay drainage: evidence, routing and the human gate
+
+Use the synthetic request:
 
 ```text
 Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat.
 ```
 
-Show the citizen mobile flow: language detected as Malay, issue classified as drainage, flood-risk urgency identified.
+Show Malay detection, flood-risk classification, the Drainage Response SOP citation and Engineering / Drainage Unit recommendation.
 
-“The system detects Malay, classifies this as a drainage and flood-risk case, and prepares it for public-service routing.”
-
----
-
-## 0:45-1:15 — SOP RAG + routing
-
-Switch to officer console.
-
-“On the officer side, CivicFlow retrieves the relevant Drainage Response SOP, recommends Engineering / Drainage Unit, shows the flood-risk rationale and creates an audit trail.”
-
-Show citation panel.
-
-“Every recommendation is grounded in synthetic SOP citations. If there is no reliable citation, the case falls back to manual review.”
+“Here is the governed Malay drainage flow. Deterministic triage detects Malay, classifies drainage and flooding, retrieves cited policy, and recommends the Engineering Drainage Unit. Flood risk triggers a supervisor checkpoint. The officer reviews the facts and reply; the system never dispatches work or closes the case by itself.”
 
 ---
 
-## 1:15-1:45 — Approval gate
+## 1:10-1:32 — Chinese licence: missing details
 
-Show the blocked status buttons.
+Show the first licence revision, the three missing fields and the revised officer-review state.
 
-“Because this is a high-risk flood case, the officer cannot start or close the case directly. Supervisor approval is required before work can proceed.”
-
-Go to approval panel. Enter a decision note. Approve.
-
-“After the supervisor records a decision note, the case can move forward. The approval decision is recorded in the audit timeline.”
+“For a Chinese food-stall licence enquiry, the first revision is not treated as complete. CivicFlow identifies missing location, business type, and operating hours, then asks once for the required details. After the citizen supplies them, the officer reviews the updated facts, three cited FAQ sections, routing, and the Chinese reply draft.”
 
 ---
 
-## 1:45-2:10 — Act 2: Chinese business licence query
+## 1:32-1:52 — Chinese licence: governed completion
 
-Submit Chinese input:
+Use the synthetic request:
 
 ```text
 我要申请小食档执照，需要什么文件？
 ```
 
-“Next, a citizen asks a business licence question in Chinese. CivicFlow detects Chinese, routes the case to the Licensing Unit, retrieves the Business Licensing FAQ and identifies missing information such as location, business type and operating hours.”
+Show the same case after officer review, reply release, work start and human closure.
 
-Show needs-info status and Chinese reply draft.
-
-“The case cannot be treated as normal work until the missing information is resolved.”
+“Once the licence case is reviewed, the officer can release the reply and record the work outcome. The citizen sees a Chinese response backed by the same policy citations. Saving a review does not silently send anything: review, send, start work, and close remain separate human actions.”
 
 ---
 
-## 2:10-2:35 — Act 3: English education / welfare aid
+## 1:52-2:07 — Citizen-visible Chinese reply
 
-Submit:
+Show the Chinese citizen reply and its policy references.
+
+“The citizen-facing reply keeps the official department and policy references visible in Chinese. It also says this is a demo and not a real licence approval. That distinction is central: AI drafts service guidance; public officers remain accountable for decisions.”
+
+---
+
+## 2:07-2:27 — Welfare: human outcome gate
+
+Use the synthetic request:
 
 ```text
 Can I apply for education aid for my child?
 ```
 
-“Finally, a citizen asks about education aid. CivicFlow retrieves the welfare and education policy, prepares a document checklist and routes the case for officer review.”
+Show the Welfare Education Aid Policy evidence and the separately recorded human outcome.
 
-Show wording that eligibility is not automatically approved.
-
-“The AI does not approve eligibility. It helps officers review the case with evidence.”
+“Education aid follows a different boundary. CivicFlow retrieves the welfare policy and prepares evidence for review, but it never decides eligibility. The screen records the human welfare outcome separately from automated classification and routing, then preserves the complete case history.”
 
 ---
 
-## 2:35-2:55 — Audit and safety
+## 2:27-2:42 — Supervisor decision history
 
-Open `/officer/audit`.
+Open `/officer/approvals` and show the drainage decision in history with its case reference and decision note.
 
-“Every step is visible: case creation, language detection, classification, retrieval, routing, approval, reply draft and status changes. This is the public-sector control layer: multilingual intake, SOP-grounded AI, human approval and audit evidence.”
-
----
-
-## 2:55-3:00 — Closing
-
-“CivicFlow MY Mobile helps public agencies modernise citizen service while preserving accountability. AI drafts. Humans decide. Every case is traceable.”
+“High-risk approvals have their own workspace. Flood-risk recommendations remain blocked until the current officer-reviewed revision receives a documented supervisor decision. The history shows who approved, what was approved, and which revision the decision applies to.”
 
 ---
 
-## Current Verification Note
+## 2:42-2:59 — Audit and closing
 
-This script was aligned with the launch/deploy verification run on 2026-06-14 (MYT). The production build/server path was verified on `http://127.0.0.1:3004` because port `3000` was already occupied on the demo machine. See `docs/audit/launch_deploy_recheck_2026-06-14.md` for the current evidence.
+Open `/officer/audit` and show a case-level sequence containing automated stages, human actions and a denied or held transition.
+
+“Finally, the append-only audit joins every automated and human event, from submission through routing, approval, replies, and status changes. CivicFlow combines multilingual intake, cited recommendations, explicit human checkpoints, and traceable casework in an offline-ready public demo.”
+
+---
+
+## Final recording gate
+
+- [x] Render against the current verified UI, not the superseded generated text cards.
+- [x] Confirm nominal duration is 179 seconds and `ffprobe` reports an actual duration of `179.000000` seconds.
+- [x] Decode the full MP4 and inspect ten scene-midpoint frames for black frames, overlap, stale UI and unreadable crops.
+- [x] Confirm narration is English throughout while multilingual citizen content remains legible.
+- [ ] Upload to an accepted portal field or stable public judging URL and verify playback without a login wall.
+- [x] Record the final local video path, portable metadata and SHA-256 `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342` in this verification record.
+- [ ] Keep the portal-submission confirmation unchecked until direct evidence exists.

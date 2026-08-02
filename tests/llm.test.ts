@@ -136,4 +136,28 @@ describe("LLM refinement parity", () => {
     // Citizen-facing missing details are resolved before the stored manual-review gate.
     expect(out.status).toBe("needs_info");
   });
+
+  it("keeps the deterministic flood gate when the provider fails or returns invalid output", async () => {
+    const responders: Array<() => Promise<Response>> = [
+      async () => { throw new Error("synthetic provider failure"); },
+      async () => new Response("upstream error", { status: 500 }),
+      async () => new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }] }), { status: 200 }),
+    ];
+
+    for (const [index, responder] of responders.entries()) {
+      global.fetch = vi.fn(responder) as typeof fetch;
+      const out = await runTriage({
+        case_id: `llm-fallback-${index}`,
+        citizen_ref: `CF-LLM-FALLBACK-${index}`,
+        text: "Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat.",
+        selected_language: "ms",
+        location_text: "Jalan SS2",
+      });
+      expect(global.fetch).toHaveBeenCalledOnce();
+      expect(out.result.ai_mode).toBe("deterministic");
+      expect(out.result.urgency).toBe("flood_risk");
+      expect(out.gate.requires_supervisor).toBe(true);
+      expect(out.status).toBe("awaiting_supervisor");
+    }
+  });
 });

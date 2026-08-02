@@ -6,6 +6,12 @@ CivicFlow MY Mobile starts as a public hackathon demo, but the product direction
 
 The current repository remains a synthetic demo. The roadmap below describes the path from demo to real product and must not be read as a claim that live government integrations, real SOPs or real citizen data are already connected.
 
+## North Star and Submission Gate
+
+**Product North Star:** three of three canonical journeys must run from citizen intake to a citizen-visible, policy-cited, human-owned and audited outcome, with zero unsafe bypasses.
+
+The MAIC submission deadline is **2026-09-01 00:00 MYT**. The English 179-second video is locally rendered and verified; its public judging URL, the public no-login deployment and the completed submission-portal record remain external delivery gates until each is verified directly.
+
 ## Phase 0 - Current Hackathon Artifact
 
 The current artifact demonstrates the core civic workflow with synthetic data:
@@ -15,31 +21,50 @@ The current artifact demonstrates the core civic workflow with synthetic data:
 - Supervisor approval queue for high-risk cases.
 - Deterministic RAG over six synthetic policy documents.
 - Citation-or-manual-review guardrail.
+- Three canonical journeys: Malay flood-risk drainage, Chinese business-licence follow-up in the same case, and English education/welfare review.
 - Blocked unsafe transitions for high-risk, needs-info, welfare/education and uncited cases.
+- Separate officer review, reply release, supervisor decision, work start and note-gated closure actions.
+- A mandatory human welfare-outcome gate before an education/welfare case can advance through the outcome-sensitive path.
 - Production build, unit tests, dependency audit and browser smoke evidence for the demo.
 
 This phase proves the workflow logic: AI drafts, humans decide and every case is traceable.
 
-**Verification status (2026-07-18, workflow follow-up).** Phase 0 remains green locally after correcting high-risk reply wording, officer-versus-supervisor queue semantics, and supported synthetic location persistence: `npm run typecheck` PASS, `npm test` 74/74 PASS across 10 files, the smoke-helper regression is 2/2 PASS, `npm run build` PASS with 20 routes, and `npm audit --omit=dev --audit-level=moderate` reports 0 vulnerabilities. `npm run smoke:citizen` and `npm run smoke:officer` pass real browser journeys; `npm run smoke:e2e` passes 4 canonical governance cases, closure and immutability gates, and 8 rendered routes on a self-started production server. A manual in-app browser journey verified that an unreviewed high-risk case waits for officer review, becomes a pending supervisor decision only after the current review is saved, retains its exact reviewed reply through approval and closure, renders `Jalan SS2`, preserves the policy citation, and has no horizontal overflow at 320 px. Phases 1–4 still have no tenancy, production identity, persistent database, or live agency adapters in `src/`. No deployment or hosted URL verification was performed in this work session. Full record: `docs/audit/ui_workflow_followup_verification_2026-07-18.md`.
+**Current verified product status (2026-08-02).** Local evidence covers all three canonical journeys and their governance checks. The Malay drainage case preserves policy evidence and the reviewed reply through officer review, supervisor approval, reply release, work start and human closure. The Chinese licence journey resolves missing details in the same case, returns the new revision to officer review and completes the separated release/start/close path. The education/welfare journey requires a human-recorded outcome and never creates an AI eligibility decision. Citation-or-manual-review, denied-transition audit events and separate consequential actions remain hard boundaries. A real-UI English demo video is verified at `179.000000` seconds. This remains local evidence only: there is still no production identity, tenancy, persistent database, live agency adapter, verified public deployment, public video URL or completed portal submission.
 
-## Phase 1 - 0 to 90 Days: Pilot-Ready Foundation
+## Phase 1 - 0 to 90 Days: Outcome-Gated Pilot Foundation
 
-The first product step is to make CivicFlow credible for a controlled pilot without claiming full government production readiness.
+The first product step is to preserve the narrow product thesis and earn the right to pilot. Each milestone is an outcome gate, not a feature-count target.
 
-Key work:
+### Day 0-30 - Submission truth and repeatable product proof
 
-- Host a stable public demo and a private pilot environment with deployment verification.
+- Freeze new product scope and re-prove all three canonical journeys on the exact submission tree.
+- Keep the acceptance bar at three of three citizen-visible, policy-cited, human-owned and audited outcomes with zero unsafe bypasses.
+- Refresh the English summary, disclosure, 12-page deck and current UI evidence around the same product story.
+- Build and verify a nominal 179-second English demo video whose actual container duration is below 180 seconds.
+- Configure and smoke-test a stable public no-login demo URL; do not claim deployment before direct verification.
+- Complete the MAIC portal fields and capture submission confirmation before **2026-09-01 00:00 MYT**.
+
+Expected outcome: a truthful, reproducible submission package. Until the public video URL, public deployment and portal confirmation exist, submission delivery remains incomplete.
+
+### Day 31-60 - One-agency trust boundary
+
 - Replace the in-memory store with a persistent database designed around `agency_id` / `pbt_id` tenancy.
-- Add production-grade identity boundaries for officers, supervisors and admins, replacing demo role strings.
-- Add an agency configuration model for departments, service categories, approval policies, SLA targets and supported languages.
-- Build an SOP onboarding workflow so an agency can upload approved SOPs, FAQs, service charters and routing rules into a controlled policy corpus.
-- Add a compliance gate panel that shows whether each case has citations, missing information, approval requirements, manual-review flags and audit evidence.
-- Keep deterministic fixtures for demo/review while adding a production path for approved pilot data.
-- Add release gates for typecheck, tests, production build, browser smoke, dependency audit and hosted URL smoke.
+- Replace client-asserted role strings with server-owned officer, supervisor and admin identity plus least-privilege access control.
+- Add agency configuration for departments, service categories, approval policies, SLA targets and supported languages.
+- Add policy versioning, controlled SOP onboarding, authenticated reset/administration, retention rules, access logging and audit export.
+- Establish the pilot privacy and security baseline now: approved-data boundaries, backups, monitoring, rate limiting, recovery and incident ownership.
 
-Expected outcome:
+Expected outcome: one isolated agency environment with attributable human decisions and controlled policy/data lifecycle, still using synthetic or formally approved data only.
 
-- A pilot-ready SaaS-style environment for one agency, still using approved or synthetic data until formal data-processing approval exists.
+### Day 61-90 - Controlled pilot readiness
+
+- Select one public-service desk and a narrow set of service categories.
+- Integrate one agency-owned system of record and one approved notification path, selected from validated partner needs rather than a connector catalogue.
+- Measure triage time, first-response completeness, citation coverage, officer override rate, manual-review volume and unsafe-bypass count before setting performance claims.
+- Run multilingual regression and retrieval evaluation against the approved pilot corpus.
+- Add hosted release, recovery and rollback gates for the controlled environment.
+
+Expected outcome: a controlled-pilot candidate for one service desk, with measurable workflow value and no transfer of consequential decisions to AI.
 
 ## Phase 2 - 3 to 6 Months: First Agency Pilot
 
@@ -47,14 +72,11 @@ The first real deployment should be narrow: one council, campus, township operat
 
 Key work:
 
-- Connect CivicFlow to each agency's existing systems through adapters rather than hardcoded integrations.
-- Case-management adapter: create, update and sync cases with the agency's current ticketing or CRM system.
-- Work-order adapter: pass approved field-work requests to the authorised work-order or dispatch system, never directly from AI.
-- GIS / asset adapter: map drainage assets, roads, facilities, zones or service areas from approved agency datasets.
-- Notification adapter: send officer-approved citizen updates through existing email, SMS, WhatsApp, push notification or citizen-app channels.
-- SOP / document adapter: ingest approved PDFs, markdown, CMS pages or database records with source versioning.
-- SSO / identity adapter: integrate council or agency identity provider for officers and supervisors.
-- SLA dashboard: show backlog, pending approvals, needs-info cases, manual-review volume, department load and overdue-risk cases.
+- Validate one partner workflow before expanding integration breadth.
+- Deepen the selected system-of-record and notification integrations with reconciliation, failure handling and audit evidence.
+- Add work-order, GIS / asset, document or identity adapters only when the validated service journey requires them.
+- Keep approved field-work requests behind the agency's authorised work-order or dispatch system, never directly from AI.
+- Add an SLA view for backlog, pending approvals, needs-info cases, manual-review volume, department load and overdue-risk cases.
 
 Expected outcome:
 
@@ -86,12 +108,12 @@ This phase prepares CivicFlow for procurement-grade and production-grade public-
 
 Key work:
 
-- PDPA-aligned privacy controls, retention policies, access logs and data-processing agreements.
-- Security hardening: rate limiting, backups, monitoring, alerting, incident response, penetration testing and admin controls.
+- Extend the Phase 1 privacy and security baseline to procurement-grade assurance, data-processing agreements and independent testing.
+- Formalise operational resilience: monitored backups, alerting, incident response, penetration testing and privileged-admin controls.
 - Model governance: prompt/version registry, deterministic fallback checks, regression evaluation, multilingual quality tests and override analytics.
 - Human oversight governance: configurable approval policies, supervisor review queues, eligibility safeguards and blocked-action logs.
 - Agency rollout playbook: data onboarding, connector setup, officer training, approval-policy configuration, go-live checklist and support model.
-- Commercial packaging: paid pilot, department subscription, usage-based case volume tier and enterprise multi-agency deployment.
+- Commercial packaging based on evidence from the first controlled pilot rather than pre-pilot pricing assumptions.
 
 Expected outcome:
 

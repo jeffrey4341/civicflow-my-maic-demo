@@ -17,7 +17,9 @@ const root = process.cwd();
 const port = Number(process.env.CIVICFLOW_SMOKE_PORT || 3012);
 const baseUrl = process.env.CIVICFLOW_BASE_URL || `http://127.0.0.1:${port}`;
 const startServer = process.env.CIVICFLOW_SMOKE_START_SERVER !== "0" && !process.env.CIVICFLOW_BASE_URL;
-const screenshotDir = path.join(root, "output", "playwright", "maic-smoke");
+const screenshotParent = path.join(root, "output", "playwright");
+const publishedScreenshotDir = path.join(screenshotParent, "maic-smoke");
+const screenshotDir = path.join(screenshotParent, `.maic-smoke.staging-${process.pid}`);
 
 const CASE_TEXT = {
   drainage: "Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat.",
@@ -25,6 +27,7 @@ const CASE_TEXT = {
   welfare: "Can I apply for education aid for my child?",
   unknown: "QWERTY zzzz unrelated synthetic demo text.",
 };
+const LICENCE_REPLY_ZH = "\u5e02\u8bae\u4f1a\u6267\u7167\u5355\u4f4d\u5df2\u5ba1\u6838\u6b64\u6a21\u62df\u7533\u8bf7\u3002\u8bf7\u4fdd\u7559\u8ffd\u8e2a\u7f16\u53f7\uff1b\u672c\u56de\u590d\u4e0d\u4ee3\u8868\u771f\u5b9e\u6267\u7167\u6279\u51c6\u3002";
 
 const rawRequest = (method, endpoint, body) => rawRequestAt(baseUrl, method, endpoint, body);
 const requestJson = (method, endpoint, body) => requestJsonAt(baseUrl, method, endpoint, body);
@@ -62,8 +65,36 @@ async function expectVisibleText(page, text, label) {
   console.log(`ok: ${label}`);
 }
 
+function assertChildPath(parent, candidate) {
+  const child = path.relative(path.resolve(parent), path.resolve(candidate));
+  assert(child && !child.startsWith("..") && !path.isAbsolute(child), `Refusing filesystem mutation outside ${parent}: ${candidate}`);
+}
+
+async function promoteScreenshots() {
+  const backupDir = path.join(screenshotParent, `.maic-smoke.previous-${process.pid}`);
+  for (const candidate of [publishedScreenshotDir, screenshotDir, backupDir]) assertChildPath(screenshotParent, candidate);
+  await fs.rm(backupDir, { recursive: true, force: true });
+  let hadPublishedScreenshots = false;
+  try {
+    await fs.rename(publishedScreenshotDir, backupDir);
+    hadPublishedScreenshots = true;
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  try {
+    await fs.rename(screenshotDir, publishedScreenshotDir);
+  } catch (error) {
+    if (hadPublishedScreenshots) await fs.rename(backupDir, publishedScreenshotDir);
+    throw error;
+  }
+  await fs.rm(backupDir, { recursive: true, force: true });
+}
+
 async function main() {
+  assertChildPath(screenshotParent, screenshotDir);
+  await fs.rm(screenshotDir, { recursive: true, force: true });
   await fs.mkdir(screenshotDir, { recursive: true });
+  let screenshotsPromoted = false;
   let server = null;
   let serverReady = null;
   let getLaunchError = () => null;
@@ -128,6 +159,10 @@ async function main() {
       note: "Approved after reviewing the synthetic flood-risk evidence.",
     });
     assert(approval.status === "approved", "Drainage supervisor task was not approved.");
+    assert(approval.triage_revision === drainage.triage_revision, "Supervisor decision was recorded against the wrong revision.");
+    assert(approval.decision_by === "Supervisor Lim (demo)", "Supervisor decision actor was not preserved.");
+    assert(approval.decision_note === "Approved after reviewing the synthetic flood-risk evidence.", "Supervisor decision note was not preserved.");
+    assert(approval.evidence.some((citation) => citation.doc_title === "Drainage Response SOP"), "Supervisor decision lost its policy evidence.");
     drainage = await requestJson("GET", `/api/cases/${drainage.case_id}`);
     assert(drainage.status === "routed", `Approval should leave drainage routed, got ${drainage.status}.`);
     const deniedUnreleasedStart = await rawRequest("POST", `/api/cases/${drainage.case_id}/status`, {
@@ -215,11 +250,6 @@ async function main() {
     assert(unknown.status === "manual_review", `Unknown request should fall back to manual review, got ${unknown.status}.`);
     assert(unknown.manual_review_reason, "Unknown request entered manual review without a recorded reason.");
 
-    const audit = await requestJson("GET", "/api/audit");
-    assert(audit.some((event) => event.case_id === drainage.case_id && event.event_type === "status.held"), "Held flood-risk start was not recorded in the audit trail.");
-    assert(audit.some((event) => event.case_id === drainage.case_id && event.event_type === "status.changed" && event.payload?.to_status === "closed"), "Drainage closure was not recorded in the audit trail.");
-    assert(audit.some((event) => event.case_id === welfare.case_id && event.event_type === "status.changed" && event.payload?.to_status === "closed"), "Welfare closure was not recorded in the audit trail.");
-
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1366, height: 900 } });
     page.setDefaultTimeout(15_000);
@@ -248,7 +278,10 @@ async function main() {
 
     await page.goto(`${baseUrl}/officer/cases/${drainage.case_id}`, { waitUntil: "networkidle" });
     await expectVisibleText(page, "No further action", "closed drainage shows the read-only next action");
+    await expectVisibleText(page, "Governance checks", "case governance receipt renders");
     await expectVisibleText(page, "Drainage Response SOP", "drainage policy evidence renders");
+    await expectVisibleText(page, "drainage_response_sop.md", "drainage evidence preserves its source document");
+    await expectVisibleText(page, "confidence", "drainage evidence preserves its confidence");
     await expectVisibleText(page, "Reply sent to the citizen", "drainage reply release is visible");
     await page.screenshot({ path: path.join(screenshotDir, "04-drainage-governed-flow.png"), fullPage: true });
     assertBrowserHealthy();
@@ -259,29 +292,93 @@ async function main() {
     await page.screenshot({ path: path.join(screenshotDir, "05-licence-follow-up.png"), fullPage: true });
     assertBrowserHealthy();
 
+    licence = await requestJson("POST", `/api/cases/${licence.case_id}/review`, reviewPayload(licence, {
+      reply_body: LICENCE_REPLY_ZH,
+      reply_body_en: "The council licensing unit reviewed this synthetic application. Keep the tracking code; this reply is not a real licence approval.",
+    }));
+    assert(licence.reply_draft?.language === "zh", "Licence review did not preserve the citizen's Chinese language.");
+    licence = await requestJson("POST", `/api/cases/${licence.case_id}/reply`, {
+      triage_revision: licence.triage_revision,
+      officer: "Officer Tan (demo)",
+    });
+    licence = await requestJson("POST", `/api/cases/${licence.case_id}/status`, {
+      triage_revision: licence.triage_revision,
+      status: "in_progress",
+      officer: "Officer Tan (demo)",
+    });
+    licence = await requestJson("POST", `/api/cases/${licence.case_id}/status`, {
+      triage_revision: licence.triage_revision,
+      status: "closed",
+      officer: "Officer Tan (demo)",
+      note: "Synthetic licence guidance completed after officer review.",
+    });
+    assert(licence.status === "closed", "Chinese licence case did not complete the reviewed reply, work, and closure flow.");
+
+    const audit = await requestJson("GET", "/api/audit");
+    assert(audit.some((event) => event.case_id === drainage.case_id && event.event_type === "status.held"), "Held flood-risk start was not recorded in the audit trail.");
+    assert(audit.some((event) => event.case_id === drainage.case_id && event.event_type === "status.changed" && event.payload?.to_status === "closed"), "Drainage closure was not recorded in the audit trail.");
+    assert(audit.some((event) => event.case_id === welfare.case_id && event.event_type === "status.changed" && event.payload?.to_status === "closed"), "Welfare closure was not recorded in the audit trail.");
+    assert(audit.some((event) => event.case_id === licence.case_id && event.event_type === "status.changed" && event.payload?.to_status === "closed"), "Chinese licence closure was not recorded in the audit trail.");
+
+    await page.goto(`${baseUrl}/officer/cases/${licence.case_id}`, { waitUntil: "networkidle" });
+    await expectVisibleText(page, "No further action", "closed licence case is read-only");
+    await expectVisibleText(page, "Sent by officer", "licence governance receipt records reply release");
+    await page.screenshot({ path: path.join(screenshotDir, "06-licence-governed-closure.png"), fullPage: true });
+    assertBrowserHealthy();
+
+    await page.goto(`${baseUrl}/m/cases/${licence.citizen_ref}`, { waitUntil: "networkidle" });
+    await expectVisibleText(page, "\u5e02\u8bae\u4f1a\u5df2\u5411\u60a8\u53d1\u9001\u56de\u590d", "citizen sees the Chinese reply-ready state");
+    await page.getByRole("link", { name: "\u9605\u8bfb\u56de\u590d", exact: true }).click();
+    await expectVisibleText(page, LICENCE_REPLY_ZH, "citizen sees the officer-reviewed Chinese reply");
+    await page.screenshot({ path: path.join(screenshotDir, "07-citizen-chinese-reply.png"), fullPage: true });
+    assertBrowserHealthy();
+
     await page.goto(`${baseUrl}/officer/cases/${welfare.case_id}`, { waitUntil: "networkidle" });
     await expectVisibleText(page, "No further action", "closed welfare case remains visibly human-decided");
     await expectVisibleText(page, "Eligible after officer review", "closed welfare case preserves the human outcome");
-    await page.screenshot({ path: path.join(screenshotDir, "06-welfare-human-outcome.png"), fullPage: true });
+    await page.screenshot({ path: path.join(screenshotDir, "08-welfare-human-outcome.png"), fullPage: true });
     assertBrowserHealthy();
 
     await page.goto(`${baseUrl}/officer/approvals`, { waitUntil: "networkidle" });
     await expectVisibleText(page, "Supervisor approvals", "approval workspace renders");
-    await expectVisibleText(page, drainage.citizen_ref, "drainage supervisor decision appears in history");
-    await page.screenshot({ path: path.join(screenshotDir, "07-approval-history.png"), fullPage: true });
+    const approvalHistory = page.locator("section").filter({
+      has: page.getByRole("heading", { name: "Decision history", exact: true }),
+    }).first();
+    const drainageDecision = approvalHistory.locator("li").filter({ hasText: drainage.citizen_ref }).first();
+    await drainageDecision.getByText(`Revision ${drainage.triage_revision}`, { exact: true }).waitFor();
+    await drainageDecision.getByText("by Supervisor Lim (demo)", { exact: true }).waitFor();
+    await drainageDecision.getByText("Approved after reviewing the synthetic flood-risk evidence.", { exact: true }).waitFor();
+    await drainageDecision.getByText(approval.evidence[0].doc_title, { exact: false }).first().waitFor();
+    await drainageDecision.getByText(approval.evidence[0].section, { exact: false }).waitFor();
+    await drainageDecision.getByText(`confidence ${approval.evidence[0].confidence.toFixed(2)}`, { exact: false }).first().waitFor();
+    console.log("ok: drainage supervisor decision preserves revision, actor, note, and linked evidence");
+    await page.screenshot({ path: path.join(screenshotDir, "09-approval-history.png"), fullPage: true });
     assertBrowserHealthy();
 
     await page.goto(`${baseUrl}/officer/audit`, { waitUntil: "networkidle" });
     await page.getByRole("heading", { name: "Audit trail", exact: true }).waitFor();
     await expectVisibleText(page, "status.held", "held transition audit is visible");
-    await page.screenshot({ path: path.join(screenshotDir, "08-audit-trail.png"), fullPage: true });
+    const licenceClosureRow = page.getByRole("row")
+      .filter({ hasText: licence.citizen_ref })
+      .filter({ hasText: "status.changed" })
+      .filter({ hasText: 'Status changed to "closed".' })
+      .first();
+    await licenceClosureRow.waitFor();
+    console.log("ok: licence closure row is visible in the audit trail");
+    await page.screenshot({ path: path.join(screenshotDir, "10-audit-trail.png"), fullPage: true });
     assertBrowserHealthy();
 
-    console.log(`MAIC e2e smoke passed: 4 canonical cases, closure and immutability gates, and 8 rendered routes at ${baseUrl}`);
-    console.log(`Screenshots: ${screenshotDir}`);
+    await promoteScreenshots();
+    screenshotsPromoted = true;
+    console.log(`MAIC e2e smoke passed: 4 canonical cases, closure and immutability gates, and 10 rendered views at ${baseUrl}`);
+    console.log(`Screenshots: ${publishedScreenshotDir}`);
   } finally {
     if (browser) await browser.close();
     if (server) await stopServer(server);
+    if (!screenshotsPromoted) {
+      assertChildPath(screenshotParent, screenshotDir);
+      await fs.rm(screenshotDir, { recursive: true, force: true });
+    }
   }
 }
 

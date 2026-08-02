@@ -149,7 +149,7 @@ describe("case lifecycle governance", () => {
     expect((await getCase(c.case_id))?.status).toBe("needs_info");
   });
 
-  it("blocks education and welfare cases from generic closure as an auto-approval", async () => {
+  it("requires a human welfare outcome before any citizen reply or operational action", async () => {
     const c = await submitCase({
       text: "Can I apply for education aid for my child?",
       language: "en",
@@ -161,6 +161,17 @@ describe("case lifecycle governance", () => {
     expect(c.status).toBe("routed");
 
     await reviewCurrent(c);
+    await expect(releaseReply({
+      case_id: c.case_id,
+      triage_revision: c.triage_revision,
+    })).rejects.toThrow(/human welfare outcome/i);
+    await expect(setStatus({
+      case_id: c.case_id,
+      triage_revision: c.triage_revision,
+      status: "in_progress",
+    })).rejects.toThrow(/human welfare outcome/i);
+
+    await reviewCurrent(c, "eligible");
     await releaseReply({ case_id: c.case_id, triage_revision: c.triage_revision });
     const started = await setStatus({
       case_id: c.case_id,
@@ -168,12 +179,13 @@ describe("case lifecycle governance", () => {
       status: "in_progress",
     });
     expect(started.status).toBe("in_progress");
-    await expect(setStatus({
+    const closed = await setStatus({
       case_id: c.case_id,
       triage_revision: c.triage_revision,
       status: "closed",
       note: "Document review completed.",
-    })).rejects.toThrow(/welfare outcome/i);
+    });
+    expect(closed.status).toBe("closed");
   });
 
   it("puts zero-citation and low-confidence enquiries into manual review, not normal routed work", async () => {

@@ -1,6 +1,6 @@
 # Railway Portal Deploy Runbook
 
-Status: config and Railway CLI `5.23.3` are available locally. Deployment remains pending because `railway whoami` returns `Unauthorized. Please login with railway login`.
+Status: config prepared only. Deployment was not executed because this session has no Railway CLI installed or authenticated host credentials.
 
 ## Host Decision
 
@@ -49,7 +49,7 @@ No environment variables are required. Leave `ANTHROPIC_API_KEY` unset for the d
 1. Open Railway and create a new project.
 2. Choose GitHub deployment.
 3. Select repository `jeffrey4341/civicflow-my-maic-demo`.
-4. Select the default branch `main`.
+4. Select branch `chore/demo-submission-pack`.
 5. Confirm the root directory is `/`.
 6. Let Railway detect `railway.json`.
 7. Confirm build command: `npm run build`.
@@ -63,12 +63,13 @@ No environment variables are required. Leave `ANTHROPIC_API_KEY` unset for the d
 Run from this repository root after Railway login is available:
 
 ```powershell
-git checkout main
-git pull --ff-only origin main
+git checkout chore/demo-submission-pack
+git pull --ff-only origin chore/demo-submission-pack
 npm install
 npm run typecheck
 npm test
 npm run build
+npm install -g @railway/cli
 railway login
 railway init
 railway up --detach
@@ -90,7 +91,7 @@ Run the required smoke:
 npm run smoke:e2e
 ```
 
-Expected result: `MAIC e2e smoke passed: 4 canonical cases, closure and immutability gates, and 10 rendered views at https://YOUR-RAILWAY-DOMAIN`.
+Expected result: `MAIC e2e smoke passed at https://YOUR-RAILWAY-DOMAIN` and 11 visible/API assertions pass.
 
 Probe the required routes:
 

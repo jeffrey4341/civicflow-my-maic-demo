@@ -17,7 +17,7 @@ import type {
   TriageResult,
 } from "@/lib/types";
 import { detectLanguage, translateToEnglish } from "@/lib/ai/language";
-import { classifyCase } from "@/lib/ai/classify";
+import { classifyCase, classifyUrgency, maxUrgency } from "@/lib/ai/classify";
 import { routeCase } from "@/lib/ai/routing";
 import { detectMissingInfo, hasBlockingGaps } from "@/lib/ai/missingInfo";
 import { evaluateApprovalGate, type GateResult } from "@/lib/ai/approval";
@@ -83,6 +83,13 @@ export async function runTriage(
   let urgency = baseline.urgency;
   let category_confidence = baseline.category_confidence;
   const pii_risk = baseline.pii_risk;
+  // LLM refinement may add risk, but it cannot remove a deterministic category-specific human gate.
+  const baselineSafetyGate = evaluateApprovalGate({
+    category: baseline.category,
+    urgency: baseline.urgency,
+    pii_risk: "low",
+    category_confidence: 1,
+  });
   let ai_mode: AiMode = "deterministic";
 
   // 2b. Optional LLM refinement (no-op offline; deterministic fallback on error)
@@ -91,8 +98,11 @@ export async function runTriage(
     const refined = await llmRefineClassification(analysisText);
     if (refined) {
       detected_language = refined.detected_language;
-      category = refined.category;
-      urgency = refined.urgency;
+      if (!baselineSafetyGate.requires_supervisor && !baselineSafetyGate.officer_review_only) {
+        category = refined.category;
+        const deterministicUrgency = classifyUrgency(analysisText, category);
+        urgency = maxUrgency(deterministicUrgency, refined.urgency);
+      }
       llmTranslation = refined.translated_text_en;
       ai_mode = "llm";
     }

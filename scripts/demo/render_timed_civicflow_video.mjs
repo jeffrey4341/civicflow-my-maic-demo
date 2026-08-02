@@ -1,187 +1,184 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { createRequire } from "node:module";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const outputRoot = resolve(repoRoot, "outputs", "manual-20260615-civicflow-video-timed");
-const frameDir = join(outputRoot, "frames");
+const screenshotDir = resolve(repoRoot, "output", "playwright", "maic-smoke");
+const outputParent = resolve(repoRoot, "output", "demo-video");
+const publishedOutputRoot = join(outputParent, "civicflow-real-ui-179s");
+const outputRoot = join(outputParent, `.civicflow-real-ui-179s.staging-${process.pid}`);
 const audioDir = join(outputRoot, "audio");
 const segmentDir = join(outputRoot, "segments");
 const scriptDir = join(outputRoot, "script");
 const finalDir = join(outputRoot, "video");
-const finalVideo = join(finalDir, "civicflow-my-mobile-demo-edge-ava-3min-timed.mp4");
-const metadataPath = join(outputRoot, "civicflow-my-mobile-demo-edge-ava-3min-timed.metadata.json");
+const finalVideo = join(finalDir, "civicflow-my-mobile-real-ui-demo-179s.mp4");
+const metadataPath = join(outputRoot, "civicflow-my-mobile-real-ui-demo-179s.metadata.json");
 const concatListPath = join(segmentDir, "concat.txt");
 
 const tempRoot = process.env.TEMP ?? process.env.TMP ?? "C:\\Windows\\Temp";
+const winGetFfmpegDir = process.env.LOCALAPPDATA
+  ? join(
+      process.env.LOCALAPPDATA,
+      "Microsoft",
+      "WinGet",
+      "Packages",
+      "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
+      "ffmpeg-8.0.1-full_build",
+      "bin",
+    )
+  : null;
+const tempFfmpegPath = join(tempRoot, "civicflow-video-tools", "node_modules", "ffmpeg-static", "ffmpeg.exe");
+const tempFfprobePath = join(
+  tempRoot,
+  "civicflow-video-tools",
+  "node_modules",
+  "ffprobe-static",
+  "bin",
+  "win32",
+  "x64",
+  "ffprobe.exe",
+);
+const tempPythonPath = join(tempRoot, "civicflow-edge-tts-venv", "Scripts", "python.exe");
+const winGetFfmpegPath = winGetFfmpegDir ? join(winGetFfmpegDir, "ffmpeg.exe") : null;
+const winGetFfprobePath = winGetFfmpegDir ? join(winGetFfmpegDir, "ffprobe.exe") : null;
 const ffmpegPath =
   process.env.FFMPEG_PATH ??
-  require(join(tempRoot, "civicflow-video-tools", "node_modules", "ffmpeg-static"));
+  (existsSync(tempFfmpegPath)
+    ? tempFfmpegPath
+    : winGetFfmpegPath && existsSync(winGetFfmpegPath)
+      ? winGetFfmpegPath
+      : "ffmpeg");
 const ffprobePath =
   process.env.FFPROBE_PATH ??
-  require(join(tempRoot, "civicflow-video-tools", "node_modules", "ffprobe-static")).path;
-const pythonPath =
-  process.env.PYTHON ??
-  join(tempRoot, "civicflow-edge-tts-venv", "Scripts", "python.exe");
-const magickPath = process.env.MAGICK_PATH ?? "magick";
+  (existsSync(tempFfprobePath)
+    ? tempFfprobePath
+    : winGetFfprobePath && existsSync(winGetFfprobePath)
+      ? winGetFfprobePath
+      : "ffprobe");
+const pythonPath = process.env.PYTHON ?? (existsSync(tempPythonPath) ? tempPythonPath : "python");
 const voice = process.env.CIVICFLOW_TTS_VOICE ?? "en-US-AvaMultilingualNeural";
 const rate = process.env.CIVICFLOW_TTS_RATE ?? "+0%";
 
 const W = 1280;
 const H = 720;
+const FPS = 30;
 
 const sections = [
   {
-    id: "01-opening",
-    timecode: "0:00-0:15",
-    duration: 15,
-    eyebrow: "OPENING",
-    title: "CivicFlow MY Mobile",
-    visualText:
-      "Governed workflow for Malaysian public agencies: AI drafts, humans decide, every case is auditable.",
+    id: "01-role-launcher",
+    screenshot: "01-role-launcher.png",
+    timecode: "0:00-0:14",
+    duration: 14,
+    title: "A clear path from citizen request to human decision",
     narration:
-      "CivicFlow MY Mobile is a multilingual citizen-service AI casework platform for Malaysian public agencies. It is not a government chatbot. It is a governed workflow system where AI drafts, humans decide and every case is auditable.",
-    badge: "Citizen app + officer console",
-    quote: null,
-    cards: [
-      ["Citizen mobile app", "Multilingual service intake"],
-      ["Officer console", "Routing, approvals, replies, and audit"],
-      ["Governance", "AI drafts. Humans decide."],
-    ],
+      "CivicFlow MY is a public-service casework demo for Malaysian councils. This walkthrough uses the real product interface and synthetic data only. Citizens submit requests, officers review recommendations, and supervisors decide high-risk cases.",
+    scrollStart: 0,
+    scrollEnd: 1,
   },
   {
-    id: "02-malay-drainage",
-    timecode: "0:15-0:45",
-    duration: 30,
-    eyebrow: "ACT 1 - MALAY BLOCKED-DRAIN COMPLAINT",
-    title: "Malay intake with flood-risk urgency",
-    visualText:
-      "Malay blocked-drain report: language detected, drainage classified, flood-risk urgency identified.",
+    id: "02-citizen-services",
+    screenshot: "02-citizen-services.png",
+    timecode: "0:14-0:31",
+    duration: 17,
+    title: "Multilingual citizen intake",
     narration:
-      "First, a citizen submits a public-service request in Malay. The system detects Malay, classifies this as a drainage and flood-risk case, and prepares it for public-service routing.",
-    badge: "Citizen mobile flow",
-    quote: "Longkang tersumbat dekat Jalan SS2, bila hujan air naik cepat.",
-    cards: [
-      ["Language", "Malay detected"],
-      ["Classification", "Drainage case"],
-      ["Urgency", "Flood-risk identified"],
-    ],
+      "The citizen flow begins with four languages: Bahasa Melayu, English, Chinese, and Tamil. A person writes in their own words or starts from a guided example. The system detects language and service category before submission, without requiring an external model.",
+    scrollStart: 0,
+    scrollEnd: 1,
   },
   {
-    id: "03-sop-rag-routing",
-    timecode: "0:45-1:15",
-    duration: 30,
-    eyebrow: "SOP RAG + ROUTING",
-    title: "SOP-grounded routing recommendation",
-    visualText:
-      "Officer console retrieves Drainage Response SOP, recommends Engineering / Drainage Unit, and logs the rationale.",
+    id: "03-officer-queue",
+    screenshot: "03-officer-queue.png",
+    timecode: "0:31-0:47",
+    duration: 16,
+    title: "One operational queue across languages and services",
     narration:
-      "On the officer side, CivicFlow retrieves the relevant Drainage Response SOP, recommends Engineering and the Drainage Unit, shows the flood-risk rationale and creates an audit trail. Every recommendation is grounded in synthetic SOP citations. If there is no reliable citation, the case falls back to manual review.",
-    badge: "Officer console",
-    quote: "Citation: Drainage Response SOP - flood-risk urgency and response routing.",
-    cards: [
-      ["RAG source", "Drainage Response SOP"],
-      ["Department", "Engineering / Drainage Unit"],
-      ["Guardrail", "Citation or manual review"],
-    ],
+      "The officer queue turns mixed-language requests into an actionable workload. Each row shows the original request, a translated reference where needed, the service, route, status, risk, and the next required human action.",
+    scrollStart: 0,
+    scrollEnd: 1,
   },
   {
-    id: "04-approval-gate",
-    timecode: "1:15-1:45",
-    duration: 30,
-    eyebrow: "APPROVAL GATE",
-    title: "Supervisor approval before work proceeds",
-    visualText:
-      "High-risk flood case: start and close are blocked until supervisor approval is recorded.",
+    id: "04-drainage-governed-flow",
+    screenshot: "04-drainage-governed-flow.png",
+    timecode: "0:47-1:10",
+    duration: 23,
+    title: "Cited routing and a mandatory flood-risk checkpoint",
     narration:
-      "Because this is a high-risk flood case, the officer cannot start or close the case directly. Supervisor approval is required before work can proceed. After the supervisor records a decision note, the case can move forward. The approval decision is recorded in the audit timeline.",
-    badge: "Human checkpoint",
-    quote: "Blocked buttons: Start work and Close case are disabled until supervisor approval.",
-    cards: [
-      ["Officer action", "Blocked for high risk"],
-      ["Supervisor note", "Decision note entered"],
-      ["Audit", "Approval event recorded"],
-    ],
+      "Here is the governed Malay drainage flow. Deterministic triage detects Malay, classifies drainage and flooding, retrieves cited policy, and recommends the Engineering Drainage Unit. Flood risk triggers a supervisor checkpoint. The officer reviews the facts and reply; the system never dispatches work or closes the case by itself.",
+    scrollStart: 0,
+    scrollEnd: 0.48,
   },
   {
-    id: "05-chinese-licence",
-    timecode: "1:45-2:10",
-    duration: 25,
-    eyebrow: "ACT 2 - CHINESE BUSINESS LICENCE QUERY",
-    title: "Business licence needs information",
-    visualText:
-      "Chinese licence query: route to Licensing Unit, cite FAQ, and request missing location, type, and hours.",
+    id: "05-licence-follow-up",
+    screenshot: "05-licence-follow-up.png",
+    timecode: "1:10-1:32",
+    duration: 22,
+    title: "Chinese licence enquiry asks once for missing details",
     narration:
-      "Next, a citizen asks a business licence question in Chinese. CivicFlow detects Chinese, routes the case to the Licensing Unit, retrieves the Business Licensing FAQ and identifies missing information such as location, business type and operating hours. The case cannot be treated as normal work until the missing information is resolved.",
-    badge: "Needs information",
-    quote:
-      "\u6211\u8981\u7533\u8bf7\u5c0f\u98df\u6863\u6267\u7167\uff0c\u9700\u8981\u4ec0\u4e48\u6587\u4ef6\uff1f",
-    cards: [
-      ["Language", "Chinese detected"],
-      ["Routing", "Licensing Unit"],
-      ["Missing info", "Location, type, hours"],
-    ],
+      "For a Chinese food-stall licence enquiry, the first revision is not treated as complete. CivicFlow identifies missing location, business type, and operating hours, then asks once for the required details. After the citizen supplies them, the officer reviews the updated facts, three cited FAQ sections, routing, and the Chinese reply draft.",
+    scrollStart: 0,
+    scrollEnd: 0.55,
   },
   {
-    id: "06-education-welfare",
-    timecode: "2:10-2:35",
-    duration: 25,
-    eyebrow: "ACT 3 - ENGLISH EDUCATION / WELFARE AID",
-    title: "Officer review, not auto-approval",
-    visualText:
-      "Education aid query: retrieve welfare policy, prepare checklist, and keep eligibility with officers.",
-    narration:
-      "Finally, a citizen asks about education aid. CivicFlow retrieves the welfare and education policy, prepares a document checklist and routes the case for officer review. The AI does not approve eligibility. It helps officers review the case with evidence.",
-    badge: "Eligibility control",
-    quote: "Can I apply for education aid for my child?",
-    cards: [
-      ["Policy", "Welfare and education policy"],
-      ["Checklist", "Documents prepared for review"],
-      ["Boundary", "No automatic eligibility approval"],
-    ],
-  },
-  {
-    id: "07-audit-safety",
-    timecode: "2:35-2:55",
+    id: "06-licence-governed-closure",
+    screenshot: "06-licence-governed-closure.png",
+    timecode: "1:32-1:52",
     duration: 20,
-    eyebrow: "AUDIT AND SAFETY",
-    title: "Every step is visible",
-    visualText:
-      "Audit view shows creation, detection, classification, retrieval, routing, approval, draft, and status changes.",
+    title: "Review, send, start, and close stay separate",
     narration:
-      "Every step is visible: case creation, language detection, classification, retrieval, routing, approval, reply draft and status changes. This is the public-sector control layer: multilingual intake, SOP-grounded AI, human approval and audit evidence.",
-    badge: "Open /officer/audit",
-    timeline: [
-      "case.creation",
-      "language.detected",
-      "classification.completed",
-      "sop.retrieved",
-      "routing.recommended",
-      "approval.recorded",
-      "reply.drafted",
-      "status.changed",
-    ],
+      "Once the licence case is reviewed, the officer can release the reply and record the work outcome. The citizen sees a Chinese response backed by the same policy citations. Saving a review does not silently send anything: review, send, start work, and close remain separate human actions.",
+    scrollStart: 0,
+    scrollEnd: 0.42,
   },
   {
-    id: "08-closing",
-    timecode: "2:55-3:00",
-    duration: 5,
-    eyebrow: "CLOSING",
-    title: "AI drafts. Humans decide. Every case is traceable.",
-    visualText: "Modernise citizen service while preserving accountability.",
+    id: "07-citizen-chinese-reply",
+    screenshot: "07-citizen-chinese-reply.png",
+    timecode: "1:52-2:07",
+    duration: 15,
+    title: "A multilingual, policy-backed citizen reply",
     narration:
-      "CivicFlow MY Mobile helps public agencies modernise citizen service while preserving accountability. AI drafts. Humans decide. Every case is traceable.",
-    badge: "CivicFlow MY Mobile",
-    cards: [
-      ["Draft", "AI recommends"],
-      ["Decide", "Humans approve"],
-      ["Trace", "Audit records every step"],
-    ],
+      "The citizen-facing reply keeps the official department and policy references visible in Chinese. It also says this is a demo and not a real licence approval. That distinction is central: AI drafts service guidance; public officers remain accountable for decisions.",
+    scrollStart: 0,
+    scrollEnd: 1,
+  },
+  {
+    id: "08-welfare-human-outcome",
+    screenshot: "08-welfare-human-outcome.png",
+    timecode: "2:07-2:27",
+    duration: 20,
+    title: "Welfare eligibility remains a human outcome",
+    narration:
+      "Education aid follows a different boundary. CivicFlow retrieves the welfare policy and prepares evidence for review, but it never decides eligibility. The screen records the human welfare outcome separately from automated classification and routing, then preserves the complete case history.",
+    scrollStart: 0,
+    scrollEnd: 0.47,
+  },
+  {
+    id: "09-approval-history",
+    screenshot: "09-approval-history.png",
+    timecode: "2:27-2:42",
+    duration: 15,
+    title: "Documented supervisor decisions for high-risk cases",
+    narration:
+      "High-risk approvals have their own workspace. Flood-risk recommendations remain blocked until the current officer-reviewed revision receives a documented supervisor decision. The history shows who approved, what was approved, and which revision the decision applies to.",
+    scrollStart: 0,
+    scrollEnd: 1,
+  },
+  {
+    id: "10-audit-trail",
+    screenshot: "10-audit-trail.png",
+    timecode: "2:42-2:59",
+    duration: 17,
+    title: "Append-only evidence for every automated and human step",
+    narration:
+      "Finally, the append-only audit joins every automated and human event, from submission through routing, approval, replies, and status changes. CivicFlow combines multilingual intake, cited recommendations, explicit human checkpoints, and traceable casework in an offline-ready public demo.",
+    scrollStart: 0,
+    scrollEnd: 0.3,
   },
 ];
+
+const targetDuration = sections.reduce((sum, section) => sum + section.duration, 0);
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -198,122 +195,49 @@ function run(command, args, options = {}) {
 }
 
 function ensureCleanDir(path) {
+  assertChildPath(outputParent, path);
   rmSync(path, { recursive: true, force: true });
   mkdirSync(path, { recursive: true });
 }
 
-function esc(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
-function wrapText(text, maxChars) {
-  const words = String(text).split(/\s+/);
-  const lines = [];
-  let line = "";
-  for (const word of words) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (candidate.length > maxChars && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = candidate;
-    }
+function assertChildPath(parent, candidate) {
+  const child = relative(resolve(parent), resolve(candidate));
+  if (!child || child.startsWith("..") || isAbsolute(child)) {
+    throw new Error(`Refusing filesystem mutation outside ${parent}: ${candidate}`);
   }
-  if (line) lines.push(line);
-  return lines;
 }
 
-function textBlock(text, x, y, opts = {}) {
-  const size = opts.size ?? 24;
-  const fill = opts.fill ?? "#dbeafe";
-  const weight = opts.weight ?? 400;
-  const maxChars = opts.maxChars ?? 44;
-  const lineHeight = opts.lineHeight ?? Math.round(size * 1.35);
-  const lines = wrapText(text, maxChars).slice(0, opts.maxLines ?? 5);
-  return `<text x="${x}" y="${y}" font-size="${size}" fill="${fill}" font-weight="${weight}" font-family="Segoe UI, Microsoft YaHei, Arial, sans-serif">${lines
-    .map((line, index) => `<tspan x="${x}" dy="${index === 0 ? 0 : lineHeight}">${esc(line)}</tspan>`)
-    .join("")}</text>`;
+function repoPath(path) {
+  return relative(repoRoot, path).replaceAll("\\", "/");
 }
 
-function card(x, y, w, h, title, body, accent = "#16a3b8") {
-  return `
-    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="#0f172a" stroke="#263b5e" stroke-width="1.2"/>
-    <rect x="${x}" y="${y}" width="6" height="${h}" rx="3" fill="${accent}"/>
-    ${textBlock(title, x + 24, y + 38, { size: 18, fill: "#ffffff", weight: 700, maxChars: 32, maxLines: 1 })}
-    ${textBlock(body, x + 24, y + 76, { size: 18, fill: "#cbd5e1", maxChars: 34, maxLines: 3 })}
-  `;
+function publishedPath(stagedPath) {
+  return join(publishedOutputRoot, relative(outputRoot, stagedPath));
 }
 
-function renderSectionSvg(section) {
-  const colors = ["#06b6d4", "#22c55e", "#f59e0b"];
-  const cardMarkup = (section.cards ?? [])
-    .map(([title, body], index) => card(76 + index * 380, 444, 344, 126, title, body, colors[index % colors.length]))
-    .join("\n");
-  const timelineMarkup = (section.timeline ?? [])
-    .map((event, index) => {
-      const x = index < 4 ? 126 : 666;
-      const y = 388 + (index % 4) * 42;
-      return `
-        <circle cx="${x}" cy="${y - 6}" r="7" fill="${colors[index % colors.length]}"/>
-        ${textBlock(event, x + 28, y, { size: 20, fill: "#e5e7eb", weight: 700, maxChars: 30, maxLines: 1 })}
-      `;
-    })
-    .join("\n");
-  const quoteMarkup = section.quote
-    ? `
-      <rect x="76" y="358" width="1128" height="76" rx="16" fill="#111827" stroke="#334155"/>
-      ${textBlock(section.quote, 104, 403, { size: section.id === "05-chinese-licence" ? 22 : 23, fill: "#ffffff", weight: 650, maxChars: 86, maxLines: 1 })}
-    `
-    : "";
-  const middleMarkup = timelineMarkup
-    ? `<rect x="76" y="358" width="1128" height="212" rx="18" fill="#090f1a" stroke="#263b5e"/>${timelineMarkup}`
-    : `${quoteMarkup}${cardMarkup}`;
-
-  return `
-<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#020617"/>
-      <stop offset="0.55" stop-color="#071b2d"/>
-      <stop offset="1" stop-color="#0f172a"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.22" cy="0.15" r="0.8">
-      <stop offset="0" stop-color="#0e7490" stop-opacity="0.28"/>
-      <stop offset="1" stop-color="#0e7490" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect width="${W}" height="${H}" fill="url(#bg)"/>
-  <rect width="${W}" height="${H}" fill="url(#glow)"/>
-  <rect x="44" y="34" width="1192" height="132" rx="22" fill="#07111f" stroke="#1f3858"/>
-  ${textBlock(section.eyebrow, 76, 68, { size: 17, fill: "#67e8f9", weight: 800, maxChars: 60, maxLines: 1 })}
-  ${textBlock(section.title, 76, 118, { size: 35, fill: "#ffffff", weight: 800, maxChars: 52, maxLines: 2, lineHeight: 39 })}
-  <rect x="76" y="200" width="1128" height="78" rx="16" fill="#0f172a" stroke="#263b5e"/>
-  ${textBlock(section.visualText ?? section.narration, 104, 232, { size: 19, fill: "#dbeafe", maxChars: 112, maxLines: 2, lineHeight: 27 })}
-  <rect x="76" y="304" width="366" height="44" rx="22" fill="#082f49" stroke="#0ea5e9"/>
-  ${textBlock(section.badge, 104, 333, { size: 17, fill: "#e0f2fe", weight: 800, maxChars: 34, maxLines: 1 })}
-  ${middleMarkup}
-  <rect x="76" y="622" width="1128" height="42" rx="14" fill="#082f49" stroke="#0ea5e9"/>
-  ${textBlock(`${section.timecode} - exact 3-minute demo alignment`, 104, 649, {
-    size: 17,
-    fill: "#e0f2fe",
-    maxChars: 70,
-    maxLines: 1,
-  })}
-  <text x="76" y="692" font-size="15" fill="#64748b" font-family="Segoe UI, Arial, sans-serif">CivicFlow MY Mobile - Edge Ava TTS - timed to the supplied 3-minute script</text>
-</svg>
-`;
+function promoteOutput() {
+  const backupRoot = join(outputParent, `.civicflow-real-ui-179s.previous-${process.pid}`);
+  assertChildPath(outputParent, publishedOutputRoot);
+  assertChildPath(outputParent, outputRoot);
+  assertChildPath(outputParent, backupRoot);
+  rmSync(backupRoot, { recursive: true, force: true });
+  const hadPublishedOutput = existsSync(publishedOutputRoot);
+  if (hadPublishedOutput) renameSync(publishedOutputRoot, backupRoot);
+  try {
+    renameSync(outputRoot, publishedOutputRoot);
+  } catch (error) {
+    if (hadPublishedOutput && existsSync(backupRoot)) renameSync(backupRoot, publishedOutputRoot);
+    throw error;
+  }
+  rmSync(backupRoot, { recursive: true, force: true });
 }
 
-function renderFrame(section) {
-  const svgPath = join(frameDir, `${section.id}.svg`);
-  const pngPath = join(frameDir, `${section.id}.png`);
-  writeFileSync(svgPath, renderSectionSvg(section), "utf8");
-  run(magickPath, [svgPath, pngPath], { capture: true });
-  return { svgPath, pngPath };
+function screenshotPath(section) {
+  const path = join(screenshotDir, section.screenshot);
+  if (!existsSync(path)) {
+    throw new Error(`Missing required real-UI screenshot: ${path}`);
+  }
+  return path;
 }
 
 function generateSpeech(section) {
@@ -336,9 +260,11 @@ async def main():
 asyncio.run(main())
 `;
   run(pythonPath, ["-c", code], { capture: true });
-  run(ffmpegPath, ["-y", "-v", "error", "-i", mp3Path, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", wavPath], {
-    capture: true,
-  });
+  run(
+    ffmpegPath,
+    ["-y", "-v", "error", "-i", mp3Path, "-ar", "48000", "-ac", "1", "-c:a", "pcm_s16le", wavPath],
+    { capture: true },
+  );
   const rawDuration = duration(wavPath);
   const filters = [];
   if (rawDuration > section.duration - 0.1) {
@@ -395,78 +321,100 @@ function duration(path) {
   return Number(out);
 }
 
-function makeSegmentVideo(section, pngPath, alignedWavPath) {
+function scrollFilter(section) {
+  const holdSeconds = 1.25;
+  const travelSeconds = Math.max(0.1, section.duration - holdSeconds * 2);
+  const progress = `min(max((t-${holdSeconds})/${travelSeconds}\\,0)\\,1)`;
+  const y = `(ih-oh)*(${section.scrollStart}+(${section.scrollEnd}-${section.scrollStart})*${progress})`;
+  return `scale=${W}:-2:flags=lanczos,loop=loop=-1:size=1:start=0,setpts=N/(${FPS}*TB),crop=${W}:${H}:0:'${y}',setsar=1,fps=${FPS},format=yuv420p`;
+}
+
+function makeSegmentVideo(section, sourceImagePath, alignedWavPath) {
   const videoPath = join(segmentDir, `${section.id}.mp4`);
-  run(ffmpegPath, [
-    "-y",
-    "-loop",
-    "1",
-    "-framerate",
-    "30",
-    "-i",
-    pngPath,
-    "-i",
-    alignedWavPath,
-    "-t",
-    String(section.duration),
-    "-c:v",
-    "libx264",
-    "-tune",
-    "stillimage",
-    "-preset",
-    "veryfast",
-    "-crf",
-    "18",
-    "-c:a",
-    "aac",
-    "-b:a",
-    "160k",
-    "-ar",
-    "48000",
-    "-pix_fmt",
-    "yuv420p",
-    videoPath,
-  ]);
+  run(
+    ffmpegPath,
+    [
+      "-y",
+      "-v",
+      "error",
+      "-framerate",
+      String(FPS),
+      "-i",
+      sourceImagePath,
+      "-i",
+      alignedWavPath,
+      "-vf",
+      scrollFilter(section),
+      "-t",
+      String(section.duration),
+      "-c:v",
+      "libx264",
+      "-preset",
+      "veryfast",
+      "-crf",
+      "18",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "160k",
+      "-ar",
+      "48000",
+      "-pix_fmt",
+      "yuv420p",
+      videoPath,
+    ],
+    { capture: true },
+  );
   return videoPath;
 }
 
 function concatSegments(paths) {
   const contents = paths.map((path) => `file '${path.replaceAll("\\", "/").replaceAll("'", "'\\''")}'`).join("\n");
   writeFileSync(concatListPath, contents, "utf8");
-  run(ffmpegPath, [
-    "-y",
-    "-fflags",
-    "+genpts",
-    "-f",
-    "concat",
-    "-safe",
-    "0",
-    "-i",
-    concatListPath,
-    "-t",
-    String(sections.reduce((sum, section) => sum + section.duration, 0)),
-    "-avoid_negative_ts",
-    "make_zero",
-    "-c:v",
-    "libx264",
-    "-preset",
-    "veryfast",
-    "-crf",
-    "18",
-    "-c:a",
-    "aac",
-    "-b:a",
-    "160k",
-    "-ar",
-    "48000",
-    "-af",
-    "aresample=async=1:first_pts=0",
-    "-pix_fmt",
-    "yuv420p",
-    "-movflags",
-    "+faststart",
-    finalVideo,
-  ]);
+  run(
+    ffmpegPath,
+    [
+      "-y",
+      "-v",
+      "error",
+      "-fflags",
+      "+genpts",
+      "-f",
+      "concat",
+      "-safe",
+      "0",
+      "-i",
+      concatListPath,
+      "-t",
+      String(targetDuration),
+      "-vf",
+      `fps=${FPS},trim=duration=${targetDuration},setpts=PTS-STARTPTS,format=yuv420p`,
+      "-c:v",
+      "libx264",
+      "-preset",
+      "veryfast",
+      "-crf",
+      "18",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "160k",
+      "-ar",
+      "48000",
+      "-af",
+      `aresample=async=1:first_pts=0,atrim=duration=${targetDuration},asetpts=N/SR/TB`,
+      "-r",
+      String(FPS),
+      "-pix_fmt",
+      "yuv420p",
+      "-video_track_timescale",
+      "30000",
+      "-movflags",
+      "+faststart",
+      finalVideo,
+    ],
+    { capture: true },
+  );
 }
 
 function probeJson(path) {
@@ -477,7 +425,7 @@ function probeJson(path) {
         "-v",
         "error",
         "-show_entries",
-        "format=duration,size:stream=index,codec_type,codec_name,duration,width,height,sample_rate",
+        "format=duration,size:stream=index,codec_type,codec_name,duration,width,height,pix_fmt,r_frame_rate,sample_rate,channels",
         "-of",
         "json",
         path,
@@ -487,26 +435,56 @@ function probeJson(path) {
   );
 }
 
+function verifyFinalProbe(finalProbe) {
+  const finalDuration = Number(finalProbe.format?.duration);
+  const videoStream = finalProbe.streams?.find((stream) => stream.codec_type === "video");
+  const audioStream = finalProbe.streams?.find((stream) => stream.codec_type === "audio");
+  if (!(finalDuration >= 178.9 && finalDuration < 180)) {
+    throw new Error(`Final container duration must be nominally 179s and strictly below 180s; got ${finalDuration}`);
+  }
+  if (
+    videoStream?.codec_name !== "h264"
+    || videoStream.width !== W
+    || videoStream.height !== H
+    || videoStream.pix_fmt !== "yuv420p"
+    || videoStream.r_frame_rate !== `${FPS}/1`
+  ) {
+    throw new Error(`Final video stream must be H.264 ${W}x${H}; got ${JSON.stringify(videoStream)}`);
+  }
+  if (audioStream?.codec_name !== "aac" || audioStream.sample_rate !== "48000" || audioStream.channels !== 1) {
+    throw new Error(`Final audio stream must be AAC 48 kHz mono; got ${JSON.stringify(audioStream)}`);
+  }
+}
+
 async function main() {
+  if (targetDuration !== 179) {
+    throw new Error(`Section durations must sum to 179 seconds; got ${targetDuration}`);
+  }
+  const sourceImages = sections.map((section) => screenshotPath(section));
+  if (new Set(sourceImages).size !== 10) {
+    throw new Error("The real-UI demo must use ten distinct screenshots");
+  }
+
   ensureCleanDir(outputRoot);
-  mkdirSync(frameDir, { recursive: true });
   mkdirSync(audioDir, { recursive: true });
   mkdirSync(segmentDir, { recursive: true });
   mkdirSync(scriptDir, { recursive: true });
   mkdirSync(finalDir, { recursive: true });
 
   const built = [];
-  for (const section of sections) {
-    const { pngPath } = renderFrame(section);
+  for (const [index, section] of sections.entries()) {
+    const sourceImagePath = sourceImages[index];
     const speech = generateSpeech(section);
-    const segmentVideo = makeSegmentVideo(section, pngPath, speech.alignedWavPath);
+    const segmentVideo = makeSegmentVideo(section, sourceImagePath, speech.alignedWavPath);
     built.push({
       id: section.id,
       timecode: section.timecode,
       targetDuration: section.duration,
       title: section.title,
       narration: section.narration,
-      pngPath,
+      sourceImagePath,
+      scrollStart: section.scrollStart,
+      scrollEnd: section.scrollEnd,
       segmentVideo,
       ...speech,
       segmentDuration: duration(segmentVideo),
@@ -515,23 +493,39 @@ async function main() {
 
   concatSegments(built.map((item) => item.segmentVideo));
   const finalProbe = probeJson(finalVideo);
-  const fullNarration = built.map((item) => `${item.timecode}\n${item.narration}`).join("\n\n");
-  const fullScriptPath = join(scriptDir, "full-english-narration-timed.txt");
+  verifyFinalProbe(finalProbe);
+
+  const fullNarration = built
+    .map((item) => `${item.timecode} | ${item.title}\n${item.narration}\nUI: ${repoPath(item.sourceImagePath)}`)
+    .join("\n\n");
+  const fullScriptPath = join(scriptDir, "full-english-narration-real-ui-179s.txt");
   writeFileSync(fullScriptPath, fullNarration, "utf8");
+  const sha256 = createHash("sha256").update(readFileSync(finalVideo)).digest("hex").toUpperCase();
+  const portableSections = built.map((item) => ({
+    ...item,
+    sourceImagePath: repoPath(item.sourceImagePath),
+    segmentVideo: repoPath(publishedPath(item.segmentVideo)),
+    textPath: repoPath(publishedPath(item.textPath)),
+    mp3Path: repoPath(publishedPath(item.mp3Path)),
+    wavPath: repoPath(publishedPath(item.wavPath)),
+    alignedWavPath: repoPath(publishedPath(item.alignedWavPath)),
+  }));
   writeFileSync(
     metadataPath,
     JSON.stringify(
       {
-        artifact: "civicflow_my_mobile_edge_ava_3min_timed_video.v1",
+        artifact: "civicflow_my_mobile_real_ui_demo_179s.v1",
         generatedAt: new Date().toISOString(),
         voice,
         rate,
-        method: "section-locked to supplied 3-minute script with WAV-normalized TTS",
-        finalVideo,
-        fullScriptPath,
-        targetDuration: sections.reduce((sum, section) => sum + section.duration, 0),
+        method: "ten real Playwright UI captures with paced vertical browsing and section-locked WAV-normalized TTS",
+        screenshotDir: repoPath(screenshotDir),
+        finalVideo: repoPath(publishedPath(finalVideo)),
+        fullScriptPath: repoPath(publishedPath(fullScriptPath)),
+        sha256,
+        targetDuration,
         finalProbe,
-        sections: built,
+        sections: portableSections,
       },
       null,
       2,
@@ -539,10 +533,19 @@ async function main() {
     "utf8",
   );
 
-  console.log(JSON.stringify({ finalVideo, metadataPath, finalProbe }, null, 2));
+  promoteOutput();
+  console.log(JSON.stringify({
+    finalVideo: publishedPath(finalVideo),
+    metadataPath: publishedPath(metadataPath),
+    sha256,
+    targetDuration,
+    finalProbe,
+  }, null, 2));
 }
 
 main().catch((error) => {
+  assertChildPath(outputParent, outputRoot);
+  rmSync(outputRoot, { recursive: true, force: true });
   console.error(error);
   process.exitCode = 1;
 });

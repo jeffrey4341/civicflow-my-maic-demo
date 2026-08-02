@@ -26,7 +26,7 @@ import { citizenRef, newId, nowIso } from "@/lib/util";
 import { runTriage } from "@/lib/ai/pipeline";
 import { buildApprovalTask } from "@/lib/ai/approval";
 import { evaluateApprovalGate } from "@/lib/ai/approval";
-import { assertSyntheticDataOnly } from "@/lib/ai/classify";
+import { assertSyntheticDataOnly, classifyUrgency, maxUrgency } from "@/lib/ai/classify";
 import { detectMissingInfo, hasBlockingGaps, resolveLocationText } from "@/lib/ai/missingInfo";
 import { makeAuditEvent } from "@/lib/audit";
 import { loadPolicyChunks } from "@/lib/rag/policies";
@@ -557,6 +557,7 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
   if (record.status === "closed") throw new Error("Closed cases are immutable.");
   if (record.triage_revision !== input.triage_revision) throw new Error("stale_triage_revision");
   if (!record.reply_draft) throw new Error("Reply draft not found.");
+  const previousWelfareOutcome = record.officer_review?.welfare_outcome ?? null;
 
   const officer = input.officer.trim();
   const note = input.note.trim();
@@ -599,10 +600,21 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
     throw new Error("Missing information must be resolved before officer review can proceed.");
   }
 
+  const answerText = Object.entries(record.citizen_answers)
+    .filter(([, value]) => value.trim())
+    .map(([field, value]) => `${field}: ${value.trim()}`)
+    .join("\n");
+  const recalculatedUrgency = classifyUrgency(
+    answerText ? `${record.original_text}\n${answerText}` : record.original_text,
+    input.category,
+  );
+  const proposedUrgency = record.category === input.category
+    ? maxUrgency(record.urgency, recalculatedUrgency)
+    : recalculatedUrgency;
   const storedGate = currentGate(record);
   const proposedGate = evaluateApprovalGate({
     category: input.category,
-    urgency: record.urgency,
+    urgency: proposedUrgency,
     pii_risk: record.pii_risk,
     category_confidence: record.category_confidence,
   });
@@ -671,6 +683,7 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
   Object.assign(record, {
     citizen_language: input.citizen_language,
     category: input.category,
+    urgency: proposedUrgency,
     department,
     unit,
     citations,
@@ -780,7 +793,13 @@ export async function reviewCase(input: ReviewCaseInput): Promise<CitizenCase> {
       actor_label: officer,
       event_type: "officer.reviewed",
       summary: "Officer confirmed the case triage and citizen reply.",
-      payload: { triage_revision: nextRevision, resolution: input.resolution, substantive },
+      payload: {
+        triage_revision: nextRevision,
+        resolution: input.resolution,
+        substantive,
+        previous_welfare_outcome: previousWelfareOutcome,
+        welfare_outcome: input.welfare_outcome ?? null,
+      },
     }),
   );
   if (!preserveSentReply) {
@@ -974,6 +993,9 @@ export async function releaseReply(args: {
   if (!review || review.triage_revision !== record.triage_revision) {
     throw new Error("Current officer review is required before reply release.");
   }
+  if (record.category === "education_aid_welfare" && !review.welfare_outcome) {
+    throw new Error("A human welfare outcome is required before reply release.");
+  }
   if (
     record.reply_draft.status !== "approved"
     || record.reply_draft.approved_revision !== record.triage_revision
@@ -1053,6 +1075,9 @@ export async function setStatus(args: {
   if (review.triage_revision !== record.triage_revision) {
     hold("Current officer review is required before changing case status.");
   }
+  if (record.category === "education_aid_welfare" && !review.welfare_outcome) {
+    hold("A human welfare outcome is required before operational action.");
+  }
 
   if (args.status === "in_progress") {
     if (!["proceed", "resubmit_approval"].includes(review.resolution)) {
@@ -1076,9 +1101,6 @@ export async function setStatus(args: {
   } else {
     if (record.reply_draft?.status !== "sent") hold("Citizen reply must be sent before closure.");
     if (!(args.note ?? "").trim()) hold("A non-empty closure note is required.");
-    if (record.category === "education_aid_welfare" && !review.welfare_outcome) {
-      hold("A human welfare outcome is required before closure.");
-    }
     if (review.resolution !== "close_no_action" && record.status !== "in_progress") {
       hold("Actionable cases must start work before closure.");
     }

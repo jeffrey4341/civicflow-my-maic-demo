@@ -425,6 +425,47 @@ describe("officer review contract", () => {
   });
 
   it("creates a supervisor gate when an officer corrects a case into a gated category", async () => {
+    const c = await submitCase({
+      text: "I need a food stall business licence.",
+      language: "en",
+      location_text: "Synthetic Market A where water rises quickly",
+      answers: {
+        location: "Synthetic Market A where water rises quickly",
+        business_type: "Synthetic food stall",
+        operating_hours: "09:00 to 17:00",
+      },
+    });
+    expect(c).toMatchObject({
+      category: "business_licensing",
+      urgency: "normal",
+      approval_task_id: null,
+      routing: { requires_supervisor: false },
+    });
+
+    const reviewed = await postJson(
+      reviewCaseRoute,
+      "http://localhost/review",
+      c.case_id,
+      reviewBody(c, {
+        category: "drainage",
+        routing: { department: "Engineering", unit: "Drainage Unit" },
+      }),
+    );
+    const body = await reviewed.json();
+    expect(reviewed.status, body.error).toBe(200);
+    expect(body).toMatchObject({
+      triage_revision: 2,
+      urgency: "flood_risk",
+      status: "awaiting_supervisor",
+      routing: { requires_supervisor: true },
+    });
+    expect(await getApproval(body.approval_task_id)).toMatchObject({
+      triage_revision: 2,
+      status: "pending",
+    });
+  });
+
+  it("does not let an LLM refinement downgrade deterministic category-specific risk", async () => {
     const savedKey = process.env.ANTHROPIC_API_KEY;
     const savedForce = process.env.CIVICFLOW_FORCE_DETERMINISTIC;
     const originalFetch = global.fetch;
@@ -437,8 +478,8 @@ describe("officer review contract", () => {
             type: "text",
             text: JSON.stringify({
               detected_language: "ms",
-              category: "roads_potholes",
-              urgency: "flood_risk",
+              category: "drainage",
+              urgency: "normal",
               translated_text_en: "Flood water is rising quickly near a blocked drain.",
             }),
           }],
@@ -450,11 +491,12 @@ describe("officer review contract", () => {
     try {
       const c = await submitFloodCase();
       expect(c).toMatchObject({
-        category: "roads_potholes",
+        ai_mode: "llm",
+        category: "drainage",
         urgency: "flood_risk",
-        approval_task_id: null,
-        routing: { requires_supervisor: false },
+        status: "awaiting_supervisor",
       });
+      expect(c.approval_task_id).toBeTruthy();
 
       const reviewed = await postJson(
         reviewCaseRoute,
@@ -468,14 +510,29 @@ describe("officer review contract", () => {
       expect(reviewed.status).toBe(200);
       const body = await reviewed.json();
       expect(body).toMatchObject({
-        triage_revision: 2,
+        triage_revision: 1,
+        urgency: "flood_risk",
         status: "awaiting_supervisor",
         routing: { requires_supervisor: true },
       });
       expect(await getApproval(body.approval_task_id)).toMatchObject({
-        triage_revision: 2,
+        triage_revision: 1,
         status: "pending",
       });
+
+      const mixed = await submitCase({
+        text: "I need a food stall business licence. Water rises quickly near the site.",
+        language: "en",
+        location_text: "Synthetic Market A",
+      });
+      expect(mixed).toMatchObject({
+        ai_mode: "llm",
+        category: "drainage",
+        urgency: "flood_risk",
+        status: "awaiting_supervisor",
+      });
+      expect(mixed.approval_task_id).toBeTruthy();
+      expect(global.fetch).toHaveBeenCalledTimes(2);
     } finally {
       if (savedKey === undefined) delete process.env.ANTHROPIC_API_KEY;
       else process.env.ANTHROPIC_API_KEY = savedKey;
@@ -728,31 +785,27 @@ describe("officer review contract", () => {
     expect((await closed.json()).status).toBe("closed");
   });
 
-  it("requires a human welfare outcome before closure", async () => {
+  it("requires a human welfare outcome before reply release or operational action", async () => {
     const c = await submitCase({
       text: "Can I apply for education aid for my child?",
       language: "en",
       location_text: "Synthetic Neighbourhood",
     });
     await postJson(reviewCaseRoute, "http://localhost/review", c.case_id, reviewBody(c));
-    await postJson(releaseReplyRoute, "http://localhost/reply", c.case_id, {
+    const blockedReply = await postJson(releaseReplyRoute, "http://localhost/reply", c.case_id, {
       triage_revision: 1,
       officer: "Officer Tan (demo)",
     });
-    await postJson(setStatusRoute, "http://localhost/status", c.case_id, {
+    expect(blockedReply.status).toBe(400);
+    expect((await blockedReply.json()).error).toMatch(/human welfare outcome/i);
+
+    const blockedStart = await postJson(setStatusRoute, "http://localhost/status", c.case_id, {
       triage_revision: 1,
       status: "in_progress",
       officer: "Officer Tan (demo)",
     });
-
-    const blocked = await postJson(setStatusRoute, "http://localhost/status", c.case_id, {
-      triage_revision: 1,
-      status: "closed",
-      officer: "Officer Tan (demo)",
-      note: "Document review completed.",
-    });
-    expect(blocked.status).toBe(400);
-    expect((await blocked.json()).error).toMatch(/welfare outcome/i);
+    expect(blockedStart.status).toBe(400);
+    expect((await blockedStart.json()).error).toMatch(/human welfare outcome/i);
 
     const outcomeReview = await postJson(
       reviewCaseRoute,
@@ -761,7 +814,33 @@ describe("officer review contract", () => {
       reviewBody(c, { welfare_outcome: "eligible" }),
     );
     expect(outcomeReview.status).toBe(200);
-    expect((await outcomeReview.json()).status).toBe("in_progress");
+    expect((await outcomeReview.json()).status).toBe("routed");
+    let welfareReviews = (await listAudit(c.case_id)).filter((event) => event.event_type === "officer.reviewed");
+    expect(welfareReviews.at(-1)?.payload).toMatchObject({
+      previous_welfare_outcome: null,
+      welfare_outcome: "eligible",
+    });
+
+    expect((await postJson(
+      reviewCaseRoute,
+      "http://localhost/review",
+      c.case_id,
+      reviewBody(c, { welfare_outcome: "not_eligible" }),
+    )).status).toBe(200);
+    welfareReviews = (await listAudit(c.case_id)).filter((event) => event.event_type === "officer.reviewed");
+    expect(welfareReviews.at(-1)?.payload).toMatchObject({
+      previous_welfare_outcome: "eligible",
+      welfare_outcome: "not_eligible",
+    });
+    expect((await postJson(releaseReplyRoute, "http://localhost/reply", c.case_id, {
+      triage_revision: 1,
+      officer: "Officer Tan (demo)",
+    })).status).toBe(200);
+    expect((await postJson(setStatusRoute, "http://localhost/status", c.case_id, {
+      triage_revision: 1,
+      status: "in_progress",
+      officer: "Officer Tan (demo)",
+    })).status).toBe(200);
     const closed = await postJson(setStatusRoute, "http://localhost/status", c.case_id, {
       triage_revision: 1,
       status: "closed",
