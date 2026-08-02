@@ -23,6 +23,8 @@ A citizen can write in Malay, English, Chinese or Tamil. The prototype structure
 | Focus | A multilingual, traceable citizen-case workflow |
 | Deliverable | Mobile citizen intake, officer workspace and supervisor approval flow |
 | Current status | Working synthetic prototype; no agency pilot, adoption or performance claim |
+| Public repository | [github.com/jeffrey4341/civicflow-my-maic-demo](https://github.com/jeffrey4341/civicflow-my-maic-demo) |
+| Preliminary package | [Pitch, 179-second demo, summary and AI disclosure](https://github.com/jeffrey4341/civicflow-my-maic-demo/releases/tag/maic-preliminary-2026-08-02) |
 
 It runs locally without an API key and includes repeatable tests for its core governance paths.
 

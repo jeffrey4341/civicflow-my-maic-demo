@@ -137,7 +137,7 @@ Launch: `npm run build && npm run start -- --hostname 127.0.0.1 --port 3000` (us
 
 ## 5. 179-Second Demo Recording Checklist
 
-Exact timing source: [demo_script.md](../demo/demo_script.md). The current-UI render is verified at `179.000000` seconds with 10 real UI scenes. The legacy June render documented in [english_video_rebuild_2026-06-15.md](../audit/english_video_rebuild_2026-06-15.md) is `180.067` seconds and uses generated text-card visuals; it is retained as history, not treated as the final submission video. Narration is **English throughout** while the app UI demonstrates multilingual content. Public upload remains pending.
+Exact timing source: [demo_script.md](../demo/demo_script.md). The current-UI render is verified at `179.000000` seconds with 10 real UI scenes. The legacy June render documented in [english_video_rebuild_2026-06-15.md](../audit/english_video_rebuild_2026-06-15.md) is `180.067` seconds and uses generated text-card visuals; it is retained as history, not treated as the final submission video. Narration is **English throughout** while the app UI demonstrates multilingual content. The final video is available as a [public release asset](https://github.com/jeffrey4341/civicflow-my-maic-demo/releases/download/maic-preliminary-2026-08-02/civicflow-my-mobile-real-ui-demo-179s.mp4).
 
 ### 5.1 Setup & reset (before every take)
 - [x] Dependencies are installed and `npm run build` completes
@@ -163,7 +163,7 @@ Exact timing source: [demo_script.md](../demo/demo_script.md). The current-UI re
 - [x] `ffprobe` confirms exactly one H.264 video stream + one AAC audio stream
 - [x] Full audio/video decode succeeds and 10 scene-midpoint frames contain no black frames, stale UI or unreadable full-page scaling
 - [x] Portable metadata JSON records section timings, TTS voice, encoding specs and SHA-256 `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342`
-- [ ] Public upload or accepted portal upload exists and plays without a login wall
+- [x] Public upload exists and plays without a login wall — [179-second MP4](https://github.com/jeffrey4341/civicflow-my-maic-demo/releases/download/maic-preliminary-2026-08-02/civicflow-my-mobile-real-ui-demo-179s.mp4), HTTP 200 on 2026-08-02
 
 ---
 
@@ -190,9 +190,9 @@ Everything a judge should be able to find from the repository root.
 
 **Hard deadline:** complete and confirm the portal submission before **2026-09-01 00:00 MYT**. A local file or local-only URL is not submission evidence.
 
-- [ ] **Public repository** (GitHub) — section 6 complete, default branch builds clean
+- [x] **Public repository** (GitHub) — [jeffrey4341/civicflow-my-maic-demo](https://github.com/jeffrey4341/civicflow-my-maic-demo); section 6 complete and the merged tree passed the local production build gate
 - [ ] **Public no-login demo deployment and portal URL** — pending. Establish a stable endpoint and verify it with `CIVICFLOW_BASE_URL=<url> npm run smoke:e2e`; a quick-tunnel URL is not a stable judging endpoint. Runbook: [railway_portal_runbook.md](../deployment/railway_portal_runbook.md)
-- [ ] **179-second English demo video public URL** — the local current-UI MP4 is verified at `179.000000` seconds; provide an accepted upload or public judging URL
+- [x] **179-second English demo video public URL** — [public MP4](https://github.com/jeffrey4341/civicflow-my-maic-demo/releases/download/maic-preliminary-2026-08-02/civicflow-my-mobile-real-ui-demo-179s.mp4), verified at `179.000000` seconds and HTTP 200 without authentication
 - [x] **README** as the entry point with quick-start and demo walkthrough — [README.md](../../README.md)
 - [x] **Architecture doc** — [architecture.md](../architecture/architecture.md)
 - [x] **Model card** — [MODEL_CARD.md](../../MODEL_CARD.md)

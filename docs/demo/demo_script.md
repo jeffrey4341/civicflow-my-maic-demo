@@ -6,9 +6,9 @@
 
 ## Recording status
 
-The current product journeys and governance checks are locally verified. The current-UI video was rendered and verified on **2026-08-02** at the ignored local path `output/demo-video/civicflow-real-ui-179s/video/civicflow-my-mobile-real-ui-demo-179s.mp4`; the public release URL remains pending. The 180.067-second June render remains historical evidence and is not the final submission video.
+The current product journeys and governance checks are locally verified. The current-UI video was rendered and verified on **2026-08-02** at the ignored local path `output/demo-video/civicflow-real-ui-179s/video/civicflow-my-mobile-real-ui-demo-179s.mp4` and published in the [MAIC preliminary release](https://github.com/jeffrey4341/civicflow-my-maic-demo/releases/tag/maic-preliminary-2026-08-02). The 180.067-second June render remains historical evidence and is not the final submission video.
 
-Verified encoding: H.264 video, 1280×720, yuv420p, 30 fps; AAC mono 48 kHz; `ffprobe` container duration **179.000000 seconds**. Full audio/video decode and ten scene-midpoint frames completed with exit 0. SHA-256: `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342`. Public upload remains pending.
+Verified encoding: H.264 video, 1280×720, yuv420p, 30 fps; AAC mono 48 kHz; `ffprobe` container duration **179.000000 seconds**. Full audio/video decode and ten scene-midpoint frames completed with exit 0. SHA-256: `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342`. The [public MP4](https://github.com/jeffrey4341/civicflow-my-maic-demo/releases/download/maic-preliminary-2026-08-02/civicflow-my-mobile-real-ui-demo-179s.mp4) was verified without a login wall.
 
 ## Setup
 
@@ -149,6 +149,6 @@ Open `/officer/audit` and show a case-level sequence containing automated stages
 - [x] Confirm nominal duration is 179 seconds and `ffprobe` reports an actual duration of `179.000000` seconds.
 - [x] Decode the full MP4 and inspect ten scene-midpoint frames for black frames, overlap, stale UI and unreadable crops.
 - [x] Confirm narration is English throughout while multilingual citizen content remains legible.
-- [ ] Upload to an accepted portal field or stable public judging URL and verify playback without a login wall.
+- [x] Upload to a stable public judging URL and verify playback without a login wall — [public MP4](https://github.com/jeffrey4341/civicflow-my-maic-demo/releases/download/maic-preliminary-2026-08-02/civicflow-my-mobile-real-ui-demo-179s.mp4), HTTP 200 on 2026-08-02.
 - [x] Record the final local video path, portable metadata and SHA-256 `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342` in this verification record.
 - [ ] Keep the portal-submission confirmation unchecked until direct evidence exists.
