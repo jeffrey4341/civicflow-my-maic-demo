@@ -1,6 +1,6 @@
 # CivicFlow MY Mobile — Final Submission Checklist (MAIC T5)
 
-> **Status:** Product journeys locally verified; external submission delivery pending
+> **Status:** Product journeys locally verified; refreshed pitch PDF, repository URL, public 179-second video URL and 386-word summary saved in the MAIC portal; final portal lock/confirmation remains pending
 > **Date:** 2026-08-02
 > **Submission deadline:** **2026-09-01 00:00 MYT**
 > **Track:** MAIC Nexus Challenge **T5 — Public Services & Smart Cities**
@@ -202,7 +202,7 @@ Everything a judge should be able to find from the repository root.
 - [x] **Third-party notices / license** — [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md), [LICENSE](../../LICENSE)
 - [x] **Audit trail** demonstrating verification rigor — [docs/audit/](../audit)
 - [x] **This checklist** — [final_submission_checklist.md](final_submission_checklist.md)
-- [ ] **Submission form fields** prepared: project name, T5 track, one-line pitch, repo URL, public demo URL, video URL and team info
+- [x] **MAIC portal materials saved — not final submission:** refreshed 12-page pitch PDF, public repository URL, public 179-second video URL and 386-word project summary saved on `2026-08-02`
 - [ ] **MAIC portal submitted and confirmation captured** before `2026-09-01 00:00 MYT`
 
 ---
