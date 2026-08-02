@@ -1,6 +1,6 @@
 # Railway Portal Deploy Runbook
 
-Status: config and Railway CLI `5.23.3` are available locally. Deployment remains pending because `railway whoami` returns `Unauthorized. Please login with railway login`.
+Status: config and Railway CLI `5.23.3` are available locally. GitHub OAuth reached Railway successfully on 2026-08-02, but deployment remains pending at the account-owner Terms of Service acceptance screen; CLI device authorization is therefore incomplete and `railway whoami` remains unauthorized.
 
 ## Host Decision
 
