@@ -388,6 +388,8 @@ A **cross-cutting trust plane** governs every layer: identity federation, tenant
 
 The authority model is explicit: **each field, decision and status dimension has one authoritative source**. Agency-owned systems of record remain authoritative for statutory data, official decisions, work orders, payments, eligibility and completion. CivicFlow is authoritative only for its coordination state and its own append-only audit evidence; it stores references to external authoritative outcomes rather than redefining them.
 
+**Fail-closed acceptance rule:** if risk, confidence, citation, identity or permission is ambiguous, processing must not continue; the case must go to manual review or supervisor approval.
+
 ### 14.3 Governed connector controls
 
 | Control | Required future behaviour |
@@ -402,6 +404,8 @@ The authority model is explicit: **each field, decision and status dimension has
 | Conformance testing | Sandbox tests cover normal delivery, faults, over-authority attempts, replay, reconciliation and recovery before enablement |
 
 ### 14.4 Target journeys and national integration boundary
+
+**Initial validation is limited to one PBT.** All three journeys are hypotheses for that same PBT and remain pending approval by its business, policy, data and system owners.
 
 The following department chains are **PBT-approval-gated target hypotheses**, not current integrations or claims that a real PBT has approved or adopted them. A chain becomes a PBT-approved target hypothesis only after the relevant business, policy, data and system owners approve its `ServiceDefinition`; otherwise it remains unapproved and must be revised to match the PBT's real responsibility model.
 
