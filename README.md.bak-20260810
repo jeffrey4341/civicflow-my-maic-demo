@@ -14,10 +14,6 @@ CivicFlow does not claim to replace those systems. It explores one narrower idea
 
 A citizen can write in Malay, English, Chinese or Tamil. The prototype structures the request, suggests a category and council team, finds relevant sections in a synthetic policy set and prepares a reply. An officer checks that work. High-risk cases stop for a supervisor. Nothing is sent, started or closed automatically.
 
-## Long-term direction
-
-CivicFlow's [approved direction](docs/superpowers/specs/2026-08-10-government-interoperability-roadmap-design.md) is **one service experience, many systems of record**: a governed interoperability and casework layer that coordinates existing public-service systems instead of replacing them. The current repository remains a synthetic MAIC demonstration; persistent tenancy, production identity, live agency adapters and government deployment are future gates, not current features. See [product direction](PRODUCT.md), the [phased roadmap](docs/roadmap/product_roadmap.md), and the [future target architecture](docs/architecture/architecture.md#14-future-target-architecture--approved-direction-not-implemented).
-
 ## Hackathon entry
 
 | | |
