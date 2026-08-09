@@ -218,9 +218,12 @@ export function matchesResourceConsole(message, {
 }
 
 export function isExpectedNextRequestAbort(request) {
-  if (request.method() !== "GET" || request.failure()?.errorText !== "net::ERR_ABORTED") return false;
+  if (request.failure()?.errorText !== "net::ERR_ABORTED") return false;
   try {
     const url = new URL(request.url());
+    // Cloudflare Browser Insights can abort its best-effort beacon during navigation.
+    if (request.method() === "POST") return url.pathname === "/cdn-cgi/rum";
+    if (request.method() !== "GET") return false;
     return url.searchParams.has("_rsc")
       || (url.pathname.startsWith("/_next/static/webpack/") && url.pathname.endsWith(".hot-update.js"));
   } catch {
