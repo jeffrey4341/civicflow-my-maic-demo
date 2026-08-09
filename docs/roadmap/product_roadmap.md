@@ -1,135 +1,177 @@
-# CivicFlow MY Mobile - Product Roadmap
+# CivicFlow MY Mobile — Outcome-Gated Interoperability Roadmap
 
-## Positioning
+## Purpose and truth boundary
 
-CivicFlow MY Mobile starts as a public hackathon demo, but the product direction is a governed integration layer for Malaysian public-service casework. It should not replace a council's existing apps, databases, case-management systems, GIS tools, work-order tools or citizen notification channels. Instead, CivicFlow should sit between citizens, officers and existing agency systems so AI can structure intake, retrieve policy evidence, recommend routing, enforce human approval gates and preserve audit evidence.
+This is the canonical delivery roadmap for CivicFlow's approved interoperability direction. It is a sequence of future outcome gates, not a claim that the future capabilities are implemented. The detailed assumptions, target contracts, legal sources, and stop rules are in the [approved detailed design](../superpowers/specs/2026-08-10-government-interoperability-roadmap-design.md).
 
-The current repository remains a synthetic demo. The roadmap below describes the path from demo to real product and must not be read as a claim that live government integrations, real SOPs or real citizen data are already connected.
+CivicFlow remains a synthetic MAIC demonstration of multilingual public-service casework. It coordinates citizens, officers, policy evidence, approvals, and audit evidence; agency-owned systems remain the system of record. It must not become a competing national data hub, a national identity system, or a bypass around agency permissions and human decision-making.
 
-## North Star and Submission Gate
+All phase targets are hypotheses to be measured against a pre-pilot baseline. An authorised governance owner may adjust an unrealistic value target only with a recorded rationale; safety gates may not be reduced after the fact.
 
-**Product North Star:** three of three canonical journeys must run from citizen intake to a citizen-visible, policy-cited, human-owned and audited outcome, with zero unsafe bypasses.
+## Phase 0 — Current MAIC synthetic demonstration
 
-The MAIC submission deadline is **2026-09-01 00:00 MYT**. The English 179-second video is locally verified and publicly released with no login wall. The public no-login application deployment and completed submission-portal record remain external delivery gates until each is verified directly.
+### Objective
 
-## Phase 0 - Current Hackathon Artifact
+Prove the governance thesis without presenting the demonstration as a production or cross-department integration.
 
-The current artifact demonstrates the core civic workflow with synthetic data:
+### Deliverables
 
-- Mobile citizen app for Malay, English, Chinese and Tamil requests.
-- Officer console with case queue, case detail, citations, reply drafts and audit timeline.
-- Supervisor approval queue for high-risk cases.
-- Deterministic RAG over six synthetic policy documents.
-- Citation-or-manual-review guardrail.
-- Three canonical journeys: Malay flood-risk drainage, Chinese business-licence follow-up in the same case, and English education/welfare review.
-- Blocked unsafe transitions for high-risk, needs-info, welfare/education and uncited cases.
-- Separate officer review, reply release, supervisor decision, work start and note-gated closure actions.
-- A mandatory human welfare-outcome gate before an education/welfare case can advance through the outcome-sensitive path.
-- Production build, unit tests, dependency audit and browser smoke evidence for the demo.
+- A 100% synthetic MAIC demonstration with Malay, English, Chinese, and Tamil intake; policy citations; officer-owned routing and replies; supervisor approval; and append-only audit events.
+- Three domain examples — business licensing, flood/drainage, and education/welfare — that demonstrate workflow governance, citation-or-review, and human ownership. They do not prove real cross-department integrations.
+- A separate MAIC-submission delivery lane in [the final submission checklist](../submission/final_submission_checklist.md). That external lane is not changed by this roadmap.
 
-This phase proves the workflow logic: AI drafts, humans decide and every case is traceable.
+### Exit gate
 
-**Current verified product status (2026-08-02).** Local evidence covers all three canonical journeys and their governance checks. The Malay drainage case preserves policy evidence and the reviewed reply through officer review, supervisor approval, reply release, work start and human closure. The Chinese licence journey resolves missing details in the same case, returns the new revision to officer review and completes the separated release/start/close path. The education/welfare journey requires a human-recorded outcome and never creates an AI eligibility decision. Citation-or-manual-review, denied-transition audit events and separate consequential actions remain hard boundaries. A real-UI English demo video is verified at `179.000000` seconds and publicly available from the MAIC preliminary GitHub release. There is still no production identity, tenancy, persistent database, live agency adapter, verified public application deployment or completed portal submission.
+The historical verification record, rather than a same-session claim here, documents repeatable governance evidence for the three synthetic journeys. The demo continues to require deterministic no-key operation, citation or manual review, and human control of every consequential decision.
 
-## Phase 1 - 0 to 90 Days: Outcome-Gated Pilot Foundation
+### Stop / hold conditions
 
-The first product step is to preserve the narrow product thesis and earn the right to pilot. Each milestone is an outcome gate, not a feature-count target.
+- Hold any statement that implies live government integration, production readiness, or completed MAIC delivery without direct evidence.
+- Hold expansion until production identity, tenancy, persistent storage, approved adapters, government production hosting, adoption, and procurement have been established; all remain absent from the current repository.
 
-### Day 0-30 - Submission truth and repeatable product proof
+## Phase 1 — 0–3 months: trusted core for one PBT
 
-- Freeze new product scope and re-prove all three canonical journeys on the exact submission tree.
-- Keep the acceptance bar at three of three citizen-visible, policy-cited, human-owned and audited outcomes with zero unsafe bypasses.
-- Refresh the English summary, disclosure, 12-page deck and current UI evidence around the same product story.
-- Build and verify a nominal 179-second English demo video whose actual container duration is below 180 seconds.
-- Configure and smoke-test a stable public no-login demo URL; do not claim deployment before direct verification.
-- Complete the MAIC portal fields and capture submission confirmation before **2026-09-01 00:00 MYT**.
+### Objective
 
-Expected outcome: a truthful, reproducible submission package. The public repository, release artifacts and video URL now exist; submission delivery remains incomplete until the public application deployment and portal confirmation are directly verified.
+Create a trusted, isolated shared casework core for one PBT before introducing a live departmental pilot.
 
-### Day 31-60 - One-agency trust boundary
+### Deliverables
 
-- Replace the in-memory store with a persistent database designed around `agency_id` / `pbt_id` tenancy.
-- Replace client-asserted role strings with server-owned officer, supervisor and admin identity plus least-privilege access control.
-- Add agency configuration for departments, service categories, approval policies, SLA targets and supported languages.
-- Add policy versioning, controlled SOP onboarding, authenticated reset/administration, retention rules, access logging and audit export.
-- Establish the pilot privacy and security baseline now: approved-data boundaries, backups, monitoring, rate limiting, recovery and incident ownership.
+- Persistent storage with migration, backup, recovery, retention, `agency_id` / `pbt_id` isolation, and policy isolation.
+- Server-owned identity, session handling, RBAC/ABAC, separation of duties, service catalogue, and case/event/policy/decision contracts.
+- Policy versioning and owner approval; protected administration/reset; monitoring, rate limits, security logs, incident ownership, and a synthetic connector sandbox with fault injection.
+- A named business, system, and data owner; an approved sandbox or interface path; and a measured existing-process baseline.
 
-Expected outcome: one isolated agency environment with attributable human decisions and controlled policy/data lifecycle, still using synthetic or formally approved data only.
+### Exit gate
 
-### Day 61-90 - Controlled pilot readiness
+- At least `200` four-language evaluation cases and at least `1,000` transition/permission tests.
+- `100%` citation-or-review coverage for AI recommendations and `100%` authorised-human attribution for consequential decisions; `100%` of state changes record a human or named system actor.
+- `0` unsafe or unauthorised events: no high-risk bypass, cross-tenant access, or unauthorised external write.
+- Sandbox connector delivery-event success `>=99%`, with every discrepancy detectable and reconcilable; recovery exercise and critical security gates pass.
 
-- Select one public-service desk and a narrow set of service categories.
-- Integrate one agency-owned system of record and one approved notification path, selected from validated partner needs rather than a connector catalogue.
-- Measure triage time, first-response completeness, citation coverage, officer override rate, manual-review volume and unsafe-bypass count before setting performance claims.
-- Run multilingual regression and retrieval evaluation against the approved pilot corpus.
-- Add hosted release, recovery and rollback gates for the controlled environment.
+### Stop / hold conditions
 
-Expected outcome: a controlled-pilot candidate for one service desk, with measurable workflow value and no transfer of consequential decisions to AI.
+- Hold at day 30 without business, system, and data owners; at day 60 without an approved sandbox or interface path; or whenever no baseline can be established.
+- Pause for unresolved material identity, isolation, audit, or recovery gaps, or if the proposal requires AI to take a consequential action.
 
-## Phase 2 - 3 to 6 Months: First Agency Pilot
+## Phase 2 — 3–6 months: controlled business-licensing pilot
 
-The first real deployment should be narrow: one council, campus, township operator or civic service desk with a defined set of service categories.
+### Objective
 
-Key work:
+Validate one controlled business-licensing journey in the same PBT before adding service breadth.
 
-- Validate one partner workflow before expanding integration breadth.
-- Deepen the selected system-of-record and notification integrations with reconciliation, failure handling and audit evidence.
-- Add work-order, GIS / asset, document or identity adapters only when the validated service journey requires them.
-- Keep approved field-work requests behind the agency's authorised work-order or dispatch system, never directly from AI.
-- Add an SLA view for backlog, pending approvals, needs-info cases, manual-review volume, department load and overdue-risk cases.
+### Deliverables
 
-Expected outcome:
+- Validate the target Licensing → Public Health → Engineering hand-off. Any step without an approved API uses an explicit, named-human hand-off rather than a simulated integration.
+- Connect one approved authoritative case/licensing system and one notification channel through purpose-bound, least-privilege credentials.
+- Provide idempotency, versioned events, outbox/retry, dead-letter handling, reconciliation, rollback, and dashboards for override reasons, sync failures, policy version, and language quality.
+- Maintain operations, recovery, rollback, and incident-response runbooks.
 
-- A controlled pilot where CivicFlow improves intake, routing, SLA visibility and auditability while human officers retain every consequential decision.
+### Exit gate
 
-## Phase 3 - 6 to 12 Months: Multi-Agency Platform
+- Controlled operation for at least `8 weeks` and at least `300` approved cases, whichever is later.
+- Median triage is `>=30%` faster than the measured baseline; first-response completeness is `>=15 percentage points` better.
+- High-risk human-gate coverage is `100%` and erroneous permissive decisions are `0`.
+- Connector delivery-event success and service-hours availability are each `>=99.5%`; all sync discrepancies are reconciled within one working day.
+- Material high-confidence classification/routing correction is `<25%`.
 
-After one pilot validates workflow value, the platform should become multi-agency without mixing data or policies across agencies.
+### Stop / hold conditions
 
-Key work:
+- Block progression if triage improvement is below `15%` after eight weeks, material routing correction is `>30%` for four consecutive weeks, or `>2%` of cases require offline repair from sync errors.
+- A safety trigger — unauthorised consequential action, unsafe-gate bypass, or unexplained state change — pauses this pilot immediately.
 
-- Multi-agency tenancy with isolated data, policy corpora, users, departments, routing rules and audit logs.
-- Connector registry so each agency can map its own apps, databases, SOP folders and notification channels.
-- Policy source governance: source version tracking, stale-policy warnings, citation confidence review and human policy-owner approval before publication.
-- Multilingual Service Equity Auditor:
-  - compare Malay, English, Chinese and Tamil versions of the same request;
-  - flag inconsistent category, routing, citation, missing-info or approval outcomes;
-  - produce a language-equity score for civic-tech accountability.
-- Production RAG upgrade with real embeddings, retrieval evaluation and regression tests against approved agency corpora.
-- Immutable audit export for internal review, external audit and public-sector accountability reporting.
+## Phase 3 — 6–12 months: three journeys in the same PBT
 
-Expected outcome:
+### Objective
 
-- CivicFlow becomes a reusable public-service AI operations layer across multiple PBTs, agencies, campuses or civic service operators.
+Prove that one governed core can support three distinct journeys in one PBT without duplicating the product.
 
-## Phase 4 - 12 to 18 Months: Production-Governance Readiness
+### Deliverables
 
-This phase prepares CivicFlow for procurement-grade and production-grade public-service operation.
+- Add flood/drainage first and education/welfare second after business licensing, using the same PBT core.
+- Have at least three departments use common service, case, event, policy, and approval models; provide accepted/rejected hand-offs, named ownership, SLAs, a unified receipt, and only the minimum fields needed for each hand-off.
+- Publish a v1 candidate contract without claiming a national standard.
 
-Key work:
+### Exit gate
 
-- Extend the Phase 1 privacy and security baseline to procurement-grade assurance, data-processing agreements and independent testing.
-- Formalise operational resilience: monitored backups, alerting, incident response, penetration testing and privileged-admin controls.
-- Model governance: prompt/version registry, deterministic fallback checks, regression evaluation, multilingual quality tests and override analytics.
-- Human oversight governance: configurable approval policies, supervisor review queues, eligibility safeguards and blocked-action logs.
-- Agency rollout playbook: data onboarding, connector setup, officer training, approval-policy configuration, go-live checklist and support model.
-- Commercial packaging based on evidence from the first controlled pilot rather than pre-pilot pricing assumptions.
+- End-to-end traceability across all three journeys is `100%`; high-risk and eligibility decisions are `100%` human; severe audit gaps, cross-department overreach, and automated consequential decisions are `0`.
+- Material paired-language substantive inconsistency is `<5%` across synonymous four-language evaluations.
+- Canonical field/event reuse is `>=70%`, and journey-specific product branches are `0`.
 
-Expected outcome:
+### Stop / hold conditions
 
-- A governed, auditable and integration-ready platform for Malaysian public-service operators.
+- Hold if a new journey requires a separate product or bypasses the common contract, if the second or third journey cannot repeat the first journey's value, or if responsibility for eligibility or public safety cannot be named.
+- Hold if connector mapping component reuse is `<40%` for the second and third journeys.
 
-## Product Boundary
+## Phase 4 — 12–24 months: multi-agency federated protocol
 
-CivicFlow should not become a generic chatbot or a generic enterprise agent platform. It should stay focused on public-service casework:
+### Objective
 
-- Intake citizen requests.
-- Ground recommendations in cited policies.
-- Route cases to the right department.
-- Detect missing information.
-- Gate high-risk and eligibility-sensitive cases for human review.
-- Draft replies for officer approval.
-- Sync with authorised government or agency systems.
-- Preserve audit evidence.
+Expand only from a proven single-PBT core to a governed, vendor-neutral protocol across agencies.
 
-AI must not autonomously close cases, approve high-risk escalation, dispatch field teams, decide eligibility or bypass agency-owned systems of record.
+### Deliverables
+
+- Enter only after participating institutions accept a governance charter, a coordinating authority, data responsibility, incident responsibility, and contract-change authority. Otherwise remain a Phase 3 single-PBT product.
+- For an approved 2–5 agency scope, or one state plus 2–3 PBTs, deliver v1 service/case/event/policy/consent/audit contracts, connector registry, conformance and certification, reference adapters, identity federation, delegated authority, tenant isolation, and agency exit.
+- Provide data-sharing agreements, field-level minimisation, retention and key responsibility, independent privacy/security/BCP-DR/audit assessment, and an implementation path independent of the CivicFlow UI or runtime.
+
+### Exit gate
+
+- Two independent teams or vendors implement the protocol.
+- Median connector onboarding is `<=4 weeks`; common field/event definitions are `>=70%`; cross-agency hand-off and decision-audit coverage are `100%`; conformance is `>=90%`.
+- There is `0` cross-tenant policy, identity, or data leakage.
+
+### Stop / hold conditions
+
+- Do not start multi-agency expansion without the entry governance conditions; pause if the charter, coordinating authority, or responsibility model fails and cannot be restored.
+- Hold if there is no non-CivicFlow independent implementation by month 24, if `>30%` of normal cases require private extensions, or if data, incident, or standard-change responsibility remains unresolved.
+
+## Phase 5 — 24–36 months: governed cross-level service network
+
+### Objective
+
+Under authorised scope, coordinate local, state, and federal services while data stays with its source agency whenever possible.
+
+### Deliverables
+
+- Shared service catalogue and cross-level case status; protocol-governance board, version migration, compatibility windows, certified connector ecosystem, vendor-neutral procurement, and exit options.
+- Layered deployment controlled by authorised Malaysian public bodies or approved operators according to data classification, with agency-controlled key responsibility, monitoring, and BCP/DR.
+- Citizen-visible unified status for participating services while agencies retain authoritative records.
+
+### Exit gate
+
+These are ambition gates, not promises: `10 agencies / 20 journeys`; at least two independent protocol implementations in sustained operation; median new-agency onboarding `<=4 weeks`; and onboarding cost `>=50%` lower than the first pilot.
+
+- `>=90%` of participating-service cases expose unified status, and `>=95%` of status events arrive within five minutes.
+- Human attribution, policy source, and audit coverage remain `100%`; all consequential-decision AI counts — automatic eligibility decisions, high-risk approvals, dispatches, and closures — remain `0`.
+
+### Stop / hold conditions
+
+- If cross-level adoption or independent implementers do not materialise, remain a specialist PBT-integration product.
+- Hold if onboarding cost grows with agency count, expansion requires centralised replication of sensitive agency data, the coordination layer becomes an unisolatable security or availability single point of failure, or agencies reject loss of system-of-record control.
+
+## Metric definitions
+
+- **Connector delivery-event success:** confirmed successful deliveries within the measurement window divided by all due delivery events in that window. Only pre-approved planned-maintenance events may be excluded, and the excluded count is reported separately.
+- **Service-hours availability:** (planned service minutes minus unplanned unavailable minutes) divided by planned service minutes. Approved planned maintenance is reported separately rather than hidden in the denominator.
+- **Paired-language substantive inconsistency:** evaluated language pairs with a material difference in classification, routing, citation, missing-information result, or approval gate divided by all evaluated synonymous language pairs.
+- **Canonical field/event reuse:** fields and events used by the evaluated journeys that use an approved common semantic definition divided by all fields and events defined for those journeys.
+- **Connector mapping component reuse:** reused connector configuration, transformation, and reconciliation components in the second and third journeys divided by all such mapping components required by those journeys. This is distinct from canonical field/event reuse and must not be substituted for it.
+
+## Expansion rules and accountability
+
+1. A phase expands only after its outcome, safety, reliability, governance, and ownership gates all pass.
+2. A safety trigger pauses the affected pilot immediately.
+3. A missed value metric blocks the next phase; it is not labelled a security incident.
+4. A department is onboarded only after identity, data purpose, policy owner, connector failure/rollback, human responsibility, and citizen tracking are accepted.
+5. Target department chains remain hypotheses until the first PBT approves the relevant `ServiceDefinition`.
+
+## National-platform and legal posture
+
+CivicFlow follows the integration directions for Malaysia Digital 2030, RMK13, MyGovEA/DDSA, MyGDX, and MyDigital ID, through agency-approved adapters behind the trust and connector boundaries. It does not build a competing national data hub or identity system.
+
+Act 864 applicability, including state/PBT authority, requires case-by-case legal review. Act 854 obligations apply only when a deployment falls within its scope or is designated NCII. Cloud deployment, data classification, and key controls follow agency-approved policy and deployment classification. Demo hosting is not government production hosting. See the [approved detailed design's national architecture and legal constraints](../superpowers/specs/2026-08-10-government-interoperability-roadmap-design.md#11-法律国家架构与部署约束) for official links and the full legal analysis.
+
+## Product boundary
+
+CivicFlow is not a generic chatbot or generic enterprise agent platform. AI may assist with language detection, classification, mapping, cited policy retrieval, summarisation, and drafting, but it never autonomously closes cases, approves high-risk escalation, dispatches field teams, decides eligibility, or bypasses agency-owned systems of record.

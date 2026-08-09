@@ -24,31 +24,6 @@ A mobile-first, multilingual (ms/en/zh/ta) citizen-service casework demo for Mal
 - Deterministic pipeline parity: demo runs fully offline with no `ANTHROPIC_API_KEY`.
 - Not a chatbot; not a generic enterprise agent platform; no production-readiness claims.
 
-## Long-term direction
-
-One service experience, many systems of record.
-
-CivicFlow's long-term direction is an AI-assisted, human-governed interoperability and casework layer for Malaysia's federated public services. It unifies citizen experience, service and case semantics, cross-department hand-offs, policy evidence and audit contracts while each agency retains its authoritative systems and statutory decisions.
-
-See the [approved detailed design](docs/superpowers/specs/2026-08-10-government-interoperability-roadmap-design.md).
-
-## Unification means / does not mean
-
-- Means: one submission, one tracking receipt, a shared service catalogue and case envelope, governed hand-offs, cited policy, named human responsibility, and certified connectors.
-- Does not mean: replacing every agency application, centralising all government data, creating a national identity system, or transferring consequential decisions to AI.
-
-## Core differentiators
-
-- Policy-grounded rather than chatbot-style answers.
-- Human-owned consequential decisions.
-- Cross-department coordination without taking system-of-record ownership.
-- Multilingual substantive-outcome equity, not interface translation alone.
-- Auditable, portable and replaceable integration boundaries.
-
-## Adoption sequence
-
-One PBT → shared governed core → business licensing → flood/drainage → education/welfare → multi-agency federation only after measured gates pass.
-
 ## Stack
 
 Single Next.js 15 App Router app (React 18, TypeScript, Tailwind). Backend = `/api` route handlers; in-memory store seeded from `data/seed` (`POST /api/reset`). Tests: Vitest. Smoke: `npm run smoke:e2e`.
