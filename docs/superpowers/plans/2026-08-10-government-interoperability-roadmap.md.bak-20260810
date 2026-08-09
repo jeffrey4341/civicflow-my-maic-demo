@@ -402,8 +402,8 @@ Run:
 ```powershell
 git status --short --branch
 git log -5 --oneline
-git diff --stat '0a73ecf6b598cd55912dff92ac8b84e4fa55618a..HEAD'
-git diff --name-only '0a73ecf6b598cd55912dff92ac8b84e4fa55618a..HEAD'
+git diff --stat '0a73ecf6b598cd55912dff92ac8b84e4fa55618a'..HEAD
+git diff --name-only '0a73ecf6b598cd55912dff92ac8b84e4fa55618a'..HEAD
 ```
 
 Expected: only the approved plan, four main documents, approved-spec status and their dated backups are committed after the design commit. `.superpowers/` may remain untracked only until the visual companion is stopped and its generated session is cleaned. Push remains pending explicit owner approval.
