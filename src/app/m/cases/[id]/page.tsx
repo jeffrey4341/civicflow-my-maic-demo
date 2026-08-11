@@ -10,47 +10,83 @@ export const dynamic = "force-dynamic";
 
 interface Stage {
   status: CaseStatus;
-  state: "complete" | "current";
+  state: "complete" | "current" | "upcoming";
 }
 
 function stagesFor(c: CitizenCase): Stage[] {
+  const closedWithoutAction = c.officer_review?.resolution === "close_no_action";
+  if (closedWithoutAction) {
+    const closed = c.status === "closed";
+    return [
+      { status: "submitted", state: "complete" },
+      { status: "manual_review", state: closed ? "complete" : "current" },
+      { status: "closed", state: closed ? "current" : "upcoming" },
+    ];
+  }
   if (c.status === "needs_info") {
-    return [{ status: "submitted", state: "complete" }, { status: "needs_info", state: "current" }];
+    return [
+      { status: "submitted", state: "complete" },
+      { status: "needs_info", state: "current" },
+      { status: "routed", state: "upcoming" },
+      { status: "in_progress", state: "upcoming" },
+      { status: "closed", state: "upcoming" },
+    ];
   }
   if (c.status === "manual_review") {
-    return [{ status: "submitted", state: "complete" }, { status: "manual_review", state: "current" }];
+    return [
+      { status: "submitted", state: "complete" },
+      { status: "manual_review", state: "current" },
+      { status: "routed", state: "upcoming" },
+      { status: "in_progress", state: "upcoming" },
+      { status: "closed", state: "upcoming" },
+    ];
   }
   if (c.status === "awaiting_supervisor") {
     return [
       { status: "submitted", state: "complete" },
       { status: "routed", state: "complete" },
       { status: "awaiting_supervisor", state: "current" },
+      { status: "in_progress", state: "upcoming" },
+      { status: "closed", state: "upcoming" },
     ];
   }
   if (c.status === "routed") {
-    return [{ status: "submitted", state: "complete" }, { status: "routed", state: "current" }];
+    return [
+      { status: "submitted", state: "complete" },
+      { status: "routed", state: "current" },
+      { status: "in_progress", state: "upcoming" },
+      { status: "closed", state: "upcoming" },
+    ];
   }
   if (c.status === "in_progress") {
     return [
       { status: "submitted", state: "complete" },
       { status: "routed", state: "complete" },
       { status: "in_progress", state: "current" },
+      { status: "closed", state: "upcoming" },
     ];
   }
-  const closedWithoutAction = c.officer_review?.resolution === "close_no_action";
-  return closedWithoutAction
-    ? [
-        { status: "submitted", state: "complete" },
-        { status: "manual_review", state: "complete" },
-        { status: "closed", state: "current" },
-      ]
-    : [
-        { status: "submitted", state: "complete" },
-        { status: "routed", state: "complete" },
-        { status: "in_progress", state: "complete" },
-        { status: "closed", state: "current" },
-      ];
+  if (c.status === "closed") {
+    return [
+      { status: "submitted", state: "complete" },
+      { status: "routed", state: "complete" },
+      { status: "in_progress", state: "complete" },
+      { status: "closed", state: "current" },
+    ];
+  }
+  return [
+    { status: "submitted", state: "current" },
+    { status: "routed", state: "upcoming" },
+    { status: "in_progress", state: "upcoming" },
+    { status: "closed", state: "upcoming" },
+  ];
 }
+
+const STAGE_STATE_KEYS: Record<Stage["state"], string> = {
+  complete: "status.step_complete",
+  current: "status.step_current",
+  upcoming: "status.step_upcoming",
+};
 
 function nextStepText(c: CitizenCase, language: Language): string {
   const key: Record<CaseStatus, string> = {
@@ -81,6 +117,7 @@ export default async function CitizenCasePage({
   const showAssignment = !["needs_info", "manual_review"].includes(c.status);
   const replyReady = c.reply_draft?.status === "sent";
   const heading = c.status === "needs_info" ? t(language, "status.needs_heading") : t(language, "status.title");
+  const stages = stagesFor(c);
 
   return (
     <div lang={language}>
@@ -115,14 +152,31 @@ export default async function CitizenCasePage({
 
       <section className="mt-8 border-t border-slate-200 pt-7" aria-labelledby="progress-heading">
         <h2 id="progress-heading" className="text-lg font-semibold text-slate-950">{t(language, "status.timeline")}</h2>
-        <ol className="mt-4 space-y-4">
-          {stagesFor(c).map((stage, index) => (
-            <li key={`${stage.status}-${index}`} className="flex items-center gap-3" aria-current={stage.state === "current" ? "step" : undefined}>
-              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${stage.state === "current" ? "border-civic-700 bg-civic-700 text-white" : "border-civic-300 bg-civic-50 text-civic-800"}`}>
+        <ol className="mt-5">
+          {stages.map((stage, index) => (
+            <li key={`${stage.status}-${index}`} className="relative flex gap-3 pb-5 last:pb-0" aria-current={stage.state === "current" ? "step" : undefined}>
+              {index < stages.length - 1 ? (
+                <span aria-hidden="true" className="absolute bottom-0 left-[13px] top-7 w-px bg-slate-200" />
+              ) : null}
+              <span
+                aria-hidden="true"
+                className={`relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold ${
+                  stage.state === "current"
+                    ? "border-civic-700 bg-civic-700 text-white"
+                    : stage.state === "complete"
+                      ? "border-civic-300 bg-civic-50 text-civic-800"
+                      : "border-slate-300 bg-white text-slate-500"
+                }`}
+              >
                 {index + 1}
               </span>
-              <span className={stage.state === "current" ? "font-semibold text-slate-950" : "text-sm text-slate-600"}>
-                {statusLabel(stage.status, language)}
+              <span className="min-w-0">
+                <span className={`block ${stage.state === "current" ? "font-semibold text-slate-950" : stage.state === "upcoming" ? "text-sm text-slate-500" : "text-sm text-slate-700"}`}>
+                  {statusLabel(stage.status, language)}
+                </span>
+                <span className={`mt-0.5 block text-xs font-medium ${stage.state === "upcoming" ? "text-slate-500" : "text-civic-800"}`}>
+                  {t(language, STAGE_STATE_KEYS[stage.state])}
+                </span>
               </span>
             </li>
           ))}

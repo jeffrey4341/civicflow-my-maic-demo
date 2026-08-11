@@ -100,7 +100,7 @@ This is the most important integrity claim for a public e-gov demo. **All three 
 
 ## 4. Verification Checklist
 
-Re-run every gate on the exact submission tree before recording or pushing; current code and same-session command output are the source of truth. Historical references: [fable5_system_audit_2026-07-02.md](../audit/fable5_system_audit_2026-07-02.md) and [final_submission_packaging_check.md](../audit/final_submission_packaging_check.md).
+Re-run every gate on the exact submission tree before recording or pushing; current code and same-session command output are the source of truth. Current focused verification: [citizen_case_status_timeline_2026-08-11.md](../audit/citizen_case_status_timeline_2026-08-11.md). Historical references: [fable5_system_audit_2026-07-02.md](../audit/fable5_system_audit_2026-07-02.md) and [final_submission_packaging_check.md](../audit/final_submission_packaging_check.md).
 
 ### 4.1 Build, types, tests, dependencies
 - [x] `npm run typecheck` — TypeScript compiles clean (`tsc --noEmit`)

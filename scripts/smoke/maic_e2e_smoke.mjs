@@ -269,6 +269,23 @@ async function main() {
     await page.screenshot({ path: path.join(screenshotDir, "02-citizen-services.png"), fullPage: true });
     assertBrowserHealthy();
 
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`${baseUrl}/m/cases/${unknown.citizen_ref}`, { waitUntil: "networkidle" });
+    const timelineSteps = page.locator('section[aria-labelledby="progress-heading"] li');
+    assert(await timelineSteps.count() === 5, "Manual-review citizen timeline does not show the full five-step path.");
+    const timelineText = (await timelineSteps.allInnerTexts()).map((text) => text.replace(/\s+/g, " ").trim());
+    assert(JSON.stringify(timelineText) === JSON.stringify([
+      "1 Submitted Completed",
+      "2 Manual review Current",
+      "3 Routed to department Upcoming",
+      "4 In progress Upcoming",
+      "5 Closed Upcoming",
+    ]), `Manual-review citizen timeline has unexpected stages: ${timelineText.join(" | ")}`);
+    assert(await timelineSteps.nth(1).getAttribute("aria-current") === "step", "Manual review is not announced as the current step.");
+    await page.screenshot({ path: path.join(screenshotDir, "02-case-status-timeline.png"), fullPage: true });
+    assertBrowserHealthy();
+    await page.setViewportSize({ width: 1366, height: 900 });
+
     await page.goto(`${baseUrl}/officer`, { waitUntil: "networkidle" });
     await page.getByRole("heading", { name: "Case queue", exact: true }).waitFor();
     await expectVisibleText(page, licence.citizen_ref, "licence case appears in active queue");
