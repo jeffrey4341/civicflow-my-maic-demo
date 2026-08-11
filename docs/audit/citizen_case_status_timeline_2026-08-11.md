@@ -2,7 +2,7 @@
 
 ## Scope
 
-The citizen tracking page now shows the complete case path instead of stopping at the current status. Completed, current, and upcoming stages remain visually and textually distinct in Malay, English, Chinese, and Tamil.
+The citizen tracking page now shows the complete case path instead of stopping at the current status, and the request summary includes the citizen's exact submitted text. Completed, current, and upcoming stages remain visually and textually distinct in Malay, English, Chinese, and Tamil.
 
 The timeline preserves workflow boundaries:
 
@@ -15,6 +15,9 @@ The timeline preserves workflow boundaries:
 - RED: `npm run build` exited 0, then `npm run smoke:e2e` exited 1 with `Manual-review citizen timeline does not show the full five-step path.`
 - The first GREEN attempt rendered all five steps but exposed a test-fixture mismatch because the visible step numbers were omitted from the expected text. The expectation was corrected without changing product behaviour.
 - GREEN: `npm run smoke:e2e` exited 0 and verified the exact manual-review path at 390 px: Submitted / Manual review / Routed to department / In progress / Closed, with Manual review announced through `aria-current="step"`.
+- Original-request RED: `npm run smoke:e2e` exited 1 with `Citizen status does not show the exact submitted request text.`
+- Original-request GREEN: the exact submitted text is shown under a localized `Your request` label, preserving line breaks, long-word wrapping, and text direction; `npm run build` and `npm run smoke:e2e` both exited 0.
+- Full citizen smoke initially failed twice because the new text repeated the page's existing language declaration. The nested `lang` attribute is now emitted only when the detected language differs from the citizen UI language; the final `npm run smoke:citizen` exited 0 without weakening the existing assertion.
 
 ## Final gates
 

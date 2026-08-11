@@ -282,6 +282,8 @@ async function main() {
       "5 Closed Upcoming",
     ]), `Manual-review citizen timeline has unexpected stages: ${timelineText.join(" | ")}`);
     assert(await timelineSteps.nth(1).getAttribute("aria-current") === "step", "Manual review is not announced as the current step.");
+    const requestSummary = page.locator('section[aria-labelledby="case-summary-heading"]');
+    assert(await requestSummary.getByText(CASE_TEXT.unknown, { exact: true }).count() === 1, "Citizen status does not show the exact submitted request text.");
     await page.screenshot({ path: path.join(screenshotDir, "02-case-status-timeline.png"), fullPage: true });
     assertBrowserHealthy();
     await page.setViewportSize({ width: 1366, height: 900 });

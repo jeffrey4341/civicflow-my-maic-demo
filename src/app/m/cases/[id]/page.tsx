@@ -186,6 +186,12 @@ export default async function CitizenCasePage({
       <section className="mt-8 border-t border-slate-200 pt-7" aria-labelledby="case-summary-heading">
         <h2 id="case-summary-heading" className="text-lg font-semibold text-slate-950">{t(language, "review.understanding")}</h2>
         <dl className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <dt className="text-sm text-slate-600">{t(language, "status.original_request")}</dt>
+            <dd lang={c.detected_language === language ? undefined : c.detected_language} dir="auto" className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-slate-900">
+              {c.original_text}
+            </dd>
+          </div>
           <SummaryItem label={t(language, "created.category")} value={categoryLabel(c.category, language)} />
           <SummaryItem label={t(language, "landing.choose_language")} value={LANGUAGE_NAMES[language]} />
           {showAssignment ? (
