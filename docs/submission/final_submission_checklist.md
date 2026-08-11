@@ -109,7 +109,7 @@ Re-run every gate on the exact submission tree before recording or pushing; curr
 - [x] `npm run smoke:citizen` — real 320 px mobile flow covers keyboard tabs, language mismatch confirmation, needs-info submission, structured follow-up, tracking, and overflow checks
 - [x] `npm run smoke:officer` — real staff flow covers search/default closed filtering, Enter-key policy search without review submission, officer review, reply sending, explicit work start, and note-gated closure
 - [x] `npm run smoke:e2e` — production-server smoke covers the three canonical journeys, the manual-review negative control, closure/immutability gates, and **10 rendered views**
-- [x] `npm audit --omit=dev --audit-level=moderate` — **0 vulnerabilities** in production deps; PostCSS and Sharp pinned via `overrides` to `8.5.18` and `0.35.3`; Node.js **20.9+** required — see [package.json](../../package.json)
+- [x] `npm audit --omit=dev --audit-level=moderate` — **0 vulnerabilities** in production deps; PostCSS and Sharp pinned via `overrides` to `8.5.26` and `0.35.3`; Node.js **20.9+** required — see [package.json](../../package.json)
 
 ### 4.2 Production server smoke test
 Launch: `npm run build && npm run start -- --hostname 127.0.0.1 --port 3000` (use an alternate port such as 3015 if 3000 is busy).
