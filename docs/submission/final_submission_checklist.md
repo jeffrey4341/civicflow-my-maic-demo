@@ -1,6 +1,6 @@
 # CivicFlow MY Mobile — Final Submission Checklist (MAIC T5)
 
-> **Status:** Product journeys locally verified; refreshed pitch PDF, repository URL, public 179-second video URL and 386-word summary saved in the MAIC portal; final portal lock/confirmation remains pending
+> **Status:** Product journeys and the public no-login demo deployment verified; refreshed pitch PDF, repository URL, public 179-second video URL and 386-word summary saved in the MAIC portal; final portal lock/confirmation remains pending
 > **Date:** 2026-08-02
 > **Submission deadline:** **2026-09-01 00:00 MYT**
 > **Track:** MAIC Nexus Challenge **T5 — Public Services & Smart Cities**
@@ -191,7 +191,7 @@ Everything a judge should be able to find from the repository root.
 **Hard deadline:** complete and confirm the portal submission before **2026-09-01 00:00 MYT**. A local file or local-only URL is not submission evidence.
 
 - [x] **Public repository** (GitHub) — [jeffrey4341/civicflow-my-maic-demo](https://github.com/jeffrey4341/civicflow-my-maic-demo); section 6 complete and the merged tree passed the local production build gate
-- [ ] **Public no-login demo deployment and portal URL** — pending. Establish a stable endpoint and verify it with `CIVICFLOW_BASE_URL=<url> npm run smoke:e2e`; a quick-tunnel URL is not a stable judging endpoint. Runbook: [railway_portal_runbook.md](../deployment/railway_portal_runbook.md)
+- [x] **Public no-login demo deployment and portal URL** — [maic.aifather.dpdns.org](https://maic.aifather.dpdns.org) verified on `2026-08-12` with hosted `npm run smoke:e2e`: four canonical cases, closure and immutability gates, and 10 rendered views. This is synthetic demo hosting, not government production hosting.
 - [x] **179-second English demo video public URL** — [public MP4](https://github.com/jeffrey4341/civicflow-my-maic-demo/releases/download/maic-preliminary-2026-08-02/civicflow-my-mobile-real-ui-demo-179s.mp4), verified at `179.000000` seconds and HTTP 200 without authentication
 - [x] **README** as the entry point with quick-start and demo walkthrough — [README.md](../../README.md)
 - [x] **Architecture doc** — [architecture.md](../architecture/architecture.md)
