@@ -1,6 +1,6 @@
 # CivicFlow MY Mobile — Final Submission Checklist (MAIC T5)
 
-> **Status:** Product journeys and the public no-login demo deployment verified; refreshed pitch PDF, repository URL, public 179-second video URL and 386-word summary saved in the MAIC portal; final portal lock/confirmation remains pending
+> **Status:** Product journeys and the public no-login demo deployment verified; the MAIC application is submitted, final materials are saved and visible, and the portal remains editable until the automatic materials lock on **2026-09-01 00:00 MYT**; direct evidence captured on **2026-08-24 17:34 MYT**
 > **Date:** 2026-08-02
 > **Submission deadline:** **2026-09-01 00:00 MYT**
 > **Track:** MAIC Nexus Challenge **T5 — Public Services & Smart Cities**
@@ -202,8 +202,10 @@ Everything a judge should be able to find from the repository root.
 - [x] **Third-party notices / license** — [THIRD_PARTY_NOTICES.md](../../THIRD_PARTY_NOTICES.md), [LICENSE](../../LICENSE)
 - [x] **Audit trail** demonstrating verification rigor — [docs/audit/](../audit)
 - [x] **This checklist** — [final_submission_checklist.md](final_submission_checklist.md)
-- [x] **MAIC portal materials saved — not final submission:** refreshed 12-page pitch PDF, public repository URL, public 179-second video URL and 386-word project summary saved on `2026-08-02`
-- [ ] **MAIC portal submitted and confirmation captured** before `2026-09-01 00:00 MYT`
+- [x] **MAIC portal materials saved:** final 12-page pitch PDF, four-page Technical Architecture PDF, public repository URL, public 179-second video URL and 386-word project summary are visible on the Project Civic dashboard
+- [x] **MAIC application and materials confirmation captured** on `2026-08-24 17:34 MYT` — the dashboard shows the application as `Submitted`, exposes only `Edit` for materials, has no separate `Finalize` / `Submit` control, and remains editable until the automatic materials lock. Evidence: [portal screenshot](../audit/maic_portal_materials_saved_2026-08-24.png)
+  - Pitch PDF SHA-256: `049F3713D576A922A791C8BD2A13A98A0EAE8E166527E947620468E643A4E767`
+  - Technical Architecture PDF SHA-256: `6424B172C7F7061D7D5D07F5369155193571F2A20E85BCFBCE7A8FBA6681C00B`
 
 ---
 
