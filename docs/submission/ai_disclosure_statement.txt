@@ -1,6 +1,6 @@
 Portal-ready tools & models statement
 
-OpenAI ChatGPT and Codex supported research, code development, review, tests, documentation, and slide/PDF production. The demo runs by default as deterministic TypeScript; the code includes an optional Anthropic runtime path, disabled by default and activated only when `ANTHROPIC_API_KEY` is configured. The portal's Data analysis / model training category refers here only to rubric and evidence analysis; no model training or fine-tuning was performed. The team accepts responsibility for the artifact and submission through the MAIC portal contact-of-record.
+OpenAI ChatGPT and Codex assisted research, code, review, tests, documentation, and slide/PDF production. CivicFlow runs by default as deterministic TypeScript. An optional Anthropic runtime path is disabled unless an API key is configured. The Data analysis / model training category covers rubric and evidence analysis only; no model training or fine-tuning was performed. The team reviewed all outputs and accepts responsibility through the MAIC portal contact-of-record.
 
 MAIC materials freeze: **2026-08-31 23:59 MYT** (MAIC portal announcement, 2026-08-26).
 

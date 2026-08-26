@@ -1,6 +1,6 @@
 # CivicFlow MY Mobile — Final Submission Checklist (MAIC T5)
 
-> **Status:** Product journeys and the public no-login demo deployment are verified. The MAIC application is submitted and the portal remains editable until **2026-08-31 23:59 MYT**. The portal still carries the pre-freeze Pitch PDF while the accepted local freeze PDF awaits owner-confirmed upload and readback; direct portal evidence was captured on **2026-08-24 17:34 MYT** and the latest deadline announcement was recorded on **2026-08-26**.
+> **Status:** Product journeys and the public no-login demo deployment are verified. The MAIC application is submitted; the freeze Pitch PDF and reviewed AI disclosure were saved and read back from the portal on **2026-08-26 18:34 MYT**. Materials remain editable until **2026-08-31 23:59 MYT**.
 > **Date:** 2026-08-26
 > **Submission deadline:** **2026-08-31 23:59 MYT** (MAIC portal announcement, 2026-08-26)
 > **Track:** MAIC Nexus Challenge **T5 — Public Services & Smart Cities**
@@ -203,11 +203,15 @@ Everything a judge should be able to find from the repository root.
 - [x] **Audit trail** demonstrating verification rigor — [docs/audit/](../audit)
 - [x] **This checklist** — [final_submission_checklist.md](final_submission_checklist.md)
 - [x] **MAIC portal materials saved:** final 12-page pitch PDF, four-page Technical Architecture PDF, public repository URL, public 179-second video URL and 386-word project summary are visible on the Project Civic dashboard
-- [x] **MAIC application and materials confirmation captured** on `2026-08-24 17:34 MYT` — the dashboard shows the application as `Submitted`, exposes only `Edit` for materials, and remains editable until the materials freeze on `2026-08-31 23:59 MYT`. Evidence: [portal screenshot](../audit/maic_portal_materials_saved_2026-08-24.png)
+- [x] **Pre-freeze portal baseline captured** on `2026-08-24 17:34 MYT` — the dashboard showed the application as `Submitted` and the prior materials visible. Evidence: [baseline portal screenshot](../audit/maic_portal_materials_saved_2026-08-24.png)
   - Pre-freeze baseline Pitch PDF SHA-256: `049F3713D576A922A791C8BD2A13A98A0EAE8E166527E947620468E643A4E767`
   - Pre-freeze baseline Technical Architecture PDF SHA-256: `6424B172C7F7061D7D5D07F5369155193571F2A20E85BCFBCE7A8FBA6681C00B`
 - [x] **Accepted local freeze Pitch PDF:** `CivicFlow_MY_MAIC_Nexus_2026_100to30_Final.pdf`, 12 pages, SHA-256 `04B86DC29F6C24DBDCD7268BAC3457F767E6170F5C1AA58C7D0BBB20226D9381`
-- [ ] **Portal freeze replacement and readback:** upload the accepted local freeze Pitch PDF, save the portal AI disclosure, then verify the downloaded portal file has SHA-256 `04B86DC29F6C24DBDCD7268BAC3457F767E6170F5C1AA58C7D0BBB20226D9381`
+- [x] **Portal freeze replacement and readback completed** on `2026-08-26 18:34 MYT` — [final portal screenshot](../audit/maic_portal_freeze_saved_2026-08-26.png)
+  - Portal Pitch PDF: 293,424 bytes; SHA-256 `04B86DC29F6C24DBDCD7268BAC3457F767E6170F5C1AA58C7D0BBB20226D9381`
+  - Portal Technical Architecture PDF: 143,610 bytes; SHA-256 `6424B172C7F7061D7D5D07F5369155193571F2A20E85BCFBCE7A8FBA6681C00B`
+  - Portal demo video: 8,221,356 bytes; SHA-256 `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342`
+  - AI tools-and-models disclosure: 474 characters; ChatGPT/Codex development use, deterministic default, optional Anthropic runtime, rubric/evidence analysis only, no training/fine-tuning, team responsibility
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Verdict
 
-The local source tree and portal-ready Pitch PDF are ready for owner review. External publication remains intentionally pending: the updated source has not been pushed or deployed, and the MAIC portal still holds the pre-freeze Pitch PDF and prior AI-disclosure text.
+The freeze Pitch PDF and reviewed AI disclosure are saved in the MAIC portal and verified by direct readback. Source publication remains pending: the final evidence commit has not yet been pushed or deployed.
 
 The current submission remains a synthetic MAIC T5 demonstration. This pass does not add production identity, persistent storage, real policy data, a government integration, commercial traction, or a conformity/certification claim.
 
@@ -26,6 +26,18 @@ The current submission remains a synthetic MAIC T5 demonstration. This pass does
 | `civicflow-my-mobile-real-ui-demo-179s.mp4` | 179 seconds; unchanged baseline SHA-256 `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342` |
 
 The prior Pitch PDF is recoverable at `E:\Administrator\Downloads\CivicFlow_MY_MAIC_Nexus_2026_100to30_Final.pdf.bak-20260826` with SHA-256 `049F3713D576A922A791C8BD2A13A98A0EAE8E166527E947620468E643A4E767`.
+
+## Portal readback
+
+The portal displayed `Materials updated successfully.` and returned to the submitted Application Summary. Direct readback at `2026-08-26 18:34 MYT` established:
+
+| Portal artifact | Readback result |
+|---|---|
+| Pitch PDF | HTTP 200; 293,424 bytes; SHA-256 `04B86DC29F6C24DBDCD7268BAC3457F767E6170F5C1AA58C7D0BBB20226D9381` |
+| Technical Architecture PDF | HTTP 200; 143,610 bytes; SHA-256 `6424B172C7F7061D7D5D07F5369155193571F2A20E85BCFBCE7A8FBA6681C00B` |
+| Demo video | HTTP 200; 8,221,356 bytes; SHA-256 `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342` |
+
+The dashboard also showed the 386-word summary, the 474-character AI tools-and-models disclosure, `Submitted`, `Preliminary — Preparation` and `Payment Confirmed`. Evidence: [MAIC portal freeze screenshot](maic_portal_freeze_saved_2026-08-26.png).
 
 ## Presentation verification
 
@@ -57,11 +69,10 @@ The production test server was stopped after verification. Ports `3012`, `3013`,
 - Dated backups created by this pass remain untracked and recoverable, as required by the repository operating rules.
 - Pre-existing `.superpowers/`, older dated backups and prior `tmp/` work were preserved and excluded from the scoped commit. Their presence means the whole working directory is not described as clean; the tracked/staged package is evaluated separately.
 
-## External actions pending owner confirmation
+## Remaining publication actions
 
-1. Commit the scoped source/document changes, push `main`, and deploy the exact pushed revision to the existing CivicFlow host.
-2. Replace the portal Pitch PDF with SHA-256 `04B86DC29F6C24DBDCD7268BAC3457F767E6170F5C1AA58C7D0BBB20226D9381`.
-3. Replace the portal tools-and-models disclosure with the reviewed ChatGPT/Codex wording.
-4. Save and read back the portal, download the stored files, verify hashes and capture a new MYT-stamped screenshot before `2026-08-31 23:59 MYT`.
+1. Commit the final 474-character disclosure and portal readback evidence.
+2. Push the final `main` tree and deploy that exact revision to the existing CivicFlow host.
+3. Run the authorised hosted synthetic E2E/reset and verify GitHub, VM, public routes and portal hashes against the final state.
 
 No external claim, partner validation or measured public-service outcome was invented in this pass.
