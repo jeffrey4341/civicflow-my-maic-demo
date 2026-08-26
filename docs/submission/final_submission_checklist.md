@@ -1,6 +1,6 @@
 # CivicFlow MY Mobile — Final Submission Checklist (MAIC T5)
 
-> **Status:** The MAIC application, freeze Pitch PDF, reviewed AI disclosure and public GitHub source are saved. Portal readback completed on **2026-08-26 18:34 MYT**. Application revision `292c16885aa41c977a83ab793c7172087de54441` is deployed to the existing `maictest` VM at its new local address `192.168.1.7`; the public routes, hosted E2E and six-case reset all passed. Materials remain editable until **2026-08-31 23:59 MYT**.
+> **Status:** The MAIC application, freeze Pitch PDF, reviewed AI disclosure and public GitHub source are saved. Portal readback completed on **2026-08-26 18:34 MYT**. Application revision `292c16885aa41c977a83ab793c7172087de54441` is deployed to the existing `maictest` VM at its new local address `192.168.1.7`. Full reviewer UAT completed on **2026-08-26**: public routes, citizen/officer/supervisor workflows, negative lifecycle gates, responsive Browser checks, hosted E2E and exact six-case reset passed. Materials remain editable until **2026-08-31 23:59 MYT**.
 > **Date:** 2026-08-26
 > **Submission deadline:** **2026-08-31 23:59 MYT** (MAIC portal announcement, 2026-08-26)
 > **Track:** MAIC Nexus Challenge **T5 — Public Services & Smart Cities**
@@ -214,6 +214,7 @@ Everything a judge should be able to find from the repository root.
   - AI tools-and-models disclosure: 474 characters; ChatGPT/Codex development use, deterministic default, optional Anthropic runtime, rubric/evidence analysis only, no training/fine-tuning, team responsibility
 - [x] **Application revision pushed to public GitHub `main`** on `2026-08-26`; local, `origin/main`, direct remote and GitHub API readbacks matched before packaging and deployment
 - [x] **Deploy application revision `292c16885aa41c977a83ab793c7172087de54441` to the existing VM:** the VM moved from `192.168.1.9` to `192.168.1.7`; hostname `maictest` and the previously trusted SSH host-key fingerprint matched. The isolated archive SHA-256 was `0db4a02b08e4a770d3b8d15215d3569d32d0ddb4a9da133683569f5e617eb04d`; build, production dependency audit and staging probes passed before the atomic swap. The app and Cloudflare Tunnel services are active, all seven origin and public routes return HTTP 200, the new audit-search/reset copy is live, the hosted E2E passed, and `POST /api/reset` restored six seed cases. Rollback `/opt/civicflow-my-maic-demo.rollback-20260826T111613Z` is retained.
+- [x] **Complete reviewer UAT:** [reviewer_uat_2026-08-26.md](../audit/reviewer_uat_2026-08-26.md) records 76 unit tests, three smoke-helper tests, production build/audit, local Citizen/Officer/E2E flows, 37 negative API assertions, in-app Browser desktop/mobile checks, public E2E, visual inspection and final reset to six seed cases.
 
 ---
 
