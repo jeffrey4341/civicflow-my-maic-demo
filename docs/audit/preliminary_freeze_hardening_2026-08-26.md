@@ -2,7 +2,7 @@
 
 ## Verdict
 
-The freeze Pitch PDF and reviewed AI disclosure are saved in the MAIC portal and verified by direct readback. The final source was pushed to public GitHub `main`. Deployment is on hold because the authorised VM SSH endpoint is unreachable from the current network; the existing public release remains online and was not disturbed.
+The freeze Pitch PDF and reviewed AI disclosure are saved in the MAIC portal and verified by direct readback. Application revision `292c16885aa41c977a83ab793c7172087de54441` was pushed to public GitHub `main` and deployed to the existing `maictest` VM after its new local address was verified as `192.168.1.7`. The origin, public routes, hosted E2E and post-test six-case reset all passed.
 
 The current submission remains a synthetic MAIC T5 demonstration. This pass does not add production identity, persistent storage, real policy data, a government integration, commercial traction, or a conformity/certification claim.
 
@@ -69,18 +69,20 @@ The production test server was stopped after verification. Ports `3012`, `3013`,
 - Dated backups created by this pass remain untracked and recoverable, as required by the repository operating rules.
 - Pre-existing `.superpowers/`, older dated backups and prior `tmp/` work were preserved and excluded from the scoped commit. Their presence means the whole working directory is not described as clean; the tracked/staged package is evaluated separately.
 
-## Remaining publication actions
+## Deployment closure
 
-1. Restore an authorised route to `192.168.1.9:22` without changing the existing Cloudflare Tunnel configuration.
-2. Deploy the final GitHub tree through the isolated build, route-probe and atomic-swap procedure.
-3. Run the authorised hosted synthetic E2E/reset and verify GitHub, VM, public routes and portal hashes against the final state.
+1. [x] Locate the existing VM without changing the Cloudflare Tunnel configuration. The old `192.168.1.9` address had moved to `192.168.1.7`; the `maictest` hostname and previously trusted SSH host-key fingerprint matched.
+2. [x] Deploy application revision `292c16885aa41c977a83ab793c7172087de54441` through the isolated build, seven-route staging probe and atomic-swap procedure.
+3. [x] Run the authorised hosted synthetic E2E, restore the public store to six seed cases and verify the final VM/public state.
 
-## Deployment attempt
+## Deployment evidence
 
-- GitHub `main`, `origin/main`, direct remote lookup and GitHub API readback matched before deployment.
-- The tracked-files archive was generated from the pushed commit; no untracked 2026-08-26 backups, `.superpowers/`, `tmp/`, `.next`, `node_modules` or `.env` were included. Historical backups already tracked by the repository remained part of the archive.
-- SSH to `192.168.1.9:22` returned `No route to host`. An isolated `Test-NetConnection` retry reported both TCP and ping failure. No `maictest` peer was available through the existing Tailscale network, and no unrelated VM was used.
-- No archive reached the VM, no service was stopped, no release directory was created, and the Cloudflare Tunnel configuration was not changed.
-- Seven public read-only routes returned HTTP 200 with successful TLS verification after the failed attempt. The public audit page and officer shell did not contain the new audit-search/reset copy, confirming that the prior release remains live rather than the final GitHub tree.
+- GitHub `main`, `origin/main`, direct remote lookup and GitHub API readback matched application revision `292c16885aa41c977a83ab793c7172087de54441` before packaging.
+- The tracked-files archive was generated from that revision; no untracked 2026-08-26 backups, `.superpowers/`, `tmp/`, `.next`, `node_modules` or `.env` were included. Its SHA-256 was `0db4a02b08e4a770d3b8d15215d3569d32d0ddb4a9da133683569f5e617eb04d`.
+- The isolated VM release completed `npm ci`, `npm run build`, `npm audit --omit=dev --audit-level=moderate` with 0 production vulnerabilities, and seven HTTP 200 staging probes on `127.0.0.1:3014`. The owned staging process was stopped and port `3014` was confirmed free.
+- The atomic swap retained `/opt/civicflow-my-maic-demo.rollback-20260826T111613Z`. `civicflow-maic.service` and `cloudflared.service` are active; all seven origin and public routes returned HTTP 200; the public audit-search and `Reset synthetic demo` copy are present.
+- `CIVICFLOW_BASE_URL=https://maic.aifather.dpdns.org npm run smoke:e2e` passed four canonical cases, closure and immutability gates, and ten rendered views. `POST /api/reset` then returned `ok=true`, and `GET /api/cases` returned six seed cases.
+- The older rollback `/opt/civicflow-my-maic-demo.rollback-20260811T221418Z` was removed after the new rollback and hosted checks passed, freeing 630,590,358 bytes. The retained rollback is the immediately prior deployed revision; root free space is 1,256,042,496 bytes.
+- The Cloudflare Tunnel configuration was not changed.
 
 No external claim, partner validation or measured public-service outcome was invented in this pass.
