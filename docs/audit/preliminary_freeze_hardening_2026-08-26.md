@@ -2,7 +2,7 @@
 
 ## Verdict
 
-The freeze Pitch PDF and reviewed AI disclosure are saved in the MAIC portal and verified by direct readback. Source publication remains pending: the final evidence commit has not yet been pushed or deployed.
+The freeze Pitch PDF and reviewed AI disclosure are saved in the MAIC portal and verified by direct readback. The final source was pushed to public GitHub `main`. Deployment is on hold because the authorised VM SSH endpoint is unreachable from the current network; the existing public release remains online and was not disturbed.
 
 The current submission remains a synthetic MAIC T5 demonstration. This pass does not add production identity, persistent storage, real policy data, a government integration, commercial traction, or a conformity/certification claim.
 
@@ -71,8 +71,16 @@ The production test server was stopped after verification. Ports `3012`, `3013`,
 
 ## Remaining publication actions
 
-1. Commit the final 474-character disclosure and portal readback evidence.
-2. Push the final `main` tree and deploy that exact revision to the existing CivicFlow host.
+1. Restore an authorised route to `192.168.1.9:22` without changing the existing Cloudflare Tunnel configuration.
+2. Deploy the final GitHub tree through the isolated build, route-probe and atomic-swap procedure.
 3. Run the authorised hosted synthetic E2E/reset and verify GitHub, VM, public routes and portal hashes against the final state.
+
+## Deployment attempt
+
+- GitHub `main`, `origin/main`, direct remote lookup and GitHub API readback matched before deployment.
+- The tracked-files archive was generated from the pushed commit; no untracked 2026-08-26 backups, `.superpowers/`, `tmp/`, `.next`, `node_modules` or `.env` were included. Historical backups already tracked by the repository remained part of the archive.
+- SSH to `192.168.1.9:22` returned `No route to host`. An isolated `Test-NetConnection` retry reported both TCP and ping failure. No `maictest` peer was available through the existing Tailscale network, and no unrelated VM was used.
+- No archive reached the VM, no service was stopped, no release directory was created, and the Cloudflare Tunnel configuration was not changed.
+- Seven public read-only routes returned HTTP 200 with successful TLS verification after the failed attempt. The public audit page and officer shell did not contain the new audit-search/reset copy, confirming that the prior release remains live rather than the final GitHub tree.
 
 No external claim, partner validation or measured public-service outcome was invented in this pass.

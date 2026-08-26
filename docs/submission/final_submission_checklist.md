@@ -1,6 +1,6 @@
 # CivicFlow MY Mobile — Final Submission Checklist (MAIC T5)
 
-> **Status:** Product journeys and the public no-login demo deployment are verified. The MAIC application is submitted; the freeze Pitch PDF and reviewed AI disclosure were saved and read back from the portal on **2026-08-26 18:34 MYT**. Materials remain editable until **2026-08-31 23:59 MYT**.
+> **Status:** The MAIC application, freeze Pitch PDF, reviewed AI disclosure and public GitHub source are saved. Portal readback completed on **2026-08-26 18:34 MYT**. The existing public demo remains reachable, but deployment of the final GitHub tree is on hold because the authorised VM SSH endpoint is unreachable from the current network. Materials remain editable until **2026-08-31 23:59 MYT**.
 > **Date:** 2026-08-26
 > **Submission deadline:** **2026-08-31 23:59 MYT** (MAIC portal announcement, 2026-08-26)
 > **Track:** MAIC Nexus Challenge **T5 — Public Services & Smart Cities**
@@ -212,6 +212,8 @@ Everything a judge should be able to find from the repository root.
   - Portal Technical Architecture PDF: 143,610 bytes; SHA-256 `6424B172C7F7061D7D5D07F5369155193571F2A20E85BCFBCE7A8FBA6681C00B`
   - Portal demo video: 8,221,356 bytes; SHA-256 `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342`
   - AI tools-and-models disclosure: 474 characters; ChatGPT/Codex development use, deterministic default, optional Anthropic runtime, rubric/evidence analysis only, no training/fine-tuning, team responsibility
+- [x] **Final source pushed to public GitHub `main`** on `2026-08-26`; remote readback matched the local commit before the deployment attempt
+- [ ] **Deploy the final GitHub tree to the existing VM:** blocked because `192.168.1.9:22` returned `No route to host` and the isolated TCP probe failed. The existing public release remains available on all seven read-only routes, but does not yet show the new audit search or `Reset synthetic demo` label.
 
 ---
 
