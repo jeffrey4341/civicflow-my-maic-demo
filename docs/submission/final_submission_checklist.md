@@ -1,8 +1,8 @@
 # CivicFlow MY Mobile — Final Submission Checklist (MAIC T5)
 
-> **Status:** Product journeys and the public no-login demo deployment verified; the MAIC application is submitted, final materials are saved and visible, and the portal remains editable until the automatic materials lock on **2026-09-01 00:00 MYT**; direct evidence captured on **2026-08-24 17:34 MYT**
-> **Date:** 2026-08-02
-> **Submission deadline:** **2026-09-01 00:00 MYT**
+> **Status:** Product journeys and the public no-login demo deployment are verified. The MAIC application is submitted and the portal remains editable until **2026-08-31 23:59 MYT**. The portal still carries the pre-freeze Pitch PDF while the accepted local freeze PDF awaits owner-confirmed upload and readback; direct portal evidence was captured on **2026-08-24 17:34 MYT** and the latest deadline announcement was recorded on **2026-08-26**.
+> **Date:** 2026-08-26
+> **Submission deadline:** **2026-08-31 23:59 MYT** (MAIC portal announcement, 2026-08-26)
 > **Track:** MAIC Nexus Challenge **T5 — Public Services & Smart Cities**
 > **Artifact type:** Public hackathon demo. **100% synthetic data.** Runs fully offline, no API key required.
 > **Scope of this document:** Documentation only. This checklist does **not** modify product code, the RAG pipeline, approval logic, audit logic, tests, dependencies, or UI behavior. It records what must be true for the artifact to be submission-ready and points to the source-of-truth files for each claim.
@@ -48,7 +48,7 @@ Department routing plus a status lifecycle and a non-bypassable supervisor appro
 
 - [x] Routing engine assigns the responsible department by category/urgency — see [src/lib/ai/routing.ts](../../src/lib/ai/routing.ts)
 - [x] Supervisor approval gate for high-risk cases (e.g. flood-risk drainage, high-PII) — see [src/lib/ai/approval.ts](../../src/lib/ai/approval.ts)
-- [x] Status lifecycle: `draft → needs_info → submitted → manual_review → routed → awaiting_supervisor → in_progress → closed`
+- [x] Conditional status lifecycle: `draft → submitted → [needs_info | manual_review | awaiting_supervisor | routed]`; `awaiting_supervisor → routed` after supervisor approval; `routed → in_progress → closed` after reply release, explicit start work, and human closure. The pipeline gives missing information first priority, then `manual_review` when citation or confidence requirements fail. Only after those prerequisites clear does a high-risk case receive an ApprovalTask and enter `awaiting_supervisor`; a current-revision officer review is required before the supervisor can decide. Low-risk cases are `routed`.
 - [x] Guardrail: the AI **requests** approval but can never self-approve (`requested_by = ai_agent`, `decision_by` must differ) — see [src/lib/ai/approval.ts](../../src/lib/ai/approval.ts)
 - [x] Pending high-risk cases surface at `/officer/approvals` — see [src/app/officer/approvals/page.tsx](../../src/app/officer/approvals/page.tsx)
 
@@ -58,7 +58,7 @@ Native handling of the four Malaysian citizen languages: **Malay (ms), English (
 - [x] Language detection via Unicode script blocks + keyword heuristics — see [src/lib/ai/language.ts](../../src/lib/ai/language.ts)
 - [x] Core citizen intake, follow-up, tracking and reply states are localized for all four languages; shared branding, skip-link and footer copy remain English in this English judging artifact — see [src/lib/i18n.ts](../../src/lib/i18n.ts) and [src/app/m/layout.tsx](../../src/app/m/layout.tsx)
 - [x] Citizen reply drafted in the citizen-confirmed case language (`CitizenReplyDraft.language` / `CitizenReplyDraft.body`); detected language remains visible for review
-- [x] Optional Anthropic Claude path may refine detected language, English translation, category and urgency **only** when `ANTHROPIC_API_KEY` is set; deterministic category-specific human gates cannot be downgraded — see [src/lib/llm.ts](../../src/lib/llm.ts) and [src/lib/ai/pipeline.ts](../../src/lib/ai/pipeline.ts)
+- [x] Optional Anthropic runtime path may refine detected language, English translation, category and urgency **only** when `ANTHROPIC_API_KEY` is set; deterministic category-specific human gates cannot be downgraded — see [src/lib/llm.ts](../../src/lib/llm.ts) and [src/lib/ai/pipeline.ts](../../src/lib/ai/pipeline.ts)
 
 ### 2.5 Civic Tech (transparency & safety)
 Governance is a first-class feature, not an afterthought.
@@ -188,7 +188,7 @@ Source: public-repo readiness audit of [LICENSE](../../LICENSE), [.gitignore](..
 
 Everything a judge should be able to find from the repository root.
 
-**Hard deadline:** complete and confirm the portal submission before **2026-09-01 00:00 MYT**. A local file or local-only URL is not submission evidence.
+**Hard deadline:** complete and confirm the portal submission before **2026-08-31 23:59 MYT** (MAIC portal announcement, 2026-08-26). A local file or local-only URL is not submission evidence.
 
 - [x] **Public repository** (GitHub) — [jeffrey4341/civicflow-my-maic-demo](https://github.com/jeffrey4341/civicflow-my-maic-demo); section 6 complete and the merged tree passed the local production build gate
 - [x] **Public no-login demo deployment and portal URL** — [maic.aifather.dpdns.org](https://maic.aifather.dpdns.org) verified on `2026-08-12` with hosted `npm run smoke:e2e`: four canonical cases, closure and immutability gates, and 10 rendered views. This is synthetic demo hosting, not government production hosting.
@@ -203,9 +203,11 @@ Everything a judge should be able to find from the repository root.
 - [x] **Audit trail** demonstrating verification rigor — [docs/audit/](../audit)
 - [x] **This checklist** — [final_submission_checklist.md](final_submission_checklist.md)
 - [x] **MAIC portal materials saved:** final 12-page pitch PDF, four-page Technical Architecture PDF, public repository URL, public 179-second video URL and 386-word project summary are visible on the Project Civic dashboard
-- [x] **MAIC application and materials confirmation captured** on `2026-08-24 17:34 MYT` — the dashboard shows the application as `Submitted`, exposes only `Edit` for materials, has no separate `Finalize` / `Submit` control, and remains editable until the automatic materials lock. Evidence: [portal screenshot](../audit/maic_portal_materials_saved_2026-08-24.png)
-  - Pitch PDF SHA-256: `049F3713D576A922A791C8BD2A13A98A0EAE8E166527E947620468E643A4E767`
-  - Technical Architecture PDF SHA-256: `6424B172C7F7061D7D5D07F5369155193571F2A20E85BCFBCE7A8FBA6681C00B`
+- [x] **MAIC application and materials confirmation captured** on `2026-08-24 17:34 MYT` — the dashboard shows the application as `Submitted`, exposes only `Edit` for materials, and remains editable until the materials freeze on `2026-08-31 23:59 MYT`. Evidence: [portal screenshot](../audit/maic_portal_materials_saved_2026-08-24.png)
+  - Pre-freeze baseline Pitch PDF SHA-256: `049F3713D576A922A791C8BD2A13A98A0EAE8E166527E947620468E643A4E767`
+  - Pre-freeze baseline Technical Architecture PDF SHA-256: `6424B172C7F7061D7D5D07F5369155193571F2A20E85BCFBCE7A8FBA6681C00B`
+- [x] **Accepted local freeze Pitch PDF:** `CivicFlow_MY_MAIC_Nexus_2026_100to30_Final.pdf`, 12 pages, SHA-256 `04B86DC29F6C24DBDCD7268BAC3457F767E6170F5C1AA58C7D0BBB20226D9381`
+- [ ] **Portal freeze replacement and readback:** upload the accepted local freeze Pitch PDF, save the portal AI disclosure, then verify the downloaded portal file has SHA-256 `04B86DC29F6C24DBDCD7268BAC3457F767E6170F5C1AA58C7D0BBB20226D9381`
 
 ---
 

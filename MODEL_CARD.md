@@ -118,7 +118,7 @@ The deterministic fallback runs the entire pipeline when no LLM key is configure
 
 ### 5.3 Outputs (data models)
 
-- **`CitizenCase`** — the case record. Status lifecycle: `draft -> needs_info -> submitted -> manual_review -> routed -> awaiting_supervisor -> in_progress -> closed`.
+- **`CitizenCase`** — the case record. Conditional status lifecycle: `draft -> submitted -> [needs_info | manual_review | awaiting_supervisor | routed]`; supervisor approval returns `awaiting_supervisor -> routed`, then explicit work start and human closure produce `routed -> in_progress -> closed`. Missing information and manual-review requirements take priority before a high-risk approval task is created.
 - **`RoutingDecision`** — recommended department and rationale.
 - **`PolicyCitation`** — `source_doc`, `section`, `snippet`, `confidence`.
 - **`ApprovalTask`** — supervisor approval task for high-risk cases.

@@ -20,7 +20,9 @@ Citizens submit a service request in Malay, English, Chinese, or Tamil from a mo
 6. drafts a multilingual citizen reply, and
 7. records a full, append-only audit timeline.
 
-The entire system is a **single Next.js 15 (App Router) + React 18 + TypeScript + Tailwind CSS** application. The backend is a set of Next.js route handlers under `/api`. The AI/RAG pipeline is **deterministic TypeScript** that runs fully offline against fixtures; an optional Anthropic LLM path is used **only** when an `ANTHROPIC_API_KEY` is present. The demo always runs with **no API key**.
+The entire system is a **single Next.js 15 (App Router) + React 18 + TypeScript + Tailwind CSS** application. The backend is a set of Next.js route handlers under `/api`. The AI/RAG pipeline is **deterministic TypeScript** that runs fully offline against fixtures; the code includes an optional Anthropic runtime path, disabled by default and activated only when an `ANTHROPIC_API_KEY` is configured. The demo always runs with **no API key**.
+
+> **MAIC materials freeze:** **2026-08-31 23:59 MYT** (MAIC portal announcement, 2026-08-26).
 
 ---
 
@@ -98,7 +100,8 @@ Citizen PWA (/m)
 │ (4) Routing decision        → RoutingDecision (department, rationale,        │
 │                               citation refs)                                 │
 │ (5) Missing-info detection  → required vs supplied → needs_info? checklist   │
-│ (6) Approval rule           → high-risk? → ApprovalTask + awaiting_supervisor │
+│ (6) Approval rule           → after prerequisites: high-risk? → ApprovalTask + │
+│                               awaiting_supervisor                              │
 │ (7) Reply draft             → CitizenReplyDraft (in detected language)       │
 │ (8) Audit-event generation  → AuditEvent per state change (append-only)      │
 │                                                                              │
@@ -108,14 +111,16 @@ Citizen PWA (/m)
 Persist all artifacts to in-memory store
    │
    ├─ if missing info     → status = needs_info  (citizen prompted on /m)
+   ├─ if citation/confidence fails → status = manual_review
    ├─ if high-risk        → status = awaiting_supervisor  (ApprovalTask queued)
-   └─ else                → status = routed → in_progress
+   └─ else                → status = routed; low-risk triage remains routed
    │
    ▼
 Officer Console (/officer)
-   - reviews routing + citations + drafted reply
-   - supervisor approves/rejects high-risk cases (/officer/approvals)
-   - officer edits/sends citizen reply; case → in_progress → closed
+   - a current-revision officer review is required before a supervisor can decide a high-risk ApprovalTask
+   - supervisor approval returns the high-risk case to `routed` (/officer/approvals)
+   - officer releases the citizen reply and explicitly starts work; only then does the case enter `in_progress`
+   - officer records the human closure action after work is in progress
    - full timeline visible at /officer/audit
 ```
 
@@ -189,19 +194,14 @@ All models are plain TypeScript objects held in the in-memory store. Synthetic i
          │  supplies    ▼
          │  info   ┌─────────┐
          └────────►│  routed │
-                   └────┬────┘
-                        │
-            high-risk?  ├────────────── yes ─────────────┐
-                        │                                ▼
-                        │                     ┌────────────────────┐
-                        │                     │ awaiting_supervisor │
-                        │                     └──────────┬─────────┘
-                        │             approve            │   reject → back to
-                        │                                │   routed / needs_info
-                        ▼                                ▼
-                  ┌───────────┐  officer works    ┌───────────┐
-                  │in_progress│◄──────────────────┤in_progress│
-                  └─────┬─────┘                   └───────────┘
+                    └────┬────┘
+                         │ after needs-info/manual-review prerequisites: high-risk → awaiting_supervisor
+                         │ current-revision officer review → supervisor approval → routed
+                         │ low-risk branch remains routed; reply release + explicit start work
+                         ▼
+                   ┌───────────┐
+                   │in_progress│
+                   └─────┬─────┘
                         │  resolved
                         ▼
                    ┌─────────┐
@@ -209,7 +209,7 @@ All models are plain TypeScript objects held in the in-memory store. Synthetic i
                    └─────────┘
 ```
 
-**Canonical happy path:** `draft → needs_info → submitted → routed → awaiting_supervisor → in_progress → closed`. Not every case visits `needs_info` or `awaiting_supervisor`; those are conditional branches. **Only humans** move a case into `closed` or past an `awaiting_supervisor` gate — the AI never does so autonomously.
+**Conditional status lifecycle:** `draft → submitted → [needs_info | manual_review | awaiting_supervisor | routed]`; `awaiting_supervisor → routed` after supervisor approval; `routed → in_progress → closed` after reply release, explicit start work, and human closure. The pipeline gives missing information first priority, then `manual_review` when citation or confidence requirements fail. Only after those prerequisites clear does a high-risk case receive an ApprovalTask and enter `awaiting_supervisor`. A current-revision officer review is required before the supervisor can decide; low-risk cases are `routed`.
 
 ---
 

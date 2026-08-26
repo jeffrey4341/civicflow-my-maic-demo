@@ -29,7 +29,7 @@ export function ResetButton() {
       disabled={busy}
       className="min-h-11 rounded-lg border border-slate-300 px-3 text-xs font-medium text-slate-600 outline-none hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-civic-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
     >
-      {busy ? "Resetting…" : "Reset demo"}
+      {busy ? "Resetting…" : "Reset synthetic demo"}
     </button>
   );
 }

@@ -3,6 +3,7 @@
 **Project:** CivicFlow MY Mobile
 **Context:** MAIC Nexus Challenge T5 (Public Services & Smart Cities) — public hackathon demo
 **Status:** Demonstration artifact only. Not production software. Not a procurement-ready system.
+**MAIC materials freeze:** **2026-08-31 23:59 MYT** (MAIC portal announcement, 2026-08-26).
 
 CivicFlow MY Mobile is a mobile-first, multilingual citizen-service AI casework platform for Malaysian local councils (Pihak Berkuasa Tempatan / PBT). Citizens submit service requests in Malay, English, Chinese, or Tamil. The system detects the language, classifies the case, retrieves SOP/FAQ/service-charter citations (RAG), routes the case to the correct department, triggers supervisor approval for high-risk cases, drafts a multilingual citizen reply, and records a full append-only audit timeline.
 
@@ -52,7 +53,7 @@ The following actions are **out of scope for the AI by design**. They are reserv
 CivicFlow MY Mobile is built to run **fully offline and deterministically** so that the demo is reproducible for judges and reviewers.
 
 - The AI/RAG pipeline is implemented as **deterministic TypeScript** that runs without any external model call. Given the same input, it produces the same structured output.
-- An **optional Anthropic LLM path** is used **only if an `ANTHROPIC_API_KEY` is present**. It may refine detected language, the English translation, category and urgency; deterministic category-specific human gates cannot be downgraded. Retrieval, routing, missing-info checks, approvals, reply drafting, lifecycle rules and audit recording remain application logic.
+- The code includes an **optional Anthropic runtime path**, disabled by default and activated only when an `ANTHROPIC_API_KEY` is configured. It may refine detected language, the English translation, category and urgency; deterministic category-specific human gates cannot be downgraded. Retrieval, routing, missing-info checks, approvals, reply drafting, lifecycle rules and audit recording remain application logic.
 - **When no API key is configured** (the default for this demo), the system uses **deterministic fixtures** and heuristics that produce **identical-shape structured output** to the LLM path.
 - **The demo always runs with no API key.** Reviewers do not need any credentials, network access, or paid services to reproduce the full pipeline.
 
@@ -100,10 +101,13 @@ Human oversight is structural, not optional. The casework lifecycle is gated so 
 **Lifecycle gates** (`CitizenCase` status):
 
 ```
-draft → needs_info → submitted → manual_review → routed → awaiting_supervisor → in_progress → closed
+draft → submitted → [needs_info | manual_review | awaiting_supervisor | routed]
+awaiting_supervisor → routed (after supervisor approval)
+routed → in_progress (after reply release + explicit start work) → closed (human action)
 ```
 
-- The transition into `awaiting_supervisor` exists specifically to enforce **human approval** for high-risk cases — the AI raises the `ApprovalTask`, but only a supervisor can clear it.
+- `needs_info`, `manual_review`, and `awaiting_supervisor` are conditional states. The pipeline gives missing information first priority, then `manual_review` when citation or confidence requirements fail. Only after those prerequisites clear does a high-risk case receive an `ApprovalTask` and enter `awaiting_supervisor`; a current-revision officer review is required before the supervisor can decide. Supervisor approval returns the case to `routed`; low-risk cases are routed directly.
+- Every actionable case remains `routed` until its citizen reply is released and an officer explicitly starts work.
 - The transition to `closed` is a **human action**; the AI cannot close cases.
 - Every step writes an append-only `AuditEvent`, producing a reviewable, process-scoped timeline until reset or restart. Officer console routes (`/officer`, `/officer/cases/[id]`, `/officer/approvals`, `/officer/audit`) make this oversight visible and actionable.
 
@@ -126,17 +130,16 @@ draft → needs_info → submitted → manual_review → routed → awaiting_sup
 
 ## Third-party software
 
-All third-party packages used by this project, together with their licences, are listed in **[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)**. The optional Anthropic LLM path calls the Messages HTTP API directly via the built-in `fetch` (no third-party SDK), is used **only** when an API key is configured, and is **not required** to run the demo.
+All third-party packages used by this project, together with their licences, are listed in **[`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md)**. The optional Anthropic runtime path calls the Messages HTTP API directly via the built-in `fetch` (no third-party SDK) only when an API key is configured.
 
 ---
 
-## Contact / accountability (demo placeholder)
+## AI-assisted development and submission production
 
-This is a hackathon demonstration submission and does not represent a live service. The contacts below are **placeholders** for the purposes of the demo and should not be treated as a real support channel.
+OpenAI ChatGPT and Codex supported research, code development, review, tests, documentation, and slide/PDF production. The portal's Data analysis / model training category refers here only to rubric and evidence analysis; no model training or fine-tuning was performed.
 
-- **Project:** CivicFlow MY Mobile — MAIC Nexus Challenge T5 demo
-- **Accountable party:** Demo team (placeholder)
-- **Contact:** demo@example.com (placeholder — not monitored)
-- **Scope of accountability:** Demonstration artifact only; no real citizen cases are handled and no operational decisions are made by this software.
+## Accountability
+
+The team accepts responsibility for this demonstration artifact, its code, disclosures, and submission materials through the MAIC portal contact-of-record. The scope is the synthetic hackathon demo; no real citizen cases are handled and no operational decisions are made by the software.
 
 For real public-service deployments, accountability for AI-assisted decisions would rest with the responsible local council (PBT) and its designated officers, with the human oversight model described above remaining mandatory.

@@ -74,8 +74,12 @@ Masking is applied **at the seed level** so that even the demo's starting state 
 Data in the demo is used **only** to progress a citizen service request through its lifecycle:
 
 ```
-draft -> needs_info -> submitted -> routed -> awaiting_supervisor -> in_progress -> closed
+draft -> submitted -> [needs_info | manual_review | awaiting_supervisor | routed]
+awaiting_supervisor -> routed (after supervisor approval)
+routed -> in_progress (after reply release + explicit start work) -> closed (human action)
 ```
+
+Missing information has first priority, followed by manual review when citation or confidence requirements fail. A high-risk approval task is created only after those prerequisites clear.
 
 The AI is used **only** for: language detection, classification, summarisation, RAG retrieval, routing recommendation, missing-info detection, and reply drafting. The AI **does not**:
 

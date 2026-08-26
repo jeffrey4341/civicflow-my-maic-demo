@@ -2,7 +2,7 @@
 
 **MAIC Nexus Challenge T5 — Public Services & Smart Cities**
 
-> **Important:** All data is 100% synthetic. No real citizen data, NRIC, addresses, phone numbers or government SOPs are used. The judging path runs offline with deterministic AI fallbacks and no API key. The submission deadline is **2026-09-01 00:00 MYT**.
+> **Important:** All data is 100% synthetic. No real citizen data, NRIC, addresses, phone numbers or government SOPs are used. The judging path runs offline with deterministic AI fallbacks and no API key. The MAIC materials freeze is **2026-08-31 23:59 MYT** (MAIC portal announcement, 2026-08-26).
 
 ## Recording status
 
@@ -151,4 +151,4 @@ Open `/officer/audit` and show a case-level sequence containing automated stages
 - [x] Confirm narration is English throughout while multilingual citizen content remains legible.
 - [x] Upload to a stable public judging URL and verify playback without a login wall — [public MP4](https://github.com/jeffrey4341/civicflow-my-maic-demo/releases/download/maic-preliminary-2026-08-02/civicflow-my-mobile-real-ui-demo-179s.mp4), HTTP 200 on 2026-08-02.
 - [x] Record the final local video path, portable metadata and SHA-256 `517DC0710E56A675732D9DD8D95F5967E7E9D03549D4C9999C2B6272452D5342` in this verification record.
-- [x] Record direct portal evidence — [screenshot](../audit/maic_portal_materials_saved_2026-08-24.png): the application is `Submitted`; final materials are saved and visible; the dashboard has no separate `Finalize` / `Submit` control and remains editable until the automatic materials lock on `2026-09-01 00:00 MYT`.
+- [x] Record direct portal evidence — [screenshot](../audit/maic_portal_materials_saved_2026-08-24.png): the application is `Submitted`; final materials are saved and visible; the dashboard remains editable until the materials freeze on `2026-08-31 23:59 MYT` (MAIC portal announcement, 2026-08-26).

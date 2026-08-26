@@ -121,60 +121,6 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
           </div>
         </DecisionSection>
 
-        <DecisionSection id="governance-checks" title="Governance checks">
-          <p className="mb-5 max-w-3xl text-sm leading-6 text-slate-600">
-            A compact receipt of the evidence and human checkpoints for this case revision.
-          </p>
-          <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <Fact
-              label="Policy evidence"
-              value={c.citations.length > 0
-                ? `${c.citations.length} cited policy section${c.citations.length === 1 ? "" : "s"}`
-                : "Manual review — no actionable recommendation"}
-            />
-            <Fact label="Officer decision" value={currentReview ? `Recorded for revision ${c.triage_revision}` : "Pending"} />
-            <Fact
-              label="Supervisor checkpoint"
-              value={approval
-                ? `${approval.status.charAt(0).toUpperCase() + approval.status.slice(1)} for revision ${approval.triage_revision}`
-                : c.routing?.requires_supervisor
-                  ? "Required after officer review"
-                  : "Not required for current facts"}
-            />
-            {c.category === "education_aid_welfare" ? (
-              <Fact
-                label="Human welfare outcome"
-                value={c.officer_review?.welfare_outcome === "eligible"
-                  ? "Eligible — recorded by officer"
-                  : c.officer_review?.welfare_outcome === "not_eligible"
-                    ? "Not eligible — recorded by officer"
-                    : "Pending"}
-              />
-            ) : null}
-            <Fact
-              label="Citizen reply"
-              value={reply?.status === "sent" ? "Sent by officer" : reply?.status === "approved" ? "Approved draft — not sent" : "Draft — not sent"}
-            />
-            <Fact label="Audit evidence" value={`${audit.length} recorded event${audit.length === 1 ? "" : "s"}`} />
-          </dl>
-          {c.citations.length > 0 ? (
-            <div className="mt-7 border-t border-slate-200 pt-5" aria-label="Policy evidence details">
-              <h3 className="text-sm font-semibold text-slate-950">Policy evidence details</h3>
-              <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
-                {c.citations.map((citation) => (
-                  <li key={`${citation.source_doc}-${citation.section}`} className="py-4">
-                    <p className="text-sm font-semibold text-slate-950">{citation.doc_title}</p>
-                    <p className="mt-1 font-mono text-xs leading-5 text-slate-500">
-                      {citation.source_doc} · {citation.section} · confidence {citation.confidence.toFixed(2)}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-slate-700">{citation.snippet}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </DecisionSection>
-
         <DecisionSection id="officer-review" title="Officer review">
           <p className="max-w-3xl text-sm leading-6 text-slate-600">
             The automated triage is a starting point. An officer confirms the facts, evidence, routing, and reply before anything is sent or work begins.
@@ -329,6 +275,60 @@ export default async function OfficerCaseDetail({ params }: { params: Promise<{ 
             startBlocker={startBlocker(c, approval)}
             closeBlocker={closeBlocker(c)}
           />
+        </DecisionSection>
+
+        <DecisionSection id="governance-checks" title="Governance checks">
+          <p className="mb-5 max-w-3xl text-sm leading-6 text-slate-600">
+            A compact receipt of the evidence and human checkpoints for this case revision.
+          </p>
+          <dl className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <Fact
+              label="Policy evidence"
+              value={c.citations.length > 0
+                ? `${c.citations.length} cited policy section${c.citations.length === 1 ? "" : "s"}`
+                : "Manual review — no actionable recommendation"}
+            />
+            <Fact label="Officer decision" value={currentReview ? `Recorded for revision ${c.triage_revision}` : "Pending"} />
+            <Fact
+              label="Supervisor checkpoint"
+              value={approval
+                ? `${approval.status.charAt(0).toUpperCase() + approval.status.slice(1)} for revision ${approval.triage_revision}`
+                : c.routing?.requires_supervisor
+                  ? "Required after officer review"
+                  : "Not required for current facts"}
+            />
+            {c.category === "education_aid_welfare" ? (
+              <Fact
+                label="Human welfare outcome"
+                value={c.officer_review?.welfare_outcome === "eligible"
+                  ? "Eligible — recorded by officer"
+                  : c.officer_review?.welfare_outcome === "not_eligible"
+                    ? "Not eligible — recorded by officer"
+                    : "Pending"}
+              />
+            ) : null}
+            <Fact
+              label="Citizen reply"
+              value={reply?.status === "sent" ? "Sent by officer" : reply?.status === "approved" ? "Approved draft — not sent" : "Draft — not sent"}
+            />
+            <Fact label="Audit evidence" value={`${audit.length} recorded event${audit.length === 1 ? "" : "s"}`} />
+          </dl>
+          {c.citations.length > 0 ? (
+            <div className="mt-7 border-t border-slate-200 pt-5" aria-label="Policy evidence details">
+              <h3 className="text-sm font-semibold text-slate-950">Policy evidence details</h3>
+              <ul className="mt-3 divide-y divide-slate-200 border-y border-slate-200">
+                {c.citations.map((citation) => (
+                  <li key={`${citation.source_doc}-${citation.section}`} className="py-4">
+                    <p className="text-sm font-semibold text-slate-950">{citation.doc_title}</p>
+                    <p className="mt-1 font-mono text-xs leading-5 text-slate-500">
+                      {citation.source_doc} · {citation.section} · confidence {citation.confidence.toFixed(2)}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">{citation.snippet}</p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </DecisionSection>
 
         <DecisionSection id="audit-trail" title="Audit trail">

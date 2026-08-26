@@ -54,8 +54,8 @@ The pipeline runs end-to-end as: *language detection → classification → poli
  │    Detector           │
  └──────────┬───────────┘
             ▼
- ┌──────────────────────┐        high-risk?
- │ 6. Approval-Gate      │ ──────────────────►  ★ SUPERVISOR APPROVAL ★
+ ┌──────────────────────┐        prerequisites clear + high-risk?
+ │ 6. Approval-Gate      │ ─────────────────────────────────────────►  ★ SUPERVISOR APPROVAL ★
  │    Evaluator          │                      (status: awaiting_supervisor)
  └──────────┬───────────┘
             ▼
@@ -71,6 +71,8 @@ The pipeline runs end-to-end as: *language detection → classification → poli
 ```
 
 `★` = mandatory human checkpoint for high-risk cases. Officers also review the drafted reply before anything is sent.
+
+**Persisted-status precedence:** `needs_info` takes priority, followed by `manual_review` when citation or confidence requirements fail; only after those prerequisites clear can a high-risk case enter `awaiting_supervisor` with an `ApprovalTask`. Otherwise, it is `routed`.
 
 ---
 
@@ -122,8 +124,8 @@ Each stage below lists **purpose**, **inputs**, **outputs**, the **human checkpo
 
 - **Purpose:** Decide whether a case may proceed automatically or must wait for supervisor approval.
 - **Inputs:** Category, urgency, routing, and risk flags (e.g. flood/safety risk, eligibility decisions, anything in the high-risk set).
-- **Outputs:** Either *no gate required* or an `ApprovalTask` plus case status `awaiting_supervisor`.
-- **Human checkpoint:** **Mandatory.** High-risk cases require **supervisor approval** in `/officer/approvals` before they advance. AI never approves escalation itself.
+- **Outputs:** After missing-information and citation/confidence prerequisites clear, either *no gate required* or an `ApprovalTask` plus case status `awaiting_supervisor`.
+- **Human checkpoint:** **Mandatory.** A current officer review is required before a supervisor can decide the high-risk task in `/officer/approvals`; supervisor approval returns the case to `routed`. AI never approves escalation itself.
 - **Deterministic fallback:** Rule table mapping (category × urgency × risk flag) → gate required / not required. **Default-deny on ambiguity:** if risk cannot be determined, the case is gated for supervisor review rather than allowed through.
 
 ### Stage 7 — Reply Drafter
@@ -154,7 +156,7 @@ These are hard rules. Contributors must not weaken them.
    - **approves** high-risk escalation,
    - **dispatches** field teams, or
    - **decides eligibility** (e.g. welfare/education aid is *pre-screened*, never auto-approved).
-3. **High-risk → supervisor approval.** Any case flagged high-risk (e.g. flood/public-safety risk, eligibility-bearing decisions) is gated to `awaiting_supervisor` and cannot advance without a human supervisor's approval.
+3. **Conditional high-risk approval.** After missing-information and citation/confidence prerequisites clear, any high-risk case (e.g. flood/public-safety risk, eligibility-bearing decisions) receives an `ApprovalTask` and is gated to `awaiting_supervisor`. A current officer review precedes supervisor decision; approval returns the case to `routed`.
 4. **Default-deny on ambiguity.** When risk or confidence is unclear, the safe path is taken: gate for review and/or fall back to manual handling — never the permissive path.
 5. **Deterministic parity.** The deterministic fallback must produce **identical-shape** structured output to the LLM path so behaviour and tests are stable with **no API key**.
 6. **Append-only audit.** Every state change logs an `AuditEvent`. Audit history is never mutated or deleted in place.
@@ -175,10 +177,12 @@ These are hard rules. Contributors must not weaken them.
 
 **AI is NOT used to:** autonomously close cases, approve high-risk escalation, dispatch field teams, or decide eligibility. **Human approval is required for high-risk decisions.**
 
-Case status lifecycle (humans drive the decisive transitions):
+Case status lifecycle (conditional branches; humans drive decisive transitions):
 
 ```
-draft → needs_info → submitted → manual_review → routed → awaiting_supervisor → in_progress → closed
+draft → submitted → [needs_info | manual_review | awaiting_supervisor | routed]
+awaiting_supervisor → routed (after supervisor approval)
+routed → in_progress (after reply release + explicit start work) → closed (human action)
 ```
 
 ---

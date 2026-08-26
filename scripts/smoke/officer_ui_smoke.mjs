@@ -12,12 +12,14 @@ import {
 
 const port = 3012;
 const baseUrl = `http://127.0.0.1:${port}`;
+const nextCommand = process.env.CIVICFLOW_SMOKE_NEXT_COMMAND ?? "dev";
 const sectionOrder = [
   "Next required action",
   "Officer review",
   "Supervisor decision",
   "Citizen reply",
   "Start or close",
+  "Governance checks",
   "Audit trail",
 ];
 
@@ -52,13 +54,23 @@ async function assertHeadingOrder(page) {
   }
 }
 
+async function assertAuditSearch(page, query, visibleText) {
+  await page.goto(`${baseUrl}/officer/audit?q=${encodeURIComponent(query)}`, { waitUntil: "networkidle" });
+  await page.getByText(`Results for “${query}”`, { exact: true }).waitFor();
+  const rows = page.locator("tbody tr:has(td:not([colspan]))");
+  await rows.first().waitFor();
+  const rowCount = await rows.count();
+  await page.getByText(`${rowCount} event${rowCount === 1 ? "" : "s"}.`, { exact: true }).waitFor();
+  await page.getByRole("row").filter({ hasText: visibleText }).first().waitFor();
+}
+
 async function main() {
   await assertPortAvailable(port);
-  const { server, ready, getLaunchError } = startNextServer("dev", port);
+  const { server, ready, getLaunchError } = startNextServer(nextCommand, port);
 
   let browser = null;
   try {
-    await waitForServer({ baseUrl, pathname: "/officer", server, ready, getLaunchError, label: "Next dev server" });
+    await waitForServer({ baseUrl, pathname: "/officer", server, ready, getLaunchError, label: `Next ${nextCommand} server` });
     const reset = await requestJson("POST", "/api/reset");
     assert(reset.ok === true, "POST /api/reset did not return ok=true.");
 
@@ -110,6 +122,7 @@ async function main() {
     assert(await skipLink.getAttribute("href") === "#main-content", "Officer skip link does not target the main content");
     const brandBox = await page.getByRole("link", { name: /CivicFlow MY/ }).boundingBox();
     assert((brandBox?.height ?? 0) >= 44, `Officer brand target is shorter than 44px (${brandBox?.height ?? 0}px)`);
+    await page.getByRole("button", { name: "Reset synthetic demo", exact: true }).waitFor();
     assert(await page.locator(".border-l-4").count() === 0, "Officer queue still renders a decorative border-l-4 callout");
     const search = page.getByRole("textbox", { name: "Search cases", exact: true });
     await search.waitFor();
@@ -239,7 +252,47 @@ async function main() {
     assert(current.status === "closed", `Close case left case in ${current.status}.`);
     await page.getByText("Closed", { exact: true }).first().waitFor();
 
+    const auditEvents = await requestJson("GET", "/api/audit");
+    const auditEvent = auditEvents.find((event) => event.case_id === created.case_id && typeof event.payload?.triage_revision === "number");
+    assert(auditEvent, "The completed smoke case is missing its audit event.");
     await page.goto(`${baseUrl}/officer/audit`, { waitUntil: "networkidle" });
+    const auditEventRow = page.getByRole("row")
+      .filter({ hasText: created.citizen_ref })
+      .filter({ hasText: auditEvent.summary })
+      .first();
+    await auditEventRow.waitFor();
+    const dateLabel = (await auditEventRow.locator("time").textContent())?.trim();
+    const revisionLabel = (await auditEventRow.getByText(/^Revision \d+$/, { exact: true }).textContent())?.trim();
+    assert(dateLabel && revisionLabel, "Audit event does not expose the expected date and revision labels.");
+    const auditQueries = [
+      auditEvent.event_type,
+      auditEvent.actor,
+      auditEvent.actor_label,
+      auditEvent.summary,
+      created.case_id,
+      created.citizen_ref,
+      dateLabel,
+      revisionLabel,
+    ];
+    for (const query of auditQueries) {
+      await assertAuditSearch(page, query, auditEvent.summary);
+    }
+
+    await page.goto(`${baseUrl}/officer/audit?q=a&q=b`, { waitUntil: "networkidle" });
+    await page.getByText("Results for “a”", { exact: true }).waitFor();
+
+    await page.goto(`${baseUrl}/officer/audit`, { waitUntil: "networkidle" });
+    const auditSearch = page.getByRole("searchbox", { name: "Search audit events", exact: true });
+    await auditSearch.fill(created.citizen_ref);
+    await auditSearch.press("Enter");
+    await page.getByText(`Results for “${created.citizen_ref}”`, { exact: true }).waitFor();
+    assert(await page.getByRole("row").filter({ hasText: created.citizen_ref }).count() > 0, "Audit search did not retain matching case events.");
+    await auditSearch.fill("no matching synthetic audit event");
+    await auditSearch.press("Enter");
+    await page.getByText("No audit events match this search.", { exact: true }).waitFor();
+    await page.getByRole("link", { name: "Clear search", exact: true }).click();
+    await page.waitForLoadState("networkidle");
+    await page.getByText("All recorded events", { exact: true }).waitFor();
     await page.setViewportSize({ width: 320, height: 700 });
     const auditRegion = page.getByRole("region", { name: "Audit events table", exact: true });
     await auditRegion.waitFor();

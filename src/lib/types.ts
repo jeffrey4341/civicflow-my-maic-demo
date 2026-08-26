@@ -45,8 +45,11 @@ export type Urgency = "low" | "normal" | "high" | "urgent" | "flood_risk";
 export type PiiRisk = "low" | "medium" | "high";
 
 /**
- * Case lifecycle:
- * draft -> needs_info -> submitted -> manual_review -> routed -> awaiting_supervisor -> in_progress -> closed
+ * Conditional case lifecycle:
+ * draft -> submitted -> [needs_info | manual_review | awaiting_supervisor | routed]
+ * awaiting_supervisor -> routed (supervisor approval)
+ * routed -> in_progress (reply release + explicit start work) -> closed (human action)
+ * Missing information and manual review take priority before approval evaluation.
  */
 export type CaseStatus =
   | "draft"
